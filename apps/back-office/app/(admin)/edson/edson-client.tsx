@@ -1170,6 +1170,12 @@ export function EdsonClient({ clinics, providers, providersFiltro, carriers, law
                      * paciente, más abajo.
                      */
                     const autorFila = row.appointment.createdBy ?? row.caseCreatedBy;
+                    /*
+                     * La GENTE del caso: el abogado y los encargados juntos, que
+                     * es lo que el panel de la columna Attorney muestra. Ver la
+                     * nota del badge, más abajo.
+                     */
+                    const gente = row.managerCount + (row.attorneyName ? 1 : 0);
                     return (
                       <Fragment key={row.caseId}>
                       <DataTable.Row style={rowBg ? { background: rowBg } : undefined}>
@@ -1570,13 +1576,42 @@ export function EdsonClient({ clinics, providers, providersFiltro, carriers, law
                                 * encargados: el resto de la celda pasó a editar
                                 * el abogado, y dos acciones no pueden compartir
                                 * el mismo clic.
+                                *
+                                * ── Cuenta al ABOGADO, no solo a los encargados ──
+                                *
+                                * `managerCount` sale de un COUNT sobre
+                                * `case_managers`, así que el abogado nunca entró.
+                                * Mientras el panel era solo de encargados estaba
+                                * bien; desde que tiene su sección ATTORNEY, el
+                                * badge contaba la mitad de lo que el panel
+                                * muestra — y adentro del MISMO panel el botón ya
+                                * decía "Copy 2 emails", que sí suma al abogado.
+                                * Dos contadores del mismo panel contradiciéndose.
+                                *
+                                * Lo marcó Edson el 2026-10-05. Lo suyo eran las
+                                * filas que decían 1 teniendo 2; lo gordo son las
+                                * otras: medidas sobre la cola, **57 de 249**
+                                * mostraban un 0 PUNTEADO —el estilo de "acá no
+                                * hay nadie"— teniendo un abogado adentro. El
+                                * badge les estaba diciendo que no miraran.
+                                *
+                                * Se cuenta `attorneyName`, que es
+                                * COALESCE(el del catálogo, el escrito a mano): lo
+                                * mismo que decide si el panel dibuja la tarjeta
+                                * del abogado. Así el número y el panel no se
+                                * pueden volver a separar.
+                                *
+                                * NO se arregló en la API sumándolo al SQL: el
+                                * dato ya viaja en la fila y un `manager_count`
+                                * que no cuente managers sería una mentira en el
+                                * nombre.
                                 */}
                               <span className={`flex items-center gap-0.5 text-[9.5px] font-semibold px-1.5 rounded-full ${
-                                row.managerCount > 0
+                                gente > 0
                                   ? 'bg-brand/15 text-brand-text'
                                   : 'border border-dashed border-border-strong text-text-muted'
                               }`}>
-                                <Users className="w-2.5 h-2.5" />{row.managerCount}
+                                <Users className="w-2.5 h-2.5" />{gente}
                               </span>
                             </button>
                             {managersFor === row.caseId && anchorRect && (

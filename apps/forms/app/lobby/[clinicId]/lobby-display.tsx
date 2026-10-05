@@ -13,6 +13,7 @@
 
 import { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo } from 'react';
 import type { ReactNode } from 'react';
+import { BrandMark } from '@/components/brand-mark';
 // ─── Shared types (mirrored from API route — cannot import across [param] routes) ─
 
 interface LobbyPatient {
@@ -744,23 +745,8 @@ export function LobbyDisplay({ clinicId, clinicName }: Props) {
         }}>
           {/* Logo + clinic */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1 }}>
-            {/* PM badge */}
-            <div style={{
-              width:           48, height:         48,
-              borderRadius:    12,
-              background:      'linear-gradient(135deg, #06B6D4, #8B5CF6)',
-              display:         'flex',
-              alignItems:      'center',
-              justifyContent:  'center',
-              fontWeight:      900,
-              fontSize:        16,
-              color:           '#fff',
-              letterSpacing:   '0.05em',
-              flexShrink:      0,
-              boxShadow:       '0 0 20px rgba(99,102,241,0.35)',
-            }}>
-              PM
-            </div>
+            {/* El logo de la marca (cruz con electro), el mismo del back-office y los portales. */}
+            <BrandMark size={48} />
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.40)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 2 }}>
                 Precision Medical

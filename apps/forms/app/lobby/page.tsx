@@ -8,6 +8,7 @@
 
 import Link   from 'next/link';
 import { db } from '@precision-medical/database';
+import { BrandMark } from '@/components/brand-mark';
 
 export const metadata = {
   title:  'Lobby TV · Precision Medical',
@@ -22,7 +23,7 @@ interface Props {
 
 export default async function LobbyIndexPage({ searchParams }: Props) {
   const { lang } = await searchParams;
-  const es = lang !== 'en'; // default español
+  const es = lang === 'es'; // default inglés (Erick, 2026-10-05): el de casi todos los pacientes
 
   // Solo clínicas con al menos 1 cita
   const clinicsWithAppts = await db.clinic.findMany({
@@ -75,13 +76,7 @@ export default async function LobbyIndexPage({ searchParams }: Props) {
             <Link href="?lang=en" className={`lang-btn ${!es ? 'active' : 'inactive'}`}>EN</Link>
           </div>
 
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            width: 64, height: 64, borderRadius: 16,
-            background: 'linear-gradient(135deg, #06B6D4, #8B5CF6)',
-            fontSize: 22, fontWeight: 900, color: '#fff',
-            marginBottom: 20, boxShadow: '0 0 32px rgba(99,102,241,0.40)',
-          }}>PM</div>
+          <div style={{ marginBottom: 20 }}><BrandMark size={64} /></div>
 
           <h1 style={{ fontSize: 28, fontWeight: 900, color: '#fff', margin: 0, letterSpacing: '-0.02em' }}>
             {es ? 'Sala de Espera' : 'Waiting Room'}

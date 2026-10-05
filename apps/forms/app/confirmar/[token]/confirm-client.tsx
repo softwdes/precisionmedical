@@ -383,7 +383,7 @@ const ZONA = 'America/Denver';
 export function ConfirmarClient({ datos }: { datos: DatosConfirmacion }) {
   const router = useRouter();
 
-  const [lang, setLang]       = useState<Lang>('es');
+  const [lang, setLang]       = useState<Lang>('en');
   const [firma, setFirma]     = useState<string | null>(null);
   const [enviando, setEnv]    = useState(false);
   const [error, setError]     = useState('');

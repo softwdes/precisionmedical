@@ -7,7 +7,7 @@ const messages = { es: esMessages, en: enMessages } as const;
 
 export default getRequestConfig(async () => {
   const cookieStore = await cookies();
-  const locale = (cookieStore.get('locale')?.value ?? 'es') as 'es' | 'en';
+  const locale = (cookieStore.get('locale')?.value ?? 'en') as 'es' | 'en';
 
   return {
     locale,

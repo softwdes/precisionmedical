@@ -24,7 +24,7 @@ const BodySchema = z.object({
   firstName: z.string().min(1).max(100).trim(),
   lastName:  z.string().min(1).max(100).trim(),
   phone:     z.string().min(7).max(20).trim(),
-  language:  z.enum(['es', 'en']).default('es'),
+  language:  z.enum(['es', 'en']).default('en'),
 });
 
 function generateToken(): string {

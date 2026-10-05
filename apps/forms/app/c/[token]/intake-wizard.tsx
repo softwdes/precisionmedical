@@ -25,6 +25,7 @@ import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useSta
 import { useRouter } from 'next/navigation';
 import { US_STATES, CITIES_BY_STATE, CITY_ZIP } from '@/lib/us-locations';
 import { TEL_CLINICA } from '@/lib/clinica';
+import { BrandMark } from '@/components/brand-mark';
 import { comprimirImagen } from '@/lib/comprimir-imagen';
 // Subpath, no el barrel: el barrel instancia PrismaClient y esto es un client
 // component. Mismo criterio que `@precision-medical/database/age`.
@@ -2617,11 +2618,7 @@ export function IntakeWizard({
       <div style={S.topBar}>
         <div style={{ maxWidth: 480, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 8 }}>
           {/* Logo chip */}
-          <div style={{
-            padding: '4px 10px', borderRadius: 20, flexShrink: 0,
-            background: 'rgba(6,182,212,0.10)', border: '1px solid rgba(6,182,212,0.25)',
-            fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: CYAN,
-          }}>PM</div>
+          <BrandMark size={28} glow={false} />
 
           {/* Los segmentos de progreso se fueron de acá a su propia fila, abajo:
               eran de 4px de alto y no comunicaban nada. Este hueco mantiene los

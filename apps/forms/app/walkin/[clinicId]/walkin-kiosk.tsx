@@ -163,7 +163,7 @@ const COPY = {
 } as const;
 
 export function WalkinKiosk({ clinicId, clinicName }: WalkinKioskProps) {
-  const [lang,      setLang]      = useState<'es' | 'en'>('es');
+  const [lang,      setLang]      = useState<'es' | 'en'>('en');
   const [firstName, setFirstName] = useState('');
   const [lastName,  setLastName]  = useState('');
   const [phone,     setPhone]     = useState('');

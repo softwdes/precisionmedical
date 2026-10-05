@@ -53,11 +53,17 @@ function parseDateLocal(s: string): Date {
 export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const { token } = await ctx.params;
 
-  // El `portalToken` es la única puerta a la ficha completa del paciente y hoy
-  // se genera con `Date.now()` + `Math.random()` (ver `generate-portal-token` en
-  // el back-office), que no es criptográfico: el tiempo se adivina y el resto es
-  // un generador predecible. Mientras ese token siga así, el freno es lo que
-  // separa "débil" de "se rompe a fuerza bruta".
+  // El `portalToken` es la única puerta a la ficha completa del paciente.
+  //
+  // Este comentario decía que se generaba con `Date.now()` + `Math.random()`.
+  // Ya no: `generarPortalToken` (back-office, lib/portal-token.ts) usa
+  // `randomBytes(24)` —192 bits— y el kiosco de walk-in también. Medido el
+  // 2026-10-05: los 136 tokens que existen en la base son del formato nuevo y no
+  // queda ninguno del viejo. Adivinar uno es inviable; el freno que sigue ya no
+  // es lo que separa "débil" de "se rompe", sino un tope de costo y de abuso.
+  //
+  // Lo que SÍ sigue abierto es que el token no vence: 93 casos con la admisión ya
+  // completada conservan un link que abre y escribe la ficha. Ver portal-token.ts.
   //
   // 30 cada 10 minutos: el wizard recarga esta ruta unas pocas veces por sesión
   // —al abrir, al volver de una foto, al reabrir el link— y no se acerca.

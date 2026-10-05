@@ -1,12 +1,16 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { cookieDeStaging, igualesSinCortar } from '@/lib/staging-gate';
 
 const STAGING_PW = process.env.STAGING_PASSWORD;
 const COOKIE     = 'pm_stg';
 
-export function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   if (!STAGING_PW) return NextResponse.next();
-  if (req.cookies.get(COOKIE)?.value === STAGING_PW) return NextResponse.next();
+  // La cookie lleva un hash derivado (no la contraseña) y se compara sin cortar
+  // en la primera diferencia. Ver lib/staging-gate.ts.
+  const cookie = req.cookies.get(COOKIE)?.value ?? '';
+  if (cookie && igualesSinCortar(cookie, await cookieDeStaging(STAGING_PW))) return NextResponse.next();
 
   const callbackUrl = encodeURIComponent(req.nextUrl.pathname + req.nextUrl.search);
 

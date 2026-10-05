@@ -47,11 +47,40 @@ const nextConfig = {
    *  · noindex: ningún buscador debe listar `/c/<token>`, `/confirmar/<token>`
    *    ni la consulta de cita.
    *
-   * No hay CSP todavía: Next inyecta scripts en línea y una CSP estricta pide
-   * nonces por request. Es el siguiente paso, no un detalle.
+   * CSP: entra en modo SOLO-REPORTE (`Content-Security-Policy-Report-Only`): el
+   * navegador avisa en la consola de lo que bloquearía, pero NO bloquea nada.
+   * Esta app maneja kioscos y formularios en uso con pacientes; activarla de
+   * golpe y descubrir en producción que se llevó puesta la foto del ID o el
+   * service worker sería peor que no tenerla. Se pasa a `Content-Security-Policy`
+   * cuando un tiempo de uso real no haya dejado avisos.
+   *
+   * Es una CSP pragmática, no la estricta: Next.js inyecta scripts en línea y
+   * una política sin 'unsafe-inline' exige nonces por request. Lo que SÍ da
+   * ya: nada de scripts, estilos ni conexiones a dominios que no sean los de la
+   * lista, ningún iframe ajeno, formularios solo hacia este sitio, ni etiquetas
+   * base u object inyectadas.
    */
   async headers() {
+    const dev = process.env.NODE_ENV === 'development';
+    const csp = [
+      "default-src 'self'",
+      `script-src 'self' 'unsafe-inline'${dev ? " 'unsafe-eval'" : ''}`,
+      "style-src 'self' 'unsafe-inline'",
+      // blob: para la vista previa de la foto del ID antes de subirla; supabase para las ya subidas.
+      "img-src 'self' data: blob: https://*.supabase.co",
+      "font-src 'self' data:",
+      `connect-src 'self' https://*.supabase.co https://*.sentry.io https://*.ingest.sentry.io${dev ? ' ws: wss:' : ''}`,
+      "media-src 'self' blob:",
+      // el service worker (serwist) y sus workers
+      "worker-src 'self' blob:",
+      "manifest-src 'self'",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'none'",
+    ].join('; ');
     const seguras = [
+      { key: 'Content-Security-Policy-Report-Only', value: csp },
       { key: 'X-Frame-Options', value: 'DENY' },
       { key: 'X-Content-Type-Options', value: 'nosniff' },
       { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },

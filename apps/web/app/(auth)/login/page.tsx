@@ -88,38 +88,33 @@ export default function LoginPage(): React.ReactElement {
     await new Promise(r => setTimeout(r, 0));
     let navigating = false;
     try {
-      // 1 — ¿la cuenta está cerrada? Se pregunta ANTES de mandar la contraseña.
-      //
-      // Si la consulta falla, el módulo del candado responde "abierta" y lo
-      // deja pasar: un hipo del Admin no puede dejar a nadie sin entrar. La
-      // falla queda en los logs del servidor con el prefijo [candado].
-      try {
-        const res  = await fetch(`/api/auth/lockout?email=${encodeURIComponent(email)}`);
-        const dato = await res.json() as { locked?: boolean };
-        if (dato.locked) {
-          setError('Account locked after 3 failed attempts. You can sign in again tomorrow.');
-          return;
-        }
-      } catch { /* ver arriba: se deja pasar */ }
-
-      const {error:ae}=await createBrowserClient().auth.signInWithPassword({email,password});
-
-      // 2 — Queda registrado el intento
-      // Se ESPERA el registro del intento, en vez de dispararlo y olvidarlo: la
-      // respuesta dice cuántos quedan, y sin eso la pantalla no puede avisar. Es
-      // un viaje de más solo cuando la contraseña estuvo mal.
-      const marca = fetch('/api/auth/lockout', {
+      /*
+       * UNA sola llamada, y la autenticación ocurre en el SERVIDOR.
+       *
+       * Antes esta pantalla le hablaba directo a Supabase y después le avisaba
+       * a nuestra API si había fallado. Todo el candado colgaba de esa
+       * confesión: quien ataca podía no avisar —y probar contraseñas sin gastar
+       * intentos— o avisar de más y trabar cuentas ajenas.
+       *
+       * Ahora el servidor intenta la contraseña él mismo y cuenta lo que vio.
+       * La sesión queda abierta en las mismas cookies de siempre.
+       */
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email, success: !ae }),
+        body: JSON.stringify({ email, password }),
       });
-      if (!ae) { void marca; }
+      const r = await res.json().catch(() => ({})) as {
+        ok?: boolean; locked?: boolean; restantes?: number; error?: string;
+      };
 
-      if (ae) {
-        const r = await marca.then(x => x.json()).catch(() => ({})) as
-          { restantes?: number; locked?: boolean };
+      if (res.status === 429) {
+        setError('Too many attempts from this network. Try again in a few minutes.');
+        return;
+      }
+      if (!r.ok) {
         setError(
-          r.locked      ? 'Account locked after 3 failed attempts. You can sign in again tomorrow.'
+          r.locked           ? 'Account locked after 3 failed attempts. You can sign in again tomorrow.'
           : r.restantes === 1 ? 'Incorrect password. You have 1 attempt left before the account locks until tomorrow.'
           :                     'Invalid credentials. Please try again.');
         return;

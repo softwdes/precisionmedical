@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { BrandMark } from '@/components/brand-mark';
+import { TEL_CLINICA } from '@/lib/clinica';
 
 interface ApptResult {
   ok: boolean;
@@ -19,14 +21,15 @@ interface ApptResult {
 const T = {
   es: {
     title: 'Consulta tu cita',
-    sub: 'Ingresa el código de tu caso para ver tu próxima cita',
-    tabCase: 'Código de caso',
-    tabAppt: 'N.° de cita',
-    phCase: 'Ej: CASE-1127',
-    phAppt: 'Ej: APT-00342',
+    sub: 'Ingresa el código de tu caso y tu fecha de nacimiento para ver tu próxima cita',
+    codeLabel: 'Código de caso',
+    dobLabel: 'Fecha de nacimiento',
+    phCase: 'Ej: GM-1234 o MVA-1234',
     search: 'Buscar',
     hint: 'Encuéntralo en tu mensaje de confirmación.',
-    notFound: 'Código no encontrado. Verifica e intenta de nuevo.',
+    notFound: 'No encontramos una cita con esos datos. Revisa el código y la fecha de nacimiento, o llámanos.',
+    tooMany: 'Demasiados intentos. Espera un rato o llámanos.',
+    needBoth: 'Escribe el código y tu fecha de nacimiento.',
     today: 'Hoy',
     apptToday: 'Tu cita es hoy',
     inDays: (n: number) => `En ${n} día${n !== 1 ? 's' : ''}`,
@@ -43,14 +46,15 @@ const T = {
   },
   en: {
     title: 'Check your appointment',
-    sub: 'Enter your case code to see your upcoming appointment',
-    tabCase: 'Case code',
-    tabAppt: 'Appt. number',
-    phCase: 'E.g. CASE-1127',
-    phAppt: 'E.g. APT-00342',
+    sub: 'Enter your case code and your date of birth to see your upcoming appointment',
+    codeLabel: 'Case code',
+    dobLabel: 'Date of birth',
+    phCase: 'E.g. GM-1234 or MVA-1234',
     search: 'Search',
     hint: "You'll find it in your confirmation message.",
-    notFound: 'Code not found. Please verify and try again.',
+    notFound: "We couldn't find an appointment with that information. Check the code and your date of birth, or call us.",
+    tooMany: 'Too many attempts. Please wait a while or call us.',
+    needBoth: 'Enter the code and your date of birth.',
     today: 'Today',
     apptToday: 'Your appointment is today',
     inDays: (n: number) => `In ${n} day${n !== 1 ? 's' : ''}`,
@@ -68,32 +72,37 @@ const T = {
 };
 
 export default function CitaPage() {
-  const [lang, setLang]     = useState<'es'|'en'>('es');
+  const [lang, setLang]     = useState<'es'|'en'>('en');
   const [query, setQuery]   = useState('');
-  const [tab, setTab]       = useState<'case'|'appt'>('case');
+  const [dob, setDob]       = useState('');
   const [result, setResult] = useState<ApptResult | null>(null);
-  const [error, setError]   = useState(false);
+  const [error, setError]   = useState<null | 'notFound' | 'tooMany' | 'needBoth'>(null);
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const t = T[lang];
 
   async function search() {
     const code = query.trim().toUpperCase();
-    if (!code) return;
-    setLoading(true); setError(false); setResult(null);
+    if (!code || !dob) { setError('needBoth'); return; }
+    setLoading(true); setError(null); setResult(null);
     try {
-      const res = await fetch(`/api/cita/${encodeURIComponent(code)}`, {
-        headers: { 'ngrok-skip-browser-warning': 'true' },
+      // POST con cuerpo: la fecha de nacimiento no debe viajar en la URL (logs,
+      // historial del navegador, Referer).
+      const res = await fetch('/api/cita', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+        body: JSON.stringify({ code, dob }),
       });
-      if (!res.ok) { setError(true); return; }
+      if (res.status === 429) { setError('tooMany'); return; }
+      if (!res.ok) { setError('notFound'); return; }
       const data = await res.json();
-      if (!data.ok) { setError(true); return; }
+      if (!data.ok) { setError('notFound'); return; }
       setResult(data);
-    } catch { setError(true); }
+    } catch { setError('notFound'); }
     finally { setLoading(false); }
   }
 
-  function reset() { setResult(null); setQuery(''); setError(false); setTimeout(() => inputRef.current?.focus(), 100); }
+  function reset() { setResult(null); setQuery(''); setDob(''); setError(null); setTimeout(() => inputRef.current?.focus(), 100); }
 
   const locale = lang === 'es' ? 'es-US' : 'en-US';
   const scheduled = result ? new Date(result.scheduledFor) : null;
@@ -164,6 +173,11 @@ export default function CitaPage() {
         .search-card.slim .tabs { display: none; }
 
         .row { display: flex; gap: 8px; }
+        .fields { display: flex; flex-direction: column; gap: 6px; }
+        .flbl { color: rgba(255,255,255,.45); font-size: 11px; font-weight: 700; letter-spacing: .06em;
+          text-transform: uppercase; margin-top: 6px; }
+        .inp-date { flex: none; width: 100%; color-scheme: dark; text-transform: none; letter-spacing: 0; }
+        .go-full { width: 100%; margin-top: 12px; height: 46px; }
         .inp { flex: 1; height: 44px; background: rgba(255,255,255,.05);
           border: 1px solid rgba(255,255,255,.11); border-radius: 9px;
           padding: 0 14px; color: #fff; font-size: 14px; font-weight: 600;
@@ -262,7 +276,7 @@ export default function CitaPage() {
 
         {/* Logo */}
         <div className={`logo ${result ? 'shrink' : ''}`}>
-          <div className="mark">PM</div>
+          <BrandMark size={40} />
           <div>
             <div className="logo-text">Precision Medical</div>
             <div className="logo-sub">Patient Portal</div>
@@ -278,29 +292,37 @@ export default function CitaPage() {
             </div>
             <div className="s-body">
               {!result && (
-                <div className="tabs">
-                  <div className={`tab ${tab==='case'?'on':''}`} onClick={()=>setTab('case')}>{t.tabCase}</div>
-                  <div className={`tab ${tab==='appt'?'on':''}`} onClick={()=>setTab('appt')}>{t.tabAppt}</div>
-                </div>
+                <form className="fields" onSubmit={e => { e.preventDefault(); void search(); }} autoComplete="off">
+                  <label className="flbl" htmlFor="cita-code">{t.codeLabel}</label>
+                  <input
+                    id="cita-code"
+                    ref={inputRef}
+                    className="inp"
+                    placeholder={t.phCase}
+                    value={query}
+                    maxLength={40}
+                    onChange={e => setQuery(e.target.value.toUpperCase())}
+                  />
+                  <label className="flbl" htmlFor="cita-dob">{t.dobLabel}</label>
+                  <input
+                    id="cita-dob"
+                    className="inp inp-date"
+                    type="date"
+                    min="1900-01-01"
+                    max={new Date().toISOString().slice(0, 10)}
+                    value={dob}
+                    onChange={e => setDob(e.target.value)}
+                  />
+                  <button className="go go-full" type="submit" disabled={loading}>
+                    {loading ? '…' : t.search}
+                  </button>
+                </form>
               )}
-              <div className="row">
-                <input
-                  ref={inputRef}
-                  className="inp"
-                  placeholder={tab==='case' ? t.phCase : t.phAppt}
-                  value={query}
-                  onChange={e => setQuery(e.target.value.toUpperCase())}
-                  onKeyDown={e => e.key==='Enter' && search()}
-                />
-                <button className="go" onClick={search} disabled={loading}>
-                  {loading ? '…' : t.search}
-                </button>
-              </div>
               {result
                 ? <button className="new-btn" onClick={reset}>{t.newSearch}</button>
                 : <div className="hint">{t.hint}</div>
               }
-              {error && <div className="err">{t.notFound}</div>}
+              {error && <div className="err" role="alert">{t[error]} <a href={`tel:${TEL_CLINICA.replace(/D/g, '')}`} style={{ color: 'inherit', fontWeight: 700 }}>{TEL_CLINICA}</a></div>}
             </div>
           </div>
         </div>

@@ -31,6 +31,36 @@ const nextConfig = {
     remotePatterns: [{ protocol: 'https', hostname: '*.supabase.co' }],
   },
   allowedDevOrigins: ['*.ngrok-free.dev', '*.ngrok.io'],
+
+  /**
+   * Cabeceras de seguridad. Esta app es PÚBLICA (sin sesión) y maneja datos de
+   * pacientes, y no mandaba ninguna.
+   *
+   *  · X-Frame-Options / frame-ancestors: nadie puede incrustar estas pantallas
+   *    en otra página (clickjacking: superponer un botón invisible sobre el
+   *    formulario de firma).
+   *  · nosniff: el navegador no adivina el tipo de un archivo subido.
+   *  · Referrer-Policy: las rutas llevan el token en la URL; que no viaje a
+   *    terceros.
+   *  · Permissions-Policy: la cámara se permite SOLO acá (fotos del ID en el
+   *    intake); micrófono, ubicación y pagos, no.
+   *  · noindex: ningún buscador debe listar `/c/<token>`, `/confirmar/<token>`
+   *    ni la consulta de cita.
+   *
+   * No hay CSP todavía: Next inyecta scripts en línea y una CSP estricta pide
+   * nonces por request. Es el siguiente paso, no un detalle.
+   */
+  async headers() {
+    const seguras = [
+      { key: 'X-Frame-Options', value: 'DENY' },
+      { key: 'X-Content-Type-Options', value: 'nosniff' },
+      { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+      { key: 'Permissions-Policy', value: 'camera=(self), microphone=(), geolocation=(), payment=()' },
+      { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
+      { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
+    ];
+    return [{ source: '/:path*', headers: seguras }];
+  },
 };
 
 // Sentry wrapper — solo activo en CI/prod (DSN requerido).

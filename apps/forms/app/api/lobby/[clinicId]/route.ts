@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createHash } from 'node:crypto';
 import { db, VIGENTES } from '@precision-medical/database';
 
 /**
@@ -14,7 +15,7 @@ import { db, VIGENTES } from '@precision-medical/database';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface LobbyPatient {
-  id:           string;   // appointment ID (safe — no PHI)
+  id:           string;   // id OPACO (hash): el de la cita no sale de la base — ver idOpaco
   display:      string;   // "E.S - 62" — HIPAA-safe display token
   doctorName:   string | null;
   checkedInAt:  string | null;
@@ -54,6 +55,20 @@ export interface LobbyResponse {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Un id OPACO para la pantalla: el real no sale de la base.
+ *
+ * Esta ruta es pública (la URL está en la TV) y devolvía el id verdadero de cada
+ * cita con el comentario "safe — no PHI". No es PHI, pero SÍ era una llave:
+ * `/api/cita` aceptaba ese id para buscar la cita, así que cualquiera que mirara
+ * la TV se saltaba el código de caso y llegaba al nombre de pila, el especialista
+ * y la hora. El hash de un cuid no se puede invertir a un cuid, y a la pantalla
+ * le basta con una clave estable para pintar y resaltar filas.
+ */
+function idOpaco(id: string): string {
+  return createHash('sha256').update(id).digest('hex').slice(0, 16);
+}
 
 /**
  * Anonymize patient: "Sandra López" + "MVA-2865" → "S.L - 65"
@@ -141,7 +156,7 @@ export async function GET(
     const doctorName = a.provider ? a.provider.firstName : null;
 
     const base: LobbyPatient = {
-      id:           a.id,
+      id:           idOpaco(a.id),
       display,
       doctorName,
       checkedInAt:  a.checkedInAt?.toISOString() ?? null,

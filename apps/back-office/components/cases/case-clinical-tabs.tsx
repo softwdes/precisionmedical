@@ -529,9 +529,16 @@ export function CaseLabsTab({ caseId, patientId, clinical, visitId }: ClinicalTa
 
 // ─── Tab: Prescription — recetas ScriptSure + conciliación, espejo del doctor ─
 
-export function CaseRxTab({ caseId, canPrescribe, clinical, visitId }: ClinicalTabProps & {
+export function CaseRxTab({ caseId, patientId, canPrescribe, clinical, visitId }: ClinicalTabProps & {
   /** true solo en la variante doctor — habilita "Repetir" (refill) */
   canPrescribe: boolean;
+  /**
+   * Para poder recetar cuando el caso NO tiene ninguna visita.
+   *
+   * Devin (2026-10-05): las renovaciones que manda la farmacia no nacen de una
+   * consulta, y antes el botón simplemente no existía — ver `openNewRx`.
+   */
+  patientId: string;
 }): React.ReactElement {
   const t = useTranslations('phoenix.caseTabs.clinical');
   const td = useTranslations('phoenix.doctor');
@@ -601,15 +608,31 @@ export function CaseRxTab({ caseId, canPrescribe, clinical, visitId }: ClinicalT
   const rxTargetId = visitaDestino(visits, visitId, latestAppointmentId)?.appointmentId ?? null;
 
   const openNewRx = async (): Promise<void> => {
-    if (!rxTargetId) return;
     setWidgetOpen(true);
     setWidgetStatus('loading');
     setWidgetUrl(null);
     setWidgetError(null);
-    syncApptRef.current = rxTargetId;
+    /**
+     * Con visita se receta sobre ELLA; sin ninguna, sobre el paciente.
+     *
+     * La ruta por cita sigue siendo la principal y no cambia: ata la receta a
+     * la consulta, que es de donde salen la atribución y el prescriptor. La de
+     * paciente es para lo que no nace de una consulta —una renovación que pide
+     * la farmacia— y ahí el prescriptor es quien está logueado.
+     */
+    syncApptRef.current = rxTargetId;   // null sin visita: no hay qué sincronizar
     try {
-      const res = await fetch(`/api/admin/scriptsure/widget/${rxTargetId}?widget=drug-list`);
-      if (res.status === 403) { setWidgetStatus('forbidden'); return; }
+      const res = await fetch(rxTargetId
+        ? `/api/admin/scriptsure/widget/${rxTargetId}?widget=drug-list`
+        : `/api/admin/scriptsure/patient-widget/${patientId}?widget=drug-list`);
+      if (res.status === 403) {
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        // Sin visita el prescriptor es quien mira, así que un no-provider no
+        // puede: se dice ESO y no el "no es tu consulta" genérico.
+        if (body?.error === 'NO_PRESCRIBER') setWidgetError(td('rxNoPrescriber'));
+        setWidgetStatus('forbidden');
+        return;
+      }
       if (res.status === 409) {
         const body = (await res.json().catch(() => null)) as { error?: string } | null;
         setWidgetStatus(body?.error === 'NO_SCRIPTSURE_USER' ? 'no_scriptsure_user' : 'not_onboarded');
@@ -631,7 +654,10 @@ export function CaseRxTab({ caseId, canPrescribe, clinical, visitId }: ClinicalT
         setWidgetOpen(false);
         setFaltantes((body?.missingFields ?? []) as CampoFaltante[]);
         setMotivoDemog(body?.error === 'PATIENT_ADDRESS_TOO_LONG' ? 'muy-larga' : 'faltan');
-        setDemogPara({ appointmentId: rxTargetId, rx: null });
+        // El formulario de datos es por CITA. Sin visita no hay por dónde
+        // ofrecerlo acá, así que queda el aviso y se corrige en la ficha.
+        if (rxTargetId) { setDemogPara({ appointmentId: rxTargetId, rx: null }); }
+        else { setWidgetOpen(true); setWidgetStatus('missing_address'); }
         return;
       }
       if (!res.ok) { setWidgetStatus('error'); return; }
@@ -656,7 +682,11 @@ export function CaseRxTab({ caseId, canPrescribe, clinical, visitId }: ClinicalT
     <div className="space-y-4">
       {/* Prescribir — SOLO doctor. Mismo CTA violet del tab de la consulta,
           abre el widget Drug List sobre la visita más reciente. */}
-      {canPrescribe && rxTargetId && (
+      {/* Antes exigía `rxTargetId`, o sea una visita, y por eso en un caso sin
+          consultas el botón no existía: Devin se topó con eso el 2026-10-05
+          justo con las renovaciones que manda la farmacia, que no nacen de
+          ninguna consulta. */}
+      {canPrescribe && (
         <button
           type="button"
           onClick={() => void openNewRx()}
@@ -672,7 +702,11 @@ export function CaseRxTab({ caseId, canPrescribe, clinical, visitId }: ClinicalT
           </div>
           <div className="relative min-w-0 flex-1">
             <div className="text-[15px] font-bold text-white tracking-tight">{td('rxNewPrescription')}</div>
-            <div className="text-[11.5px] text-white/75 mt-0.5">{td('rxNewPrescriptionHint')}</div>
+            {/* Sin visita la receta no queda atada a ninguna consulta, y eso
+                cambia de qué cuelga. Se dice ANTES de abrir, no después. */}
+            <div className="text-[11.5px] text-white/75 mt-0.5">
+              {rxTargetId ? td('rxNewPrescriptionHint') : td('rxSinVisitaHint')}
+            </div>
           </div>
           <ArrowRight className="relative w-5 h-5 text-white/80 shrink-0 transition-transform duration-200 group-hover:translate-x-1" />
         </button>

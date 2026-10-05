@@ -1024,7 +1024,7 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
         <CaseLabsTab caseId={caseInfo.id} patientId={caseInfo.patient.id} clinical={clinical} visitId={visitId} />
       )}
       {activeTab === 'rx' && (
-        <CaseRxTab caseId={caseInfo.id} canPrescribe={!isAttorney} clinical={clinical} visitId={visitId} />
+        <CaseRxTab caseId={caseInfo.id} patientId={caseInfo.patient.id} canPrescribe={!isAttorney} clinical={clinical} visitId={visitId} />
       )}
       {activeTab === 'servicios' && (
         <CaseServicesTab caseId={caseInfo.id} clinical={clinical} visitId={visitId} />

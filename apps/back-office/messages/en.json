@@ -2321,7 +2321,9 @@
       "tplScopeAjenaHint": "Someone else created this template, so it can't move to your list: the rest of the clinic would lose it and you wouldn't see it either. If you want your own, copy it into a new one.",
       "templatesSubtitleAdmin": "{shared} from the clinic · {personal} providers' own",
       "caseAddendumReopened": "This note is reopened for corrections, so it is still edited directly. Sign it again and you'll be able to add an addendum.",
-      "caseAddendumUnsigned": "An addendum adds something to a note that is already signed. While it is unsigned, the text is corrected in the note itself."
+      "caseAddendumUnsigned": "An addendum adds something to a note that is already signed. While it is unsigned, the text is corrected in the note itself.",
+      "rxSinVisitaHint": "No visit: the prescription goes under your name and isn't tied to an encounter",
+      "rxNoPrescriber": "Prescribing without a visit requires being a provider: it is signed under your own name, and there is no encounter to take the prescriber from."
     },
     "topbar": {
       "search": "Search firms, services, diagnoses...",

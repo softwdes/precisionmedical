@@ -172,7 +172,11 @@ export function ScriptSureWidgetDialog({
               </div>
               <div className="text-[12.5px] text-text-2 leading-relaxed">
                 <p className="text-text-1 font-medium mb-1">{t('rxForbiddenTitle')}</p>
-                <p>{t('rxForbiddenDesc')}</p>
+                {/* El motivo exacto cuando el server lo manda — recetar SIN
+                    visita se bloquea por una razón distinta que recetar en la
+                    consulta de otro, y decir la genérica manda a buscar el
+                    problema donde no está. */}
+                <p>{errorDetail ?? t('rxForbiddenDesc')}</p>
               </div>
             </div>
           </div>

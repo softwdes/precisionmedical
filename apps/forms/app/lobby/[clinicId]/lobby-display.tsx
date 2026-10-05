@@ -427,6 +427,9 @@ function CifoPanel({ scene, lang }: { scene: CifoScene; lang: Lang }) {
   const con = (n: string | null) => (n ? tx(lang, ` con ${n}`, ` with ${n}`) : '');
   let tag = '', big = '', sub = '', accent = '#6366F1';
   let gif = '/cifo-1.gif', mirror = true;
+  /* Alto máximo por GIF = poco más que su tamaño real. cifo-1/2 son de 200x356 px y
+     estirados a 620 px se veían pixelados; cifo-saluda es de 300x533. */
+  let maxH = 440;
 
   if (scene.kind === 'calling') {
     accent = '#059669';
@@ -450,6 +453,7 @@ function CifoPanel({ scene, lang }: { scene: CifoScene; lang: Lang }) {
                    `${scene.doctorName ? scene.doctorName + ' · ' : ''}${scene.elapsedMin} min`);
   } else {
     mirror = false;
+    gif = '/cifo-saluda.gif'; maxH = 533;
     tag = tx(lang, 'Bienvenido', 'Welcome');
     big = tx(lang, '¡Hola!', 'Hello!');
     sub = tx(lang, 'Avísanos en recepción si necesitas algo.', 'Let reception know if you need anything.');
@@ -481,7 +485,7 @@ function CifoPanel({ scene, lang }: { scene: CifoScene; lang: Lang }) {
         alt="CIFO"
         style={{
           position: 'absolute', left: '50%', bottom: 16,
-          height: 'min(62vh, 620px)', width: 'auto',
+          height: `min(62vh, ${maxH}px)`, width: 'auto',
           transform: `translateX(-50%)${mirror ? ' scaleX(-1)' : ''}`,
           filter: 'drop-shadow(0 20px 30px rgba(0,0,0,0.5))',
         }}

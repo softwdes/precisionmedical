@@ -45,6 +45,20 @@ import type { CaseVisitNote } from '@/app/api/admin/cases/[id]/visit-notes/route
 import { VisitNotePrintDialog } from './visit-note-print-dialog';
 
 /**
+ * Por qué no se puede agregar un addendum, dicho con las palabras de cada caso.
+ * El motivo lo decide el SERVIDOR (`motivoSinAddendum`); acá solo se traduce, así
+ * que la pantalla no puede quedar diciendo algo distinto de lo que la regla hace.
+ *
+ * Los tres llevan texto a propósito: el que falta es el que deja al médico
+ * buscando un botón que no está.
+ */
+const MOTIVO_SIN_ADDENDUM = {
+  'no-es-suya': 'caseAddendumNotYours',
+  'reabierta': 'caseAddendumReopened',
+  'sin-firmar': 'caseAddendumUnsigned',
+} as const;
+
+/**
  * Las 6 secciones, en el orden de la nota SOAP. Los títulos salen de las MISMAS
  * claves `sec_*` que usa el editor — si mañana se renombra una sección, cambia en
  * los dos lados sola.
@@ -352,12 +366,20 @@ export function CaseVisitNotes({ caseId, visitaEnfocada }: {
                   </div>
                 )}
 
-                {/* Por qué NO se puede, cuando la nota está firmada y es de otro
-                    provider. Se dice en vez de no mostrar nada: un pie mudo no
-                    distingue "la función no existe" de "no es para vos". */}
-                {n.status === 'SIGNED' && n.motivoSinAddendum === 'no-es-suya' && n.addenda.length === 0 && (
+                {/* Por qué NO se puede. Se dice en vez de no mostrar nada: un pie
+                    mudo no distingue "la función no existe" de "todavía no te
+                    toca".
+
+                    Antes solo se explicaba `no-es-suya`, y los otros dos motivos
+                    no dibujaban NADA —el bloque de arriba se esconde entero
+                    cuando no hay addenda ni permiso—. Justo ahí cayó Devin
+                    (2026-10-05): reabrió una nota para probar la reapertura y
+                    después buscó el addendum en esa misma nota, que mientras
+                    está reabierta no lo admite. No vio ni botón ni motivo. */}
+                {n.motivoSinAddendum && n.addenda.length === 0 && (
                   <div className="mt-3 pt-3 border-t border-row-sep text-[11px] text-text-muted flex items-start gap-1.5">
-                    <FilePlus2 className="w-3.5 h-3.5 shrink-0 mt-px" /> {t('caseAddendumNotYours')}
+                    <FilePlus2 className="w-3.5 h-3.5 shrink-0 mt-px" />
+                    {t(MOTIVO_SIN_ADDENDUM[n.motivoSinAddendum])}
                   </div>
                 )}
 

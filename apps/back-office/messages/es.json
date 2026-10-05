@@ -2319,7 +2319,9 @@
       "templatesSubtitleSplit": "{shared} de la clínica · {personal} mías",
       "tplFieldScope": "¿A qué lista va?",
       "tplScopeAjenaHint": "Esta plantilla la creó otra persona, así que no se puede pasar a tu lista: dejaría de verla el resto de la clínica y tampoco la verías vos. Si la querés propia, copiala en una nueva.",
-      "templatesSubtitleAdmin": "{shared} de la clínica · {personal} personales de providers"
+      "templatesSubtitleAdmin": "{shared} de la clínica · {personal} personales de providers",
+      "caseAddendumReopened": "Esta nota está reabierta para corregir, así que todavía se edita directamente. Firmala de nuevo y vas a poder agregarle un addendum.",
+      "caseAddendumUnsigned": "El addendum es para agregar algo a una nota ya firmada. Mientras está sin firmar, el texto se corrige en la nota misma."
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",

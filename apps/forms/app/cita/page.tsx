@@ -43,6 +43,18 @@ const T = {
     hipaa: 'Solo información básica de tu cita. Ningún dato médico visible.',
     newSearch: '↩',
     status: { PENDING:'Pendiente', SCHEDULED:'Confirmada', CONFIRMED:'Confirmada', CHECKED_IN:'Check-in', IN_PROGRESS:'En consulta', COMPLETED:'Completada' } as Record<string,string>,
+    cifo: {
+      idle:  ['Hola', '¡Hola! Soy CIFO. Para mostrarte tu cita necesito tu código y tu fecha de nacimiento.', 'Así protegemos tus datos.'],
+      code:  ['Paso 1 de 2', 'Tu código viene en el mensaje de confirmación que te enviamos.', 'Se ve así: GM-1234 o MVA-1234.'],
+      dob:   ['Paso 2 de 2', 'Ahora tu fecha de nacimiento.', 'La usamos solo para comprobar que eres tú.'],
+      ready: ['¡Listo!', 'Toca “Buscar” y te muestro tu cita.', ''],
+      load:  ['Un momento', 'Buscando tu cita…', ''],
+      need:  ['Falta algo', 'Escribe tu código y tu fecha de nacimiento.', ''],
+      err:   ['No la encontré', 'No encontré una cita con esos datos. Revisa el código y la fecha de nacimiento, o llámanos al ', ''],
+      lock:  ['Demasiados intentos', 'Por seguridad pausé la búsqueda un rato. Llámanos y te ayudamos al ', ''],
+      ok:    (name: string, when: string): [string, string, string] => ['Aquí está', `${name}, tu cita es el ${when}.`, 'Llega 30 minutos antes y trae tu ID y tu seguro.'],
+      today: (name: string, when: string): [string, string, string] => ['¡Es hoy!', `${name}, tu cita es hoy a las ${when}.`, 'Llega 30 minutos antes. ¡Te esperamos!'],
+    },
   },
   en: {
     title: 'Check your appointment',
@@ -68,7 +80,34 @@ const T = {
     hipaa: 'Basic appointment info only. No medical data is displayed.',
     newSearch: 'New search',
     status: { PENDING:'Pending', SCHEDULED:'Confirmed', CONFIRMED:'Confirmed', CHECKED_IN:'Checked in', IN_PROGRESS:'In consultation', COMPLETED:'Completed' } as Record<string,string>,
+    cifo: {
+      idle:  ['Hello', "Hi! I'm CIFO. To show your appointment I need your code and your date of birth.", 'It keeps your data safe.'],
+      code:  ['Step 1 of 2', 'Your code is in the confirmation message we sent you.', 'It looks like GM-1234 or MVA-1234.'],
+      dob:   ['Step 2 of 2', 'Now your date of birth.', 'We only use it to check it is you.'],
+      ready: ['All set!', 'Tap “Search” and I will show your appointment.', ''],
+      load:  ['One moment', 'Looking for your appointment…', ''],
+      need:  ['Something is missing', 'Please enter your code and your date of birth.', ''],
+      err:   ['Not found', "I couldn't find an appointment with that information. Check the code and your date of birth, or call us at ", ''],
+      lock:  ['Too many attempts', 'For your safety I paused the search for a while. Call us and we will help at ', ''],
+      ok:    (name: string, when: string): [string, string, string] => ['Here it is', `${name}, your appointment is on ${when}.`, 'Arrive 30 minutes early and bring your ID and insurance.'],
+      today: (name: string, when: string): [string, string, string] => ['It is today!', `${name}, your appointment is today at ${when}.`, 'Arrive 30 minutes early. See you soon!'],
+    },
   },
+};
+
+/** Qué dice CIFO y cuál de sus poses usa. `tel`: el texto termina con el teléfono de la clínica. */
+type CifoKind = 'idle' | 'code' | 'dob' | 'ready' | 'load' | 'need' | 'err' | 'lock' | 'ok' | 'today';
+const CIFO_POSE: Record<CifoKind, { gif: string; mirror: boolean; ink: string; tel?: boolean }> = {
+  idle:  { gif: '/cifo-saluda.gif', mirror: false, ink: '#6366F1' },
+  code:  { gif: '/cifo-1.gif',      mirror: true,  ink: '#0E7490' },
+  dob:   { gif: '/cifo-1.gif',      mirror: true,  ink: '#0E7490' },
+  ready: { gif: '/cifo-1.gif',      mirror: true,  ink: '#059669' },
+  load:  { gif: '/cifo-2.gif',      mirror: false, ink: '#6366F1' },
+  need:  { gif: '/cifo-saluda.gif', mirror: false, ink: '#B45309' },
+  err:   { gif: '/cifo-2.gif',      mirror: false, ink: '#B45309', tel: true },
+  lock:  { gif: '/cifo-2.gif',      mirror: false, ink: '#B45309', tel: true },
+  ok:    { gif: '/cifo-1.gif',      mirror: true,  ink: '#0E7490' },
+  today: { gif: '/cifo-1.gif',      mirror: true,  ink: '#059669' },
 };
 
 export default function CitaPage() {
@@ -78,6 +117,7 @@ export default function CitaPage() {
   const [result, setResult] = useState<ApptResult | null>(null);
   const [error, setError]   = useState<null | 'notFound' | 'tooMany' | 'needBoth'>(null);
   const [loading, setLoading] = useState(false);
+  const [focus, setFocus] = useState<'code' | 'dob' | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const t = T[lang];
 
@@ -112,6 +152,34 @@ export default function CitaPage() {
   const statusColor = result?.isToday ? '#10B981' : '#06B6D4';
   const statusBg    = result?.isToday ? 'rgba(16,185,129,.15)' : 'rgba(6,182,212,.1)';
   const statusBorder= result?.isToday ? 'rgba(16,185,129,.3)' : 'rgba(6,182,212,.25)';
+
+  /**
+   * CIFO acompaña al paciente paso a paso (los pacientes entran desde el teléfono
+   * y no saben qué es "el código de caso"): explica cada campo, avisa cuando todo
+   * está listo, y al final señala la cita o pide disculpas con el teléfono.
+   *
+   * Lo que dice sale del estado real de la página, no de un guion aparte. El
+   * nombre de pila aparece SOLO después de verificar (result): antes de eso la
+   * pantalla no sabe quién es.
+   */
+  const kind: CifoKind =
+    loading                      ? 'load'
+    : result                     ? (result.isToday ? 'today' : 'ok')
+    : error === 'tooMany'        ? 'lock'
+    : error === 'notFound'       ? 'err'
+    : error === 'needBoth'       ? 'need'
+    : query.trim() && dob        ? 'ready'
+    : focus === 'dob'            ? 'dob'
+    : focus === 'code'           ? 'code'
+    : 'idle';
+  const whenStr = lang === 'es' ? `${dateStr ?? ''} a las ${timeStr ?? ''}` : `${dateStr ?? ''} at ${timeStr ?? ''}`;
+  const say: [string, string, string] =
+    kind === 'ok'    ? t.cifo.ok(result?.firstName ?? '', whenStr)
+    : kind === 'today' ? t.cifo.today(result?.firstName ?? '', timeStr ?? '')
+    : (t.cifo[kind] as [string, string, string]);
+  const pose = CIFO_POSE[kind];
+  /** Al volver a escribir se limpia el error (salvo el bloqueo, que no depende de lo que escriba). */
+  const clearError = () => { if (error && error !== 'tooMany') setError(null); };
 
   return (
     <>
@@ -260,6 +328,36 @@ export default function CitaPage() {
         .hipaa { color: rgba(255,255,255,.15); font-size: 10px; text-align: center;
           margin-top: 18px; max-width: 500px; }
 
+        /* ── CIFO: en el teléfono va chico a la izquierda de su globito; en escritorio, en columna al lado de la tarjeta ── */
+        .stage { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 12px; align-items: stretch; }
+        .stage-main { width: 100%; display: flex; flex-direction: column; align-items: center; min-width: 0; }
+        .cifo { display: flex; align-items: flex-end; gap: 10px; }
+        .cifo-img { order: -1; height: 150px; width: auto; flex-shrink: 0;
+          filter: drop-shadow(0 10px 16px rgba(0,0,0,.5)); animation: cifoIn .3s ease-out; }
+        .cifo-bubble { position: relative; flex: 1; min-width: 0; background: #fff; color: #0b1124;
+          border-radius: 18px; padding: 12px 15px; box-shadow: 0 12px 30px rgba(0,0,0,.45);
+          margin-bottom: 46px; animation: bubblePop .35s ease-out; }
+        .cifo-bubble::before { content: ""; position: absolute; left: -9px; bottom: 22px;
+          border: 9px solid transparent; border-right: 11px solid #fff; border-left: 0; }
+        .cifo-tag { font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 3px; }
+        .cifo-txt { font-size: 14px; line-height: 1.35; font-weight: 600; }
+        .cifo-sub { display: block; font-weight: 500; font-size: 12px; color: #4a5578; margin-top: 4px; }
+        .cifo-txt a { color: #0e7490; font-weight: 800; text-decoration: none; }
+        @keyframes bubblePop { from { opacity: 0; transform: translateY(6px) scale(.97); } to { opacity: 1; transform: none; } }
+        @keyframes cifoIn { from { opacity: 0; } to { opacity: 1; } }
+        @media (min-width: 960px) {
+          .stage { max-width: 860px; flex-direction: row; align-items: flex-start; gap: 36px; }
+          .stage.wide { max-width: 1180px; }
+          .cifo { flex-direction: column; align-items: center; width: 320px; flex-shrink: 0; }
+          .cifo-img { order: 2; height: 340px; }
+          .cifo-bubble { order: 1; width: 100%; flex: none; margin: 0 0 16px; }
+          .cifo-bubble::before { left: 60px; bottom: -12px; border: 10px solid transparent; border-top: 13px solid #fff; border-bottom: 0; }
+          .cifo-txt { font-size: 17px; }
+          .cifo-sub { font-size: 13px; }
+          .stage-main { flex: 1; }
+        }
+        @media (prefers-reduced-motion: reduce) { .cifo-img, .cifo-bubble { animation: none; } }
+
         /* mobile */
         @media (max-width: 600px) {
           .result-area { grid-template-columns: 1fr; max-width: 440px; }
@@ -283,6 +381,31 @@ export default function CitaPage() {
           </div>
         </div>
 
+        <div className={`stage ${result ? 'wide' : ''}`}>
+        {/* CIFO — acompaña al paciente; lo que dice sale del estado de la página */}
+        <div className="cifo">
+          <div className="cifo-bubble" key={kind} role="status" aria-live="polite">
+            <div className="cifo-tag" style={{ color: pose.ink }}>{say[0]}</div>
+            <div className="cifo-txt">
+              {say[1]}
+              {pose.tel && <a href={`tel:${TEL_CLINICA.replace(/\D/g, '')}`}>{TEL_CLINICA}</a>}
+              {pose.tel && '.'}
+              {say[2] && <span className="cifo-sub">{say[2]}</span>}
+            </div>
+          </div>
+          {/* El GIF que señala (cifo-1) apunta a la izquierda: se espeja para apuntar a la tarjeta.
+              El espejo voltea el logo del pecho; la versión final pide un GIF señalando a la derecha. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            key={pose.gif + String(pose.mirror)}
+            className="cifo-img"
+            src={pose.gif}
+            alt="CIFO"
+            style={pose.mirror ? { transform: 'scaleX(-1)' } : undefined}
+          />
+        </div>
+
+        <div className="stage-main">
         {/* Search */}
         <div className={`search-wrap ${result ? 'collapsed' : ''}`} style={{ maxWidth: result ? 840 : 440 }}>
           <div className={`search-card ${result ? 'slim' : 'full'}`}>
@@ -301,7 +424,9 @@ export default function CitaPage() {
                     placeholder={t.phCase}
                     value={query}
                     maxLength={40}
-                    onChange={e => setQuery(e.target.value.toUpperCase())}
+                    onChange={e => { setQuery(e.target.value.toUpperCase()); clearError(); }}
+                    onFocus={() => setFocus('code')}
+                    onBlur={() => setFocus(f => (f === 'code' ? null : f))}
                   />
                   <label className="flbl" htmlFor="cita-dob">{t.dobLabel}</label>
                   <input
@@ -311,7 +436,9 @@ export default function CitaPage() {
                     min="1900-01-01"
                     max={new Date().toISOString().slice(0, 10)}
                     value={dob}
-                    onChange={e => setDob(e.target.value)}
+                    onChange={e => { setDob(e.target.value); clearError(); }}
+                    onFocus={() => setFocus('dob')}
+                    onBlur={() => setFocus(f => (f === 'dob' ? null : f))}
                   />
                   <button className="go go-full" type="submit" disabled={loading}>
                     {loading ? '…' : t.search}
@@ -322,7 +449,7 @@ export default function CitaPage() {
                 ? <button className="new-btn" onClick={reset}>{t.newSearch}</button>
                 : <div className="hint">{t.hint}</div>
               }
-              {error && <div className="err" role="alert">{t[error]} <a href={`tel:${TEL_CLINICA.replace(/D/g, '')}`} style={{ color: 'inherit', fontWeight: 700 }}>{TEL_CLINICA}</a></div>}
+              {error && <div className="err" role="alert">{t[error]} <a href={`tel:${TEL_CLINICA.replace(/\D/g, '')}`} style={{ color: 'inherit', fontWeight: 700 }}>{TEL_CLINICA}</a></div>}
             </div>
           </div>
         </div>
@@ -385,6 +512,9 @@ export default function CitaPage() {
             </div>
           </div>
         )}
+
+        </div>
+        </div>
 
         <div className="hipaa">HIPAA · {t.hipaa}</div>
       </div>

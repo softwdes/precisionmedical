@@ -130,6 +130,8 @@ const COPY = {
     labelFirst:  'Nombre / First name',
     labelLast:   'Apellido / Last name',
     labelPhone:  'Teléfono / Phone',
+    labelDob:    'Fecha de nacimiento / Date of birth',
+    dobHint:     'La usamos para encontrar tu expediente y proteger tus datos. · We use it to find your record and protect your data.',
     phonePH:     '(801) 555-0100',
     btnStart:    'Comenzar registro →',
     loading:     'Creando tu registro...',
@@ -148,6 +150,8 @@ const COPY = {
     labelFirst:  'First name / Nombre',
     labelLast:   'Last name / Apellido',
     labelPhone:  'Phone / Teléfono',
+    labelDob:    'Date of birth / Fecha de nacimiento',
+    dobHint:     'We use it to find your record and protect your data. · La usamos para encontrar tu expediente y proteger tus datos.',
     phonePH:     '(801) 555-0100',
     btnStart:    'Start registration →',
     loading:     'Creating your record...',
@@ -167,11 +171,13 @@ export function WalkinKiosk({ clinicId, clinicName }: WalkinKioskProps) {
   const [firstName, setFirstName] = useState('');
   const [lastName,  setLastName]  = useState('');
   const [phone,     setPhone]     = useState('');
+  /** `YYYY-MM-DD`. Sin él no se reutiliza ninguna ficha existente: ver /api/walkin. */
+  const [dob,       setDob]       = useState('');
   const [step,      setStep]      = useState<Step>('form');
   const router = useRouter();
 
   const c = COPY[lang];
-  const canSubmit = firstName.trim() && lastName.trim() && phone.trim().length >= 7;
+  const canSubmit = firstName.trim() && lastName.trim() && phone.trim().length >= 7 && dob;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -186,6 +192,7 @@ export function WalkinKiosk({ clinicId, clinicName }: WalkinKioskProps) {
           firstName: firstName.trim(),
           lastName:  lastName.trim(),
           phone:     phone.trim(),
+          dob,
           language:  lang,
         }),
       });
@@ -301,6 +308,19 @@ export function WalkinKiosk({ clinicId, clinicName }: WalkinKioskProps) {
           placeholder={c.phonePH}
           required
         />
+
+        <label style={style.label}>{c.labelDob}</label>
+        <input
+          style={{ ...style.input, colorScheme: 'dark' }}
+          type="date"
+          autoComplete="bday"
+          min="1900-01-01"
+          max={new Date().toISOString().slice(0, 10)}
+          value={dob}
+          onChange={e => setDob(e.target.value)}
+          required
+        />
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', margin: '-6px 0 18px', lineHeight: 1.5 }}>{c.dobHint}</div>
 
         <button
           type="submit"

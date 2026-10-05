@@ -5,13 +5,36 @@
  * Sin auth requerida — es el punto de entrada público del kiosk de recepción.
  *
  * Flujo:
- *   1. Recibe firstName, lastName, phone del kiosk
- *   2. Busca si existe paciente por teléfono (mismo tenant / Phase 1A: global)
- *   3. Crea Patient si no existe
- *   4. Crea Case con source=WALK_IN + portalToken único
- *   5. Devuelve { token } para redirigir al intake wizard
+ *   1. Recibe firstName, lastName, phone y fecha de nacimiento del kiosk
+ *   2. Si ya existe un paciente con ese teléfono Y la misma fecha de nacimiento
+ *      Y el mismo apellido, lo reutiliza; si no, crea uno nuevo
+ *   3. Crea Case con source=WALK_IN + portalToken único
+ *   4. Devuelve { token } para redirigir al intake wizard /c/[token]
  *
  * HIPAA: No hay PHI en la respuesta — solo el token opaco.
+ *
+ * ── Por qué ya no alcanza con el teléfono ───────────────────────────────────
+ *
+ * Antes esta ruta buscaba al paciente SOLO por teléfono y le colgaba un caso
+ * nuevo con un token. Ese token abre `/api/intake/[token]`, que devuelve la
+ * ficha (nombre, nacimiento, teléfono, correo, dirección) y además ESCRIBE en
+ * ella (el autosave del wizard pisa los datos del paciente). Y esta ruta es
+ * pública: el id de la clínica está en la URL de la TV y en el QR. Con el
+ * teléfono de cualquier paciente, un desconocido obtenía su ficha completa y
+ * podía modificarla. Medido el 2026-10-05: 13 de los 32 casos walk-in se
+ * habían colgado de un paciente que ya existía.
+ *
+ * Ahora una ficha existente solo se reutiliza si coinciden teléfono, apellido Y
+ * fecha de nacimiento. Si no coincide —o si alguien está probando fechas— se
+ * crea un paciente NUEVO y se responde exactamente igual: no hay forma de saber
+ * desde afuera si el teléfono existía. El costo es un duplicado cuando un
+ * paciente que vuelve se equivoca al escribir, que recepción puede juntar; el
+ * costo del otro camino era regalar fichas.
+ *
+ * Los fallos de coincidencia se cuentan POR TELÉFONO en la base (no en memoria,
+ * que en serverless no se comparte entre instancias): 5 en 30 minutos y ese
+ * teléfono deja de reutilizar fichas, así que la fecha de nacimiento no se puede
+ * adivinar por fuerza bruta.
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
@@ -19,13 +42,22 @@ import { z }  from 'zod';
 import { db, writeAuditLog, nextCaseCode, nextPatientCode } from '@precision-medical/database';
 import { randomBytes }       from 'crypto';
 import { rateLimit, claveDeIp, cabeceras429 } from '@/lib/rate-limit';
+import { decryptFieldOrOriginal } from '@/lib/decrypt';
+import { fechaNacimientoValida, elegirFichaReutilizable } from '@/lib/walkin-match';
 
 const BodySchema = z.object({
   firstName: z.string().min(1).max(100).trim(),
   lastName:  z.string().min(1).max(100).trim(),
   phone:     z.string().min(7).max(20).trim(),
+  dob:       z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   language:  z.enum(['es', 'en']).default('en'),
 });
+
+/** Fallos de coincidencia por teléfono que cortan la reutilización, y por cuánto. */
+const FALLOS_MAX = 5;
+const VENTANA_MS = 30 * 60_000;
+/** Altas walk-in por hora entre TODAS las IPs: techo contra quien inunde la base. */
+const ALTAS_MAX_POR_HORA = 60;
 
 function generateToken(): string {
   return randomBytes(24).toString('base64url');
@@ -68,31 +100,70 @@ export async function POST(
   } catch {
     return NextResponse.json({ ok: false, error: 'INVALID_INPUT' }, { status: 400 });
   }
+  if (!fechaNacimientoValida(parsed.dob)) {
+    return NextResponse.json({ ok: false, error: 'INVALID_INPUT' }, { status: 400 });
+  }
+
+  // Techo compartido entre instancias: el freno por IP de arriba vive en memoria.
+  const altasRecientes = await db.auditLog.count({
+    where: { action: 'WALKIN_CASE_CREATED', createdAt: { gte: new Date(Date.now() - 60 * 60_000) } },
+  });
+  if (altasRecientes >= ALTAS_MAX_POR_HORA) {
+    return NextResponse.json(
+      { ok: false, error: 'TOO_MANY_REQUESTS' },
+      { status: 429, headers: { 'Retry-After': '600' } },
+    );
+  }
 
   const token = generateToken();
+
+  // ¿Hay una ficha que reutilizar? Solo si teléfono + apellido + nacimiento
+  // coinciden, y solo mientras ese teléfono no haya acumulado fallos.
+  const claveTelefono = `phone:${parsed.phone.replace(/\D/g, '').slice(-10)}`;
+  const fallos = await db.auditLog.count({
+    where: {
+      action: 'WALKIN_MATCH_FAILED', entityType: 'patients', entityId: claveTelefono,
+      createdAt: { gte: new Date(Date.now() - VENTANA_MS) },
+    },
+  });
+
+  let reutilizable: { id: string } | null = null;
+  if (fallos < FALLOS_MAX) {
+    const candidatos = await db.patient.findMany({
+      where: { phone: parsed.phone },
+      select: { id: true, lastName: true, dateOfBirth: true },
+      take: 10,
+    });
+    // El nacimiento se guarda como instante UTC: el día de calendario es el de
+    // `toISOString()`, sin zona (ver /api/cita).
+    reutilizable = elegirFichaReutilizable(candidatos, parsed.dob, parsed.lastName, decryptFieldOrOriginal);
+
+    if (!reutilizable && candidatos.length > 0) {
+      await writeAuditLog(db, {
+        actorType: 'SYSTEM', action: 'WALKIN_MATCH_FAILED',
+        entityType: 'patients', entityId: claveTelefono,
+        ipAddress: claveDeIp(req, 'walkin').slice('walkin:'.length),
+        userAgent: req.headers.get('user-agent')?.slice(0, 200) ?? null,
+        metadata: { clinicId },
+      });
+    }
+  }
 
   // Paciente y caso en una sola transacción: es donde vive el advisory lock de
   // los códigos consecutivos, y además evita que un fallo al crear el caso deje
   // un paciente huérfano (antes eran dos escrituras sueltas).
   const newCase = await db.$transaction(async (tx) => {
-    // Find or create patient by phone
-    let patient = await tx.patient.findFirst({
-      where: { phone: parsed.phone },
+    const patient = reutilizable ?? await tx.patient.create({
+      data: {
+        firstName:         parsed.firstName,
+        lastName:          parsed.lastName,
+        phone:             parsed.phone,
+        dateOfBirth:       new Date(parsed.dob),
+        preferredLanguage: parsed.language,
+        patientCode:       await nextPatientCode(tx),
+      },
       select: { id: true },
     });
-
-    if (!patient) {
-      patient = await tx.patient.create({
-        data: {
-          firstName:         parsed.firstName,
-          lastName:          parsed.lastName,
-          phone:             parsed.phone,
-          preferredLanguage: parsed.language,
-          patientCode:       await nextPatientCode(tx),
-        },
-        select: { id: true },
-      });
-    }
 
     // Create case with WALK_IN source + unique portal token
     return tx.case.create({
@@ -114,7 +185,7 @@ export async function POST(
     action:     'WALKIN_CASE_CREATED',
     entityType: 'cases',
     entityId:   newCase.id,
-    metadata: { caseCode: newCase.caseCode, clinicId, source: 'WALK_IN' },
+    metadata: { caseCode: newCase.caseCode, clinicId, source: 'WALK_IN', fichaReutilizada: !!reutilizable },
   });
 
   return NextResponse.json({ ok: true, token });

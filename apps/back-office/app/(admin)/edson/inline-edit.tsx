@@ -138,7 +138,7 @@ export function InlineText({
  */
 export function InlineCombo({
   value, options, onSave, readOnly, title, emptyHint,
-  abreConLaLista = false, abreConDobleClic = false, ancho, alCrear,
+  abreConLaLista = false, abreConDobleClic = false, ancho, alCrear, enterCrea = false,
 }: {
   value: string | null;
   options: { id: string; name: string }[];
@@ -205,9 +205,33 @@ export function InlineCombo({
    * se pudo. La celda se queda con ese `id`, asi que el valor nace vinculado y
    * no como texto suelto.
    */
+  /**
+   * Enter sobre texto que no coincide con nada DA DE ALTA, en vez de guardar
+   * el texto tal cual.
+   *
+   * Va por prop y no por defecto porque depende de si el texto libre es un
+   * valor valido en esa columna. En el abogado lo es —hay abogados que no
+   * estan en ningun catalogo— y Enter lo guarda como texto. En el BUFETE no:
+   * es un vinculo (`lawFirmId`) y un nombre suelto no tiene donde guardarse.
+   *
+   * Sin esto, ahi Enter no hacia NADA: ni guardaba, ni avisaba. Edson lo
+   * reporto el 2026-10-05 — "I could manually add the name of the attorney's
+   * office simply by typing and hitting enter. Now that's not working" — y
+   * tenia razon: lo rompi yo al separar la celda en dos modos.
+   */
+  enterCrea?: boolean;
   alCrear?: {
-    /** Rotulo del boton, ej. `Agregar "Todd Livingston" a Claggett & Sykes`. */
-    etiqueta: (q: string) => string;
+    /**
+     * Rotulo del boton, ej. `Agregar "Todd Livingston" a Claggett & Sykes`.
+     *
+     * Devolver `null` ESCONDE el boton. Lo usa la celda del abogado para no
+     * ofrecer "agregar a X como persona del bufete" cuando lo tecleado ES el
+     * nombre de un bufete: ahi el alta crearia una persona llamada igual que
+     * la oficina, que es exactamente el error que la celda bloquea por el
+     * otro lado. Edson lo vio ofrecido el 2026-10-05: `Add "Brian Hills Law"
+     * to Brian Hills Law`.
+     */
+    etiqueta: (q: string) => string | null;
     crear: (q: string) => Promise<{ id: string; name: string } | null>;
   };
 }) {
@@ -258,7 +282,12 @@ export function InlineCombo({
     // no el texto: si no, quedarian dos casos con el mismo seguro, uno vinculado
     // y otro suelto, y el filtro por aseguradora dejaria de encontrar al segundo.
     const exact = options.find(o => o.name.toLowerCase() === text.toLowerCase());
-    void commit(exact ? { id: exact.id, text: null } : { id: null, text });
+    if (exact) { void commit({ id: exact.id, text: null }); return; }
+    // Donde el texto libre no es un valor valido, Enter da de alta. Es el
+    // mismo camino del boton: asi el gesto de siempre —teclear y Enter—
+    // sigue funcionando y el dato cae en el campo que le corresponde.
+    if (enterCrea && alCrear) { void crear(); return; }
+    void commit({ id: null, text });
   }
 
   /**
@@ -366,7 +395,7 @@ export function InlineCombo({
                   * igual— como salida para cuando de verdad no se sabe quien
                   * es, pero deja de ser la UNICA.
                   */}
-                {alCrear && q.length >= 2 && (
+                {alCrear && q.length >= 2 && alCrear.etiqueta(draft.trim()) !== null && (
                   <button
                     type="button"
                     disabled={creando}

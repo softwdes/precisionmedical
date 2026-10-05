@@ -7142,7 +7142,7 @@
       "firmAddNew": "Add law firm “{nombre}”",
       "attorneyAdd": "Add attorney",
       "firmAdd": "Add law firm",
-      "attorneyIsFirm": "That is the law firm, not a person. Pick the attorney from the list or add them."
+      "attorneyIsFirm": "That is the law firm — it is already saved in its own field, and you can see it under the attorney. This box is for the person."
     },
     "online": {
       "badge": "Online visit",

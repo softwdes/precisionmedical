@@ -1176,6 +1176,19 @@ export function EdsonClient({ clinics, providers, providersFiltro, carriers, law
                      * nota del badge, más abajo.
                      */
                     const gente = row.managerCount + (row.attorneyName ? 1 : 0);
+                    /*
+                     * ¿Lo tecleado es el nombre de una OFICINA?
+                     *
+                     * Una sola definición para los dos lugares que la necesitan:
+                     * el botón de alta (que no debe ofrecerla como persona) y el
+                     * guardado (que no debe escribirla en el campo del abogado).
+                     * Cuando estaban separados, uno bloqueaba y el otro ofrecía.
+                     */
+                    const esNombreDeBufete = (q: string) => {
+                      const t = q.trim().toLowerCase();
+                      return !!t && (t === row.firmName?.trim().toLowerCase() ||
+                        catalogoBufetes.some(f => f.name.trim().toLowerCase() === t));
+                    };
                     return (
                       <Fragment key={row.caseId}>
                       <DataTable.Row style={rowBg ? { background: rowBg } : undefined}>
@@ -1442,7 +1455,12 @@ export function EdsonClient({ clinics, providers, providersFiltro, carriers, law
                             * en la nada. En Insurance y Claim no pasa porque el
                             * editor es hijo unico del <td> y ocupa toda la celda.
                             */}
-                          <div className="relative flex items-center gap-1.5 w-full max-w-[170px]">
+                          <div className="relative flex items-start gap-1.5 w-full max-w-[170px]">
+                            {/*
+                              * `items-start` y no `items-center`: con la segunda
+                              * línea de la oficina, centrar dejaba el badge a mitad
+                              * de camino entre los dos renglones.
+                              */}
                             <span className="flex-1 min-w-0">
                             <Vistazo texto={row.attorneyName ?? row.firmName} titulo={t('colAttorney')}>
                             {/*
@@ -1482,7 +1500,18 @@ export function EdsonClient({ clinics, providers, providersFiltro, carriers, law
                                 * lo que cambia es dónde está.
                                 */
                               alCrear={archived ? undefined : {
-                                etiqueta: (q: string) => t('attorneyAddToFirm', { nombre: q, bufete: row.firmName ?? '' }),
+                                /*
+                                  * `null` esconde el boton cuando lo tecleado es
+                                  * un BUFETE. Antes ofrecia, textual,
+                                  * `Add "Brian Hills Law" to Brian Hills Law`:
+                                  * crear una persona con el nombre de la oficina,
+                                  * que es el mismo error que esta celda bloquea
+                                  * en el Enter. Bloquear un camino y ofrecer el
+                                  * otro es peor que no bloquear nada.
+                                  */
+                                etiqueta: (q: string) => esNombreDeBufete(q)
+                                  ? null
+                                  : t('attorneyAddToFirm', { nombre: q, bufete: row.firmName ?? '' }),
                                 crear: (q: string) => altaAbogado(q, row.lawFirmId as string),
                               }}
                               /*
@@ -1503,12 +1532,9 @@ export function EdsonClient({ clinics, providers, providersFiltro, carriers, law
                                 * de la lista, o darlo de alta— está ahí mismo.
                                 */
                               onSave={next => {
-                                const tecleado = next.text?.trim().toLowerCase();
-                                const esBufete = !!tecleado && (
-                                  tecleado === row.firmName?.trim().toLowerCase() ||
-                                  catalogoBufetes.some(f => f.name.trim().toLowerCase() === tecleado)
-                                );
-                                if (esBufete) { setError(t('attorneyIsFirm')); return Promise.resolve(false); }
+                                if (next.text && esNombreDeBufete(next.text)) {
+                                  setError(t('attorneyIsFirm')); return Promise.resolve(false);
+                                }
                                 return saveTo(
                                   `/api/admin/cases/${row.caseId}/update-legal-insurance`,
                                   row.caseId,
@@ -1525,6 +1551,14 @@ export function EdsonClient({ clinics, providers, providersFiltro, carriers, law
                               readOnly={archived}
                               title={t('fieldFirm')}
                               emptyHint={t('fieldFirmPlaceholder')}
+                              /*
+                                * Enter da de alta la oficina, igual que el boton.
+                                * Acá el texto libre no existe —el bufete es un
+                                * vínculo— y sin esto Enter no hacía NADA: ni
+                                * guardaba ni avisaba. Es lo que Edson reportó
+                                * como "ya no puedo escribir la oficina y Enter".
+                                */
+                              enterCrea
                               alCrear={archived ? undefined : {
                                 etiqueta: (q: string) => t('firmAddNew', { nombre: q }),
                                 crear: altaBufete,
@@ -1558,6 +1592,29 @@ export function EdsonClient({ clinics, providers, providersFiltro, carriers, law
                             />
                             )}
                             </Vistazo>
+                            {/*
+                              * La OFICINA, debajo del abogado.
+                              *
+                              * La columna mostraba `attorneyName ?? firmName`: un
+                              * renglón para dos datos distintos. Al cargar al
+                              * abogado, la oficina desaparecía de la pantalla —y
+                              * como además el texto libre y el del catálogo se
+                              * pisan entre sí, Edson lo leyó como "el sistema me
+                              * deshace lo anterior" (2026-10-05). Los dos datos
+                              * siempre convivieron en la base; lo que faltaba era
+                              * mostrarlos.
+                              *
+                              * Solo cuando hay abogado: sin él, el renglón de
+                              * arriba YA es la oficina y repetirla sería pagar
+                              * alto de fila por nada. Así las 183 filas sin
+                              * abogado no crecen ni un pixel, y las ~66 que lo
+                              * tienen crecen una línea de 7,5px.
+                              */}
+                            {row.attorneyName && row.firmName && (
+                              <span className="block text-text-muted text-[7.5px] truncate" title={row.firmName}>
+                                {row.firmName}
+                              </span>
+                            )}
                             </span>
                             <button
                               type="button"

@@ -168,7 +168,7 @@ export async function GET(_req: NextRequest): Promise<Response> {
   if (cases.length > 0) {
     const sums = await db.appointmentBilling.groupBy({
       by: ['caseId'],
-      where: { caseId: { in: cases.map((c) => c.id) } },
+      where: { caseId: { in: cases.map((c) => c.id) }, appointment: { deletedAt: null } },
       _sum: { balanceDue: true },
     });
     for (const row of sums) {

@@ -125,7 +125,7 @@ const AGREGADO = Prisma.sql`
     JOIN cases cs ON cs.id = COALESCE(ab."caseId", ap."caseId")
     LEFT JOIN lawyers lw ON lw.id = cs."lawFirmId"
     LEFT JOIN insurance_carriers ic ON ic.id = cs."primaryInsuranceId"
-    WHERE cs."deletedAt" IS NULL
+    WHERE cs."deletedAt" IS NULL AND ap."deletedAt" IS NULL
     GROUP BY cs."patientId"
   )
 `;

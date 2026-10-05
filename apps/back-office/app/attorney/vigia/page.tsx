@@ -97,7 +97,7 @@ export default async function AttorneyVigiaPage({ searchParams }: {
     // bufete deja de creerle a los dos.
     db.appointmentBilling.aggregate({
       _sum: { balanceDue: true },
-      where: { appointment: { case: scope } },
+      where: { appointment: { case: scope, deletedAt: null } },
     }),
     colaDeAtencion(lawyer),
     // El alcance completo, no solo los activos: es lo que Vigía puede leer.

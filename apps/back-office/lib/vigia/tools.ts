@@ -104,7 +104,7 @@ export async function metricasDelBufete(lawyer: SessionLawyer): Promise<ToolResu
     }),
     db.appointmentBilling.aggregate({
       _sum: { balanceDue: true },
-      where: { appointment: { case: scope } },
+      where: { appointment: { case: scope, deletedAt: null } },
     }),
   ]);
 
@@ -204,7 +204,7 @@ export async function resumenDeCaso(lawyer: SessionLawyer, args: { caso: string 
     }),
     db.appointmentBilling.aggregate({
       _sum: { totalCost: true, amountPaid: true, balanceDue: true },
-      where: { appointment: { caseId: target.id } },
+      where: { appointment: { caseId: target.id, deletedAt: null } },
     }),
   ]);
 
@@ -244,7 +244,7 @@ export async function facturacionDeCaso(lawyer: SessionLawyer, args: { caso: str
   }
 
   const filas = await db.appointmentBilling.findMany({
-    where: { appointment: { caseId: target.id } },
+    where: { appointment: { caseId: target.id, deletedAt: null } },
     orderBy: { createdAt: 'asc' },
     take: 60,
     select: {

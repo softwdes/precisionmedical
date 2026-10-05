@@ -89,7 +89,7 @@ export async function pulsoDelDia(): Promise<ResultadoHerramienta> {
     citasDeHoy(),
     db.appointmentBilling.aggregate({
       _sum: { amountPaid: true },
-      where: { updatedAt: { gte: desde, lt: hasta } },
+      where: { updatedAt: { gte: desde, lt: hasta }, appointment: { deletedAt: null } },
     }),
     db.messageLog.count({ where: { createdAt: { gte: desde } } }),
     db.callLog.count({ where: { createdAt: { gte: desde } } }),
@@ -231,10 +231,14 @@ export async function saldosYCobros(): Promise<ResultadoHerramienta> {
   const { desde, hasta } = rangoDeHoy();
 
   const [totales, cobradoHoy, porCaso] = await Promise.all([
-    db.appointmentBilling.aggregate({ _sum: { totalCost: true, amountPaid: true, balanceDue: true } }),
+    // Una cita eliminada (duplicado, prueba) no cuenta: su cobro quedó huérfano.
+    db.appointmentBilling.aggregate({
+      _sum: { totalCost: true, amountPaid: true, balanceDue: true },
+      where: { appointment: { deletedAt: null } },
+    }),
     db.appointmentBilling.aggregate({
       _sum: { amountPaid: true },
-      where: { updatedAt: { gte: desde, lt: hasta } },
+      where: { updatedAt: { gte: desde, lt: hasta }, appointment: { deletedAt: null } },
     }),
     /**
      * Los casos que más deben. Se agrupa por caso y NO por paciente a
@@ -245,7 +249,7 @@ export async function saldosYCobros(): Promise<ResultadoHerramienta> {
       FROM appointment_billing ab
       JOIN appointments a ON a.id = ab."appointmentId"
       JOIN cases c ON c.id = a."caseId"
-      WHERE ab."balanceDue" > 0 AND c."deletedAt" IS NULL
+      WHERE ab."balanceDue" > 0 AND c."deletedAt" IS NULL AND a."deletedAt" IS NULL
       GROUP BY c."caseCode"
       ORDER BY saldo DESC
       LIMIT 10
@@ -344,7 +348,7 @@ export async function resumenDeCaso(args: { caso: string }): Promise<ResultadoHe
     }),
     db.appointmentBilling.aggregate({
       _sum: { totalCost: true, amountPaid: true, balanceDue: true },
-      where: { appointment: { caseId: kase.id } },
+      where: { appointment: { caseId: kase.id, deletedAt: null } },
     }),
   ]);
 

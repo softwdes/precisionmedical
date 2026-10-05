@@ -25,8 +25,23 @@ const PAGE_SIZE = 10;
 
 type Status = 'QUEUED' | 'SENT' | 'DELIVERED' | 'UNDELIVERED' | 'FAILED';
 type StatusFilter = 'all' | 'DELIVERED' | 'NOT_DELIVERED';
-type PeriodFilter = 0 | 1 | 7 | 30;
-type Scope = 'mine' | 'all';
+/**
+ * Esta pantalla tenia CINCO grupos de filtros y quedaron TRES.
+ *
+ * Reagan, 2026-10-04: "I think it is confusing to have so many filters".
+ * Se fueron los dos que no contestaban ninguna pregunta que la tabla no
+ * contestara sola:
+ *
+ *  · QUIEN LO MANDO — la columna "Enviado por" ya lo dice en cada fila, y
+ *    filtrar por eso era pedirle a la pantalla algo que ya estaba a la vista.
+ *    Ademas traia un bug propio: quedaba pegado en "Mis mensajes" y las
+ *    respuestas de los pacientes desaparecian.
+ *  · EL TIEMPO — la lista va de hoy hacia atras y se pagina. Acotar a 7 dias
+ *    no ayuda a encontrar nada que el orden no ponga arriba igual.
+ *
+ * Quedan los tres que SI pueden contradecir lo que se ve: direccion, canal y
+ * entrega.
+ */
 type DirFilter = 'ALL' | 'IN' | 'OUT';
 type Channel = 'SMS' | 'EMAIL';
 type ChannelFilter = Channel | 'ALL';
@@ -58,7 +73,7 @@ interface Response {
   messages: Row[];
   total: number;
   totalPages: number;
-  counts: { mine: number; all: number; notDelivered: number; inbound: number; unread: number; pendientes: number };
+  counts: { all: number; notDelivered: number; inbound: number; unread: number; pendientes: number };
 }
 
 function clinicDayKey(d: Date): string {
@@ -90,9 +105,9 @@ export function SmsHistoryPanel({ onTitulo }: {
   const t      = useTranslations('phoenix.sms');
   const locale = useLocale();
 
-  const [scope, setScope]       = useState<Scope>('mine');
+
   const [status, setStatus]     = useState<StatusFilter>('all');
-  const [period, setPeriod]     = useState<PeriodFilter>(0);
+
   /**
    * Arranca en SMS, que es lo que esta pantalla mostró siempre. El correo
    * estaba en la misma tabla y el endpoint lo filtraba: cada envío del portal
@@ -176,7 +191,7 @@ export function SmsHistoryPanel({ onTitulo }: {
     }).catch(() => setRecargar(n => n + 1));
   }, [openBody]);
 
-  const filtered = status !== 'all' || period !== 0;
+  const filtered = status !== 'all';
 
   /**
    * El buscador espera 300 ms. Sin esto cada tecla es una consulta con un LIKE
@@ -188,18 +203,13 @@ export function SmsHistoryPanel({ onTitulo }: {
     return () => clearTimeout(id);
   }, [texto]);
 
-  const load = useCallback(async (s: Scope, p: number, st: StatusFilter, per: PeriodFilter, ch: ChannelFilter, d: DirFilter, busca: string) => {
+  const load = useCallback(async (p: number, st: StatusFilter, ch: ChannelFilter, d: DirFilter, busca: string) => {
     setLoading(true);
     setError(false);
     try {
-      const params = new URLSearchParams({ scope: s, page: String(p), size: String(PAGE_SIZE), channel: ch, direction: d });
+      const params = new URLSearchParams({ page: String(p), size: String(PAGE_SIZE), channel: ch, direction: d });
       if (busca) params.set('q', busca);
       if (st !== 'all') params.set('status', st);
-      if (per !== 0) {
-        // El día se corta en la zona de la clínica, no en UTC.
-        const since = new Date(Date.now() - (per - 1) * 86_400_000);
-        params.set('from', since.toLocaleDateString('en-CA', { timeZone: CLINIC_TZ }));
-      }
       const res = await fetch(`/api/admin/message-logs?${params}`);
       if (!res.ok) throw new Error(String(res.status));
       setData(await res.json() as Response);
@@ -212,8 +222,8 @@ export function SmsHistoryPanel({ onTitulo }: {
 
   useEffect(() => {
     if (!open) return;
-    void load(scope, page, status, period, channel, dir, q);
-  }, [open, scope, page, status, period, channel, dir, q, recargar, load]);
+    void load(page, status, channel, dir, q);
+  }, [open, page, status, channel, dir, q, recargar, load]);
 
   const rows       = data?.messages ?? [];
   const totalPages = data?.totalPages ?? 1;
@@ -276,12 +286,6 @@ export function SmsHistoryPanel({ onTitulo }: {
         {/* Filtros — pills, no un formulario: son decisiones rápidas */}
         {!editando && vista === 'todos' && (
         <div className="flex items-center gap-x-4 gap-y-2 flex-wrap px-4 sm:px-6 pt-3 pb-1 shrink-0">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mr-0.5">{t('filterWho')}</span>
-            {([['mine', t('filterMine'), counts?.mine], ['all', t('filterAll'), counts?.all]] as [Scope, string, number | undefined][]).map(([k, l, n]) => (
-              <FilterPill key={k} active={scope === k} onClick={() => { setScope(k); setPage(0); }} label={l} count={n} />
-            ))}
-          </div>
           {/* Entrantes. Va primero y con el contador de sin leer porque es lo
               unico de esta pantalla que pide una ACCION: lo demas es consulta. */}
           <div className="flex items-center gap-1.5 flex-wrap">
@@ -302,11 +306,7 @@ export function SmsHistoryPanel({ onTitulo }: {
               <FilterPill key={k} active={status === k} onClick={() => { setStatus(k); setPage(0); }} label={l} />
             ))}
           </div>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {([[1, t('filterToday')], [7, t('filterDays', { n: 7 })], [30, t('filterDays', { n: 30 })], [0, t('filterAllTime')]] as [PeriodFilter, string][]).map(([k, l]) => (
-              <FilterPill key={k} active={period === k} onClick={() => { setPeriod(k); setPage(0); }} label={l} />
-            ))}
-          </div>
+
           {/* "And can we search the patient in all the messages?" — la clinica,
               2026-09-28. Busca por nombre, codigo y numero. */}
           <div className="relative flex-1 min-w-[180px]">
@@ -340,7 +340,7 @@ export function SmsHistoryPanel({ onTitulo }: {
               <span>{t('loadError')}</span>
               <button
                 type="button"
-                onClick={() => void load(scope, page, status, period, channel, dir, q)}
+                onClick={() => void load(page, status, channel, dir, q)}
                 className="inline-flex items-center gap-1.5 font-semibold hover:underline"
               >
                 <RefreshCw className="w-3 h-3" />

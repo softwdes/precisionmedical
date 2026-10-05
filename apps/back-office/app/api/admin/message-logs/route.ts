@@ -27,7 +27,7 @@ const NOT_DELIVERED = ['UNDELIVERED', 'FAILED'] as const;
 
 const QuerySchema = z.object({
   /** `mine` = los que mandé yo · `all` = todos (supervisión). */
-  scope:  z.enum(['mine', 'all']).default('mine'),
+
   /**
    * Qué canal se mira.
    *
@@ -119,17 +119,15 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     query.direction === 'ALL' ? {} : { direction: query.direction === 'IN' ? 'INBOUND' : 'OUTBOUND' };
 
   /**
-   * Un ENTRANTE no tiene remitente nuestro, asi que "los mios" no aplica.
+   * Ya NO se filtra por quien lo mando.
    *
-   * Sin esta excepcion, alguien con el filtro en "Mis mensajes" —que es como
-   * queda la pantalla despues de usarla— no veria NUNCA una respuesta de un
-   * paciente, y la bandeja pareceria vacia estando llena. El scope filtra lo
-   * que YO mande; lo que entra es de la clinica, no de una persona.
+   * Habia un `scope` con dos valores y default en "mine". Reagan lo pidio
+   * fuera el 2026-10-04 —"we already have it showing who sent it"— y tenia
+   * razon por partida doble: la columna ya lo dice, y el default escondia
+   * mensajes. La pantalla quedaba pegada en "Mis mensajes" y hubo que
+   * agregarle una excepcion para que al menos los ENTRANTES se vieran; esa
+   * excepcion era el sintoma de que el filtro no debia existir.
    */
-  const scopeWhere: Prisma.MessageLogWhereInput =
-    query.scope === 'mine' && myUserId && query.direction !== 'IN'
-      ? { sentByUserId: myUserId }
-      : {};
 
   /** Busqueda por paciente: nombre, codigo, o el numero/direccion del mensaje. */
   const searchWhere: Prisma.MessageLogWhereInput = query.q
@@ -153,13 +151,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     : {
         ...channelWhere,
         ...directionWhere,
-        ...scopeWhere,
+
         ...searchWhere,
         ...statusWhere,
         ...(query.from || query.to ? { createdAt } : {}),
       };
 
-  const [rows, total, mineCount, allCount, notDeliveredCount, inboundCount, unreadCount, pendientesCount] = await Promise.all([
+  const [rows, total, allCount, notDeliveredCount, inboundCount, unreadCount, pendientesCount] = await Promise.all([
     db.messageLog.findMany({
       where,
       orderBy: { createdAt: query.patientId ? 'asc' : 'desc' },
@@ -178,7 +176,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       },
     }),
     db.messageLog.count({ where }),
-    db.messageLog.count({ where: { ...channelWhere, ...(myUserId ? { sentByUserId: myUserId } : { id: '' }) } }),
+
     db.messageLog.count({ where: channelWhere }),
     db.messageLog.count({ where: { ...channelWhere, status: { in: [...NOT_DELIVERED] } } }),
     db.messageLog.count({ where: { ...channelWhere, direction: 'INBOUND' } }),
@@ -280,7 +278,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     size: query.size,
     total,
     totalPages: Math.max(1, Math.ceil(total / query.size)),
-    counts: { mine: mineCount, all: allCount, notDelivered: notDeliveredCount, inbound: inboundCount, unread: unreadCount, pendientes: pendientesCount },
+    counts: { all: allCount, notDelivered: notDeliveredCount, inbound: inboundCount, unread: unreadCount, pendientes: pendientesCount },
   });
 }
 

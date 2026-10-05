@@ -261,7 +261,9 @@
     "inteligencia": "Intelligence",
     "system": "System",
     "messages": "Messages",
-    "rewards": "Rewards"
+    "rewards": "Rewards",
+    "security": "Security Center",
+    "securitySection": "Security"
   },
   "dashboard": {
     "clinicStatsSoon": "Clinic statistics — coming soon",

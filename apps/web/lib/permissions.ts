@@ -43,7 +43,8 @@ export type LmModule =
   | 'metricas'
   | 'agentes_ia'
   | 'configuracion'
-  | 'mensajes';
+  | 'mensajes'
+  | 'seguridad';
 
 export interface LmAdminPerms {
   dashboard: ModulePerm;
@@ -61,6 +62,20 @@ export interface LmAdminPerms {
    * segunda puerta a lo mismo. Empezar cerrado se puede abrir; al revés no.
    */
   mensajes: ModulePerm;
+  /**
+   * Centro de Seguridad — intentos de acceso, IPs, y el mapa de qué protege a
+   * cada módulo.
+   *
+   * **Solo `super_admin`, y a propósito.** Esta pantalla no solo muestra quién
+   * ataca: muestra DÓNDE estamos flojos — qué app no tiene cabeceras, cuántas
+   * cuentas no tienen segundo factor, cuáles entran sin estar activas. Esa lista
+   * es, leída al revés, un plan de ataque.
+   *
+   * Va separada de `configuracion` porque son cosas distintas: configurar es
+   * cambiar el sistema, esto es mirarlo. Hay gente que debe poder lo primero sin
+   * poder lo segundo.
+   */
+  seguridad: ModulePerm;
 }
 
 export interface RolePermissions {
@@ -183,6 +198,7 @@ export const ROLE_PERMISSIONS: Record<Role, RolePermissions> = {
       agentes_ia: 'write',
       configuracion: 'write',
       mensajes: 'write',
+      seguridad: 'write',
     },
     pm_timeclock: true,
   },
@@ -197,6 +213,7 @@ export const ROLE_PERMISSIONS: Record<Role, RolePermissions> = {
       agentes_ia: 'cifo_only',
       configuracion: 'none',
       mensajes: 'write',
+      seguridad: 'none',
     },
     pm_timeclock: true,
   },
@@ -211,6 +228,7 @@ export const ROLE_PERMISSIONS: Record<Role, RolePermissions> = {
       agentes_ia: 'none',
       configuracion: 'none',
       mensajes: 'none',
+      seguridad: 'none',
     },
     pm_timeclock: false,
   },
@@ -225,6 +243,7 @@ export const ROLE_PERMISSIONS: Record<Role, RolePermissions> = {
       agentes_ia: 'none',
       configuracion: 'none',
       mensajes: 'none',
+      seguridad: 'none',
     },
     pm_timeclock: true,
   },
@@ -239,6 +258,7 @@ export const ROLE_PERMISSIONS: Record<Role, RolePermissions> = {
       agentes_ia: 'none',
       configuracion: 'none',
       mensajes: 'none',
+      seguridad: 'none',
     },
     pm_timeclock: false,
   },
@@ -253,6 +273,7 @@ export const ROLE_PERMISSIONS: Record<Role, RolePermissions> = {
       agentes_ia: 'none',
       configuracion: 'none',
       mensajes: 'none',
+      seguridad: 'none',
     },
     pm_timeclock: false,
   },
@@ -267,6 +288,7 @@ export const ROLE_PERMISSIONS: Record<Role, RolePermissions> = {
       agentes_ia: 'none',
       configuracion: 'none',
       mensajes: 'none',
+      seguridad: 'none',
     },
     pm_timeclock: false,
   },
@@ -281,6 +303,7 @@ export const ROLE_PERMISSIONS: Record<Role, RolePermissions> = {
       agentes_ia: 'write',
       configuracion: 'none',
       mensajes: 'none',
+      seguridad: 'none',
     },
     pm_timeclock: false,
   },

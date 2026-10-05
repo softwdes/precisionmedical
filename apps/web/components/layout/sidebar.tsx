@@ -15,6 +15,7 @@ import {
   BarChart3,
   Bot,
   Settings,
+  ShieldAlert,
   ChevronLeft,
   Lock,
   Mail,
@@ -64,6 +65,21 @@ export function Sidebar({ isOpen, onClose }: SidebarProps): React.ReactElement {
 
   const NAV_INTELLIGENCE: NavItem[] = [
     { key: 'ai-agents', href: '/dashboard/ai-agents', icon: Bot, label: t('nav.aiAgents'), module: 'agentes_ia' },
+  ];
+
+  /**
+   * Sección propia, y no una línea dentro de Inteligencia (Erick, 2026-10-05).
+   *
+   * Inteligencia son los agentes de IA — CIFO, el auditor, sus costos. La
+   * seguridad no es IA, y meterla ahí haría que esa sección deje de significar
+   * algo. Va aparte también porque crece: hoy entra una pantalla, y detrás
+   * vienen las IP bloqueadas y las sesiones activas.
+   *
+   * Y porque el permiso es distinto: quien mira los costos del modelo no es
+   * necesariamente quien debe ver el mapa de qué está desprotegido.
+   */
+  const NAV_SECURITY: NavItem[] = [
+    { key: 'seguridad', href: '/dashboard/seguridad', icon: ShieldAlert, label: t('nav.security'), module: 'seguridad' },
   ];
 
   const NAV_SYSTEM: NavItem[] = [
@@ -147,6 +163,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps): React.ReactElement {
               {t('nav.inteligencia') as string}
             </p>
             <NavGroup items={NAV_INTELLIGENCE} pathname={pathname} role={role} grants={grants} />
+          </div>
+
+          <div className="mt-4">
+            <p className="mb-1 px-2 text-tiny font-bold uppercase tracking-widest text-text-muted">
+              {t('nav.securitySection') as string}
+            </p>
+            <NavGroup items={NAV_SECURITY} pathname={pathname} role={role} grants={grants} />
           </div>
 
           <div className="mt-4">

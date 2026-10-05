@@ -79,14 +79,29 @@ interface SentRx {
 }
 
 /**
- * Recetas que llegaron (o van en camino) a la farmacia.
+ * Recetas que CONSTA que salieron a la farmacia.
  *
  * El mostrador solo debe ver estas: un borrador o una anulada no le sirven, y
  * la que falló es peor que ruido — casi siempre está DUPLICADA por el reenvío
  * que sí salió, así que el asistente ve dos veces el mismo remedio y no sabe
  * cuál cuenta. Los errores los ve el doctor, que es el único que puede reenviar.
+ *
+ * `PENDING_DAW` **ya no entra**, y es el punto de todo esto.
+ *
+ * Significa "todavía no sabemos" —lo dice el propio `scriptsure-prescriptions`—
+ * y es el valor por defecto cuando el payload NO informa estado. Una receta que
+ * el médico apenas guardó en ScriptSure, sin transmitirla, cae exactamente ahí:
+ * Devin lo contó el 2026-10-05 sobre la de Thomas Rather.
+ *
+ * Mientras estuvo en este conjunto, el mostrador la veía entre las que "van en
+ * camino a la farmacia" y podía decirle al paciente que pasara a retirarla.
+ * Entre esconderle una que sí salió y mostrarle una que nunca salió, lo segundo
+ * es peor: la primera se nota al rato, la segunda manda a alguien a la farmacia
+ * en vano.
+ *
+ * El médico las sigue viendo todas — él es el único que puede reenviar.
  */
-export const RX_ENTREGADAS: ReadonlySet<string> = new Set(['SENT', 'PENDING_DAW']);
+export const RX_ENTREGADAS: ReadonlySet<string> = new Set(['SENT']);
 export const soloEntregadas = <T extends { status: string }>(rows: T[]): T[] =>
   rows.filter((r) => RX_ENTREGADAS.has(r.status));
 

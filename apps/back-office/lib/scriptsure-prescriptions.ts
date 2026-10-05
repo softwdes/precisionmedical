@@ -264,7 +264,19 @@ export async function persistPrescription(params: {
     pharmacyAddress: mapped.pharmacyAddress,
     prescriberName: params.prescriberName,
     dawRxId: mapped.dawRxId ?? null,
-    dawSentAt: mapped.writtenAt ?? new Date(),
+    /**
+     * La fecha de envío solo si HAY de dónde sacarla.
+     *
+     * Antes era `mapped.writtenAt ?? new Date()`: a falta de dato se ponía el
+     * momento de la sincronización, así que una receta que el médico apenas
+     * GUARDÓ en ScriptSure quedaba con hora de envío. Devin lo dijo el
+     * 2026-10-05 sobre la de Thomas Rather: *"I did not send it through LM, I
+     * just saved it"* — y la fila decía 13:34.
+     *
+     * Una fecha de envío inventada es peor que ninguna: se lee como constancia
+     * de que salió. Nula significa "no sabemos cuándo", que es la verdad.
+     */
+    dawSentAt: mapped.writtenAt ?? null,
     ndc: mapped.ndc,
     rxNorm: mapped.rxNorm,
     rxNormQualifier: mapped.rxNormQualifier,

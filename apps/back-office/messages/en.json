@@ -1539,7 +1539,7 @@
       "statsRxIssued": "Rx issued",
       "templatesTitle": "Templates",
       "templatesSubtitle": "Your clinical note templates",
-      "templatesSubtitleCount": "{count} global clinical templates",
+      "templatesSubtitleCount": "{count} clinical templates",
       "tplNew": "New template",
       "tplSearch": "Search by title or description…",
       "tplColTitle": "Template",
@@ -2315,7 +2315,11 @@
       "rxCheckStatus": "Check status",
       "rxCheckStatusHint": "What you see is the status at the moment it was sent. The pharmacy can answer several minutes later, so if it just went out, wait a bit and check again.",
       "demogHintLarga": "ScriptSure won't accept a street address longer than 35 characters, and this patient's is over. Shorten it here — abbreviate, or remove the city and ZIP if they ended up inside it — and we'll carry on with the prescription.",
-      "medHxFormHintDonde": "Anything the patient picks up at a pharmacy IS cross-checked: pull it in with “Pharmacy history” on the Prescription tab and it lands inside ScriptSure. This form is for what never went through a pharmacy — over-the-counter, supplements, samples — which for now stays outside the check."
+      "medHxFormHintDonde": "Anything the patient picks up at a pharmacy IS cross-checked: pull it in with “Pharmacy history” on the Prescription tab and it lands inside ScriptSure. This form is for what never went through a pharmacy — over-the-counter, supplements, samples — which for now stays outside the check.",
+      "templatesSubtitleSplit": "{shared} from the clinic · {personal} yours",
+      "tplFieldScope": "Which list does it go to?",
+      "tplScopeAjenaHint": "Someone else created this template, so it can't move to your list: the rest of the clinic would lose it and you wouldn't see it either. If you want your own, copy it into a new one.",
+      "templatesSubtitleAdmin": "{shared} from the clinic · {personal} providers' own"
     },
     "topbar": {
       "search": "Search firms, services, diagnoses...",

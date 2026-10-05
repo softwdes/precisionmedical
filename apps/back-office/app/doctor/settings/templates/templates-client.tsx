@@ -19,6 +19,7 @@ import {
 } from '@precision/ui';
 import {
   Plus, Search, Star, Pencil, Trash2, FileText, Loader2, X, Stethoscope, Eye,
+  Users, User,
 } from 'lucide-react';
 import {
   PageHeader, DataTable, TableFooter, EmptyState, IconAction, TagPill, RichTextEditor, HoverPreview, useToast,
@@ -45,6 +46,7 @@ export interface DoctorTemplate {
   encounterType: string;
   caseType: string;
   scope: string;
+  createdById: string;
   isActive: boolean;
   usageCount: number;
   notesCount: number;
@@ -155,6 +157,24 @@ export function TemplatesClient({
     } catch { /* estado optimista; el refresh trae la verdad */ }
   };
 
+  /**
+   * El subtítulo decía "N plantillas clínicas globales" y desde que el alcance
+   * se filtra (2026-10-05) eso es falso: la lista mezcla las de la clínica con
+   * las propias de quien mira. Cuando hay propias se dicen los dos números;
+   * cuando no hay, una sola frase, porque "· 0 mías" es ruido.
+   */
+  const personales = templates.filter((x) => x.scope === 'PERSONAL');
+  const mias = personales.filter((x) => x.createdById === userId).length;
+  // Un admin ve además las personales de OTROS: decirle "N mías" sería mentira.
+  const ajenas = personales.length - mias;
+  const subtitulo = ajenas > 0
+    ? t('templatesSubtitleAdmin', {
+      shared: templates.length - personales.length, personal: personales.length,
+    })
+    : mias > 0
+      ? t('templatesSubtitleSplit', { shared: templates.length - mias, personal: mias })
+      : t('templatesSubtitleCount', { count: templates.length });
+
   const handleDelete = async (): Promise<void> => {
     if (!deleting) return;
     const res = await fetch(`/api/admin/templates?id=${deleting.id}`, { method: 'DELETE' });
@@ -168,7 +188,7 @@ export function TemplatesClient({
     <div className="space-y-5">
       <PageHeader
         title={t('templatesTitle')}
-        subtitle={t('templatesSubtitleCount', { count: templates.length })}
+        subtitle={subtitulo}
         action={
           <Button onClick={() => setCreating(true)} className="gap-1.5">
             <Plus className="w-4 h-4" /> {t('tplNew')}
@@ -344,6 +364,23 @@ function TemplateDialog({
   const [description, setDescription] = React.useState(template?.description ?? '');
   const [encounterType, setEncounterType] = React.useState(template?.encounterType ?? 'FOLLOW_UP');
   const [caseType, setCaseType] = React.useState(template?.caseType ?? 'GENERAL');
+
+  /**
+   * A qué lista va. Hasta el 2026-10-05 esto estaba en duro en `SHARED` y el
+   * médico no tenía forma de guardarse una propia — pedido de Devin
+   * (2026-09-25): *"Create a Global list and individual provider list"*.
+   *
+   * Una plantilla AJENA no se puede pasar a "mía": el PATCH cambia el alcance
+   * pero NO el autor, así que quedaría visible solo para quien la creó —ni
+   * siquiera para el que la movió— y desaparecería para el resto. Por eso en
+   * ese caso la opción se muestra deshabilitada y se dice por qué, en vez de
+   * esconderla: ver `feedback-no-esconder-la-accion-bloqueada`.
+   */
+  const [scope, setScope] = React.useState<'SHARED' | 'PERSONAL'>(
+    template?.scope === 'PERSONAL' ? 'PERSONAL' : 'SHARED',
+  );
+  const esAjena = !!template && !!userId && template.createdById !== userId;
+
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState('');
 
@@ -405,7 +442,7 @@ function TemplateDialog({
           description: description.trim() || null,
           encounterType,
           caseType,
-          scope: 'SHARED', // plantillas globales
+          scope,
           isActive: true,
           sections,
         }),
@@ -423,6 +460,33 @@ function TemplateDialog({
       setError(t('tplErrSave'));
       setSaving(false);
     }
+  };
+
+  const opcionAlcance = (
+    valor: 'SHARED' | 'PERSONAL', Icono: typeof Users, titulo: string, detalle: string,
+  ): React.ReactElement => {
+    // "Mía" se bloquea sobre una plantilla ajena; "De la clínica" nunca, para
+    // que quien se guardó una propia pueda compartirla después.
+    const bloqueada = readOnly || (valor === 'PERSONAL' && esAjena);
+    const elegida = scope === valor;
+    return (
+      <button
+        type="button"
+        onClick={() => { if (!bloqueada) setScope(valor); }}
+        disabled={bloqueada}
+        aria-pressed={elegida}
+        className={`flex-1 text-left rounded-lg p-3 transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+          elegida ? 'bg-violet/10 ring-1 ring-violet/40' : 'bg-bg-2/40 hover:bg-bg-2/60'
+        }`}
+      >
+        <span className={`flex items-center gap-1.5 text-[12.5px] font-semibold ${
+          elegida ? 'text-violet-text' : 'text-text-1'
+        }`}>
+          <Icono className="w-3.5 h-3.5" /> {titulo}
+        </span>
+        <span className="block text-[11px] text-text-muted mt-0.5 leading-relaxed">{detalle}</span>
+      </button>
+    );
   };
 
   return (
@@ -470,6 +534,19 @@ function TemplateDialog({
                   {CASE_TYPES.map((v) => <option key={v} value={v}>{t(`case_${v}`)}</option>)}
                 </select>
               </div>
+            </div>
+
+            {/* A qué lista va — mismo control que el de snippets, para que las
+                dos pantallas se lean igual. */}
+            <div className="space-y-1.5">
+              <Label>{t('tplFieldScope')}</Label>
+              <div className="flex flex-col sm:flex-row gap-2">
+                {opcionAlcance('SHARED', Users, t('snpScopeShared'), t('snpScopeSharedHint'))}
+                {opcionAlcance('PERSONAL', User, t('snpScopePersonal'), t('snpScopePersonalHint'))}
+              </div>
+              {esAjena && (
+                <p className="text-[11px] text-text-muted leading-relaxed">{t('tplScopeAjenaHint')}</p>
+              )}
             </div>
 
             {/* Secciones con editor rich text */}

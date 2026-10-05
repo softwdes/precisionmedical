@@ -35,7 +35,22 @@ import type { TemplateScope } from '@precision-medical/database';
  */
 const PERSONAL = 'PERSONAL' as TemplateScope & 'PERSONAL';
 
-export function filtroPorAlcance(userId: string | null) {
+/**
+ * `verTodo` levanta el filtro por completo. Erick, 2026-10-05: *"que el admin
+ * vea todo"*. Es para ADMINISTRAR —ver qué existe, corregir, borrar—, no para
+ * trabajar, y por eso NO se decide acá adentro mirando el rol: quien llama dice
+ * si esta pantalla es de administración, y el servidor comprueba el rol antes
+ * de pasarlo en true.
+ *
+ * La distinción no es ceremonia. La misma ruta de plantillas alimenta la
+ * pantalla de admin Y dos superficies donde se escribe una nota; si el filtro
+ * se abriera por rol a secas, un admin vería las plantillas personales de todos
+ * mientras redacta. Y en `/doctor/*` rompería la promesa del modo "ver como"
+ * —*"se ve el portal tal como lo ve ese doctor"*—, que es justo donde un admin
+ * va a mirar cuando alguien le dice "no me aparece".
+ */
+export function filtroPorAlcance(userId: string | null, verTodo = false) {
+  if (verTodo) return {};
   return userId
     ? { OR: [{ scope: { not: PERSONAL } }, { scope: PERSONAL, createdById: userId }] }
     : { scope: { not: PERSONAL } };

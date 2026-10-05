@@ -57,10 +57,15 @@ export async function GET(): Promise<NextResponse> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.email) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
 
-  // Lo personal es de su autor, también acá. Este GET alimenta la pantalla de
-  // admin Y dos superficies del médico, así que el filtro va en el servidor:
-  // la de admin ya filtraba por alcance, pero del lado del cliente y sobre una
-  // lista que venía completa.
+  /**
+   * Lo personal es de su autor, también acá.
+   *
+   * Este GET lo consumen SOLO superficies de trabajo —el paso del doctor en
+   * admisión y el diálogo de notas—, así que no lleva la excepción de "el admin
+   * ve todo": ahí se escribe una nota, y ver las plantillas personales de los
+   * demás sería ruido. La excepción vive en la pantalla de configuración, que
+   * es la única que administra plantillas. Ver `lib/alcance-listas`.
+   */
   const templates = await db.template.findMany({
     where: { deletedAt: null, ...filtroPorAlcance(await phoenixUserId(user.email)) },
     include: {

@@ -13,7 +13,7 @@ import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { db } from '@precision-medical/database';
 import { fetchDbRole } from '@precision-medical/auth/v2-apps';
-import { getSessionProvider } from '@/lib/get-session-provider';
+import { getSessionProvider, getDoctorViewInfo } from '@/lib/get-session-provider';
 import { getSessionUser } from '@/lib/session';
 import { filtroPorAlcance } from '@/lib/alcance-listas';
 import { TemplatesClient, type DoctorTemplate } from './templates-client';
@@ -27,8 +27,23 @@ export default async function DoctorTemplatesPage(): Promise<React.ReactElement>
   const provider = await getSessionProvider();
   if (!provider) return <></>; // el layout ya renderiza el estado sin perfil
 
+  /**
+   * "Que el admin vea todo" (Erick, 2026-10-05). Esta es la ÚNICA pantalla
+   * donde se administran plantillas: la de `(admin)/admin/templates` quedó sin
+   * `page.tsx` y no la importa nadie, así que no es una puerta.
+   *
+   * **Salvo en modo "ver como".** Ahí el admin está mirando el portal de otro
+   * médico y la promesa es *"se ve tal como lo ve esa persona"*; abrirle la
+   * lista completa justo ahí convertiría en inútil la única herramienta que
+   * tiene para responder un "no me aparece".
+   */
+  const user = await getSessionUser();
+  const role = user?.email ? await fetchDbRole(user.email) : 'DOCTOR';
+  const esAdmin = role === 'SUPER_ADMIN' || role === 'ADMIN';
+  const { isViewAs } = await getDoctorViewInfo();
+
   const rows = await db.template.findMany({
-    where: { deletedAt: null, ...filtroPorAlcance(provider.userId) },
+    where: { deletedAt: null, ...filtroPorAlcance(provider.userId, esAdmin && !isViewAs) },
     include: {
       sections: { orderBy: { orderIndex: 'asc' } },
       favorites: provider.userId
@@ -46,6 +61,10 @@ export default async function DoctorTemplatesPage(): Promise<React.ReactElement>
     encounterType: t.encounterType,
     caseType: t.caseType,
     scope: t.scope,
+    // Hace falta en el cliente para saber si ESTA persona puede pasarla a su
+    // lista: mover a personal una plantilla ajena la escondería para todos
+    // menos para su autor, que no es quien la está editando.
+    createdById: t.createdById,
     isActive: t.isActive,
     usageCount: t.usageCount,
     notesCount: t._count.visitNotes,
@@ -61,9 +80,7 @@ export default async function DoctorTemplatesPage(): Promise<React.ReactElement>
   }));
 
   // Solo el admin puede eliminar plantillas (el doctor crea y edita)
-  const user = await getSessionUser();
-  const role = user?.email ? await fetchDbRole(user.email) : 'DOCTOR';
-  const canDelete = role === 'SUPER_ADMIN' || role === 'ADMIN';
+  const canDelete = esAdmin;
 
   return <TemplatesClient templates={templates} userId={provider.userId} canDelete={canDelete} />;
 }

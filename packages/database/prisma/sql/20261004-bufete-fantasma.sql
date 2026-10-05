@@ -1,3 +1,18 @@
+-- ╔══════════════════════════════════════════════════════════════════════════╗
+-- ║  ⛔ NO EJECUTAR. ESTE ARCHIVO ESTABA EQUIVOCADO.                          ║
+-- ║                                                                          ║
+-- ║  "NO ATTORNEY YET" NO es basura: es el marcador con el que Edson anota   ║
+-- ║  que el paciente todavía no tiene abogado. Lo aclaró Erick el 2026-10-05.║
+-- ║                                                                          ║
+-- ║  Se aplicó el 2026-10-04 y fue un ERROR: borró el marcador. Edson lo     ║
+-- ║  volvió a crear el 2026-10-05 a las 20:34 con sus dos casos.             ║
+-- ║                                                                          ║
+-- ║  Correrlo HOY volvería a borrarlo y dejaría 2 casos sin bufete — medido. ║
+-- ║  Por eso las sentencias de abajo están COMENTADAS: el archivo queda como ║
+-- ║  registro de lo que pasó, sin poder volver a hacerlo.                    ║
+-- ║                                                                          ║
+-- ║  Ver 20261005b-no-attorney-yet-NO-BORRAR.sql                             ║
+-- ╚══════════════════════════════════════════════════════════════════════════╝
 -- 20261004 — Sacar del catálogo el "bufete" NO ATTORNEY YET
 --
 -- ── Qué pasó ────────────────────────────────────────────────────────────────
@@ -45,28 +60,28 @@
 -- cuando el texto no se parece a un nombre de bufete, o que el catálogo tenga
 -- dónde fusionar y archivar desde la pantalla de Externos.
 
-BEGIN;
+-- BEGIN;
 
 -- 1 · El caso se queda sin bufete, que es lo que realmente pasa.
-UPDATE cases
-   SET "lawFirmId" = NULL,
-       "updatedAt" = NOW()
- WHERE "lawFirmId" IN (
-         SELECT id FROM lawyers
-          WHERE "entityType" = 'FIRM'
-            AND "deletedAt" IS NULL
-            AND upper(trim("firmName")) = 'NO ATTORNEY YET'
-       );
+-- UPDATE cases
+--    SET "lawFirmId" = NULL,
+--        "updatedAt" = NOW()
+--  WHERE "lawFirmId" IN (
+--          SELECT id FROM lawyers
+--           WHERE "entityType" = 'FIRM'
+--             AND "deletedAt" IS NULL
+--             AND upper(trim("firmName")) = 'NO ATTORNEY YET'
+--        );
 
 -- 2 · El bufete sale del catálogo sin desaparecer de la base.
-UPDATE lawyers
-   SET "deletedAt" = NOW(),
-       "updatedAt" = NOW()
- WHERE "entityType" = 'FIRM'
-   AND "deletedAt" IS NULL
-   AND upper(trim("firmName")) = 'NO ATTORNEY YET';
+-- UPDATE lawyers
+--    SET "deletedAt" = NOW(),
+--        "updatedAt" = NOW()
+--  WHERE "entityType" = 'FIRM'
+--    AND "deletedAt" IS NULL
+--    AND upper(trim("firmName")) = 'NO ATTORNEY YET';
 
-COMMIT;
+-- COMMIT;
 
 -- ── Para verificar después ──────────────────────────────────────────────────
 --

@@ -224,6 +224,32 @@ export default async function VisitNotePrintPage({ params }: Props): Promise<Rea
 
   const specialty = a.provider?.specialty ? tSpec(a.provider.specialty) : '—';
 
+  /**
+   * EL ACENTO DEL PAPEL, en un solo lugar.
+   *
+   * Devin, 2026-10-05: *"proceed as you recommended with the logo with the same
+   * accent color the other documents use"*. La hoja venía en violeta
+   * (`#6d28d9`/`#5b21b6`), que es el color del MÓDULO del doctor en pantalla
+   * —B.17/B.18— y el único de la familia impresa que no coincidía con nada: la
+   * confirmación de cita usa `#0f172a`, el paquete de admisión `#1E4D8C` y la
+   * requisición de LabCorp `#1F3A6E`.
+   *
+   * Se adopta el azul del paquete de admisión: es el documento PROPIO de la
+   * clínica que ve el paciente, y es un acento de verdad —el `#0f172a` de la
+   * confirmación es casi negro—. La requisición no sirve de guía porque imita a
+   * propósito el formulario de LabCorp, que no es nuestro.
+   *
+   * Los tonos claros son la traducción de los violetas que había, conservando la
+   * misma relación de claridad para no alterar el peso visual de la hoja.
+   */
+  const ACENTO = '#1E4D8C';
+  const ACENTO_OSC = '#163A63';
+  const BORDE_CITA = '#CFE0F3';
+  const FONDO_TH = '#F2F6FB';
+  const FONDO_CITA = '#FAFCFE';
+  const LINEA_SUAVE = '#DCE7F4';
+  const LINEA_TENUE = '#E8EFF7';
+
   const css = `
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-size:11pt;line-height:1.45}
@@ -232,12 +258,16 @@ export default async function VisitNotePrintPage({ params }: Props): Promise<Rea
 
     /* Barra de acciones (no se imprime) */
     .pbar{background:#f6f5fa;border-bottom:1px solid #e3e0ec;padding:10px 24px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;position:sticky;top:0;z-index:10;margin-bottom:24px}
-    .pbar button{padding:9px 18px;background:#6d28d9;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+    .pbar button{padding:9px 18px;background:${ACENTO};color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
     .pbar span{font-size:11px;color:#6b7280}
 
-    /* Encabezado */
-    .lh{border-bottom:2px solid #6d28d9;padding-bottom:12px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start;gap:24px}
-    .cn{font-size:17pt;font-weight:bold;color:#5b21b6;line-height:1.2}
+    /* Membrete. El logo y el bloque de la sede van juntos a la izquierda; a la
+       derecha siguen el título, la fecha y el sello. Mismo patrón que la
+       confirmación de cita, que es el único membrete que ya existía. */
+    .lh{border-bottom:2px solid ${ACENTO};padding-bottom:12px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start;gap:24px}
+    .lhl{display:flex;align-items:flex-start;gap:14px;min-width:0}
+    .lhl img{height:52px;width:auto;flex-shrink:0}
+    .cn{font-size:17pt;font-weight:bold;color:${ACENTO_OSC};line-height:1.2}
     .cs{font-size:8.5pt;color:#555;margin-top:3px}
     .dt{font-size:12.5pt;font-weight:bold;text-align:right;color:#333;letter-spacing:.04em}
     .ds{font-size:8.5pt;color:#555;text-align:right;margin-top:2px}
@@ -251,26 +281,26 @@ export default async function VisitNotePrintPage({ params }: Props): Promise<Rea
     /* Grid de datos */
     .igrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px}
     .ibox{border:1px solid #e5e7eb;border-radius:5px;padding:8px 10px}
-    .ibt{font-size:7.5pt;font-weight:bold;text-transform:uppercase;letter-spacing:.09em;color:#6d28d9;margin-bottom:5px;padding-bottom:3px;border-bottom:1px solid #f0eefa}
+    .ibt{font-size:7.5pt;font-weight:bold;text-transform:uppercase;letter-spacing:.09em;color:${ACENTO};margin-bottom:5px;padding-bottom:3px;border-bottom:1px solid ${LINEA_TENUE}}
     .irow{display:flex;justify-content:space-between;gap:10px;font-size:9pt;margin-top:3px}
     .il{color:#6b7280;white-space:nowrap}
     .iv{font-weight:600;color:#111;text-align:right}
     .mono{font-family:'Courier New',monospace;font-weight:bold}
 
     /* Títulos de sección */
-    .stitle{font-size:9.5pt;font-weight:bold;text-transform:uppercase;letter-spacing:.09em;color:#6d28d9;margin:18px 0 6px;padding-bottom:3px;border-bottom:1px solid #ece7fa}
+    .stitle{font-size:9.5pt;font-weight:bold;text-transform:uppercase;letter-spacing:.09em;color:${ACENTO};margin:18px 0 6px;padding-bottom:3px;border-bottom:1px solid ${LINEA_SUAVE}}
 
     /* Tablas */
     table{width:100%;border-collapse:collapse;font-size:9pt}
-    th{background:#f7f5ff;color:#5b21b6;text-align:left;padding:5px 8px;font-size:8pt;font-weight:700;letter-spacing:.04em;border:1px solid #e8e2f8}
+    th{background:${FONDO_TH};color:${ACENTO_OSC};text-align:left;padding:5px 8px;font-size:8pt;font-weight:700;letter-spacing:.04em;border:1px solid ${LINEA_SUAVE}}
     td{padding:5px 8px;border:1px solid #eee;vertical-align:top}
     .vtab td{text-align:center;font-weight:600}
     .vtab th{text-align:center}
 
     /* SOAP */
     .ss{margin-bottom:12px;break-inside:avoid}
-    .sl{font-size:8.5pt;font-weight:bold;color:#5b21b6;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px}
-    .sc{font-size:10pt;line-height:1.5;color:#1f2937;padding:6px 10px;border-left:3px solid #ddd6fe;background:#fbfaff}
+    .sl{font-size:8.5pt;font-weight:bold;color:${ACENTO_OSC};text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px}
+    .sc{font-size:10pt;line-height:1.5;color:#1f2937;padding:6px 10px;border-left:3px solid ${BORDE_CITA};background:${FONDO_CITA}}
     .sc p{margin:0 0 6px}
     .sc p:last-child{margin-bottom:0}
     .sc ul,.sc ol{margin:0 0 6px 18px}
@@ -278,14 +308,14 @@ export default async function VisitNotePrintPage({ params }: Props): Promise<Rea
     .sc .chk{font-size:11pt;line-height:1;margin-right:2px}
     .sc .blank{display:inline-block;min-width:56px;padding:0 4px;border-bottom:1px solid #6b7280;line-height:1.2}
     .sc h1,.sc h2,.sc h3{font-size:10.5pt;font-weight:bold;margin:4px 0}
-    .sc blockquote{margin:4px 0 6px 10px;padding-left:8px;border-left:2px solid #ddd6fe;color:#4b5563;font-style:italic}
+    .sc blockquote{margin:4px 0 6px 10px;padding-left:8px;border-left:2px solid ${BORDE_CITA};color:#4b5563;font-style:italic}
     .sc strong{font-weight:700}
 
     /* Diagnósticos */
     .dx{padding:5px 0;border-bottom:1px solid #f1f1f1;display:flex;gap:12px;font-size:9pt}
     .dx:last-child{border-bottom:none}
     .dxn{color:#9ca3af;min-width:14px}
-    .dxc{font-family:'Courier New',monospace;font-weight:bold;color:#5b21b6;min-width:74px}
+    .dxc{font-family:'Courier New',monospace;font-weight:bold;color:${ACENTO_OSC};min-width:74px}
     .dxd{flex:1;color:#1f2937}
     .dxs{color:#047857;font-size:8pt;font-family:'Courier New',monospace;margin-top:1px}
 
@@ -329,12 +359,24 @@ export default async function VisitNotePrintPage({ params }: Props): Promise<Rea
       <div className="wrap">
         <div className="doc">
 
-          {/* Encabezado de la clínica */}
+          {/* Membrete: logo + la sede de ESTA cita.
+              Devin pidió el nombre y la dirección de la sede y descartó
+              codificarlas por color, así que van en texto. El dato ya venía en
+              la consulta (`Appointment.clinicId` es obligatorio): lo único que
+              faltaba era el logo.
+              El `<img>` es a propósito y no `next/image`: esta hoja se imprime,
+              y el componente de Next mete `srcset` y carga diferida, que en una
+              impresión salen mal o directamente no salen. Mismo criterio que la
+              confirmación de cita. */}
           <div className="lh">
-            <div>
-              <div className="cn">{a.clinic.name}</div>
-              {clinicLine && <div className="cs">{clinicLine}</div>}
-              {a.clinic.phone && <div className="cs">{a.clinic.phone}</div>}
+            <div className="lhl">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo-pm.png" alt="Precision Medical" />
+              <div>
+                <div className="cn">{a.clinic.name}</div>
+                {clinicLine && <div className="cs">{clinicLine}</div>}
+                {a.clinic.phone && <div className="cs">{a.clinic.phone}</div>}
+              </div>
             </div>
             <div>
               <div className="dt">{t('prTitle')}</div>

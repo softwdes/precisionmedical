@@ -250,7 +250,16 @@ function CreateAppointmentDialog({
     clinicId: '',
     providerId: '',
     scheduledFor: '',
-    durationMinutes: '30',
+    /**
+     * 15, igual que el resto del sistema (Erick, 2026-10-01).
+     *
+     * Quedó en 30 cuando se unificaron los demás: el barrido buscaba
+     * `useState(NN)` y defaults de zod, y acá el valor vive dentro del objeto
+     * del formulario, así que no lo encontró. El valor canónico está en
+     * `apps/back-office/lib/duracion-cita.ts`; acá va a mano porque una app no
+     * puede importar de otra. Si cambia allá, cambiar acá.
+     */
+    durationMinutes: '15',
     type: 'AUTO_ACCIDENT' as typeof APPT_TYPES[number],
     notes: '',
   });

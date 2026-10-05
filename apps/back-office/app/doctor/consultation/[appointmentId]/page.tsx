@@ -17,6 +17,7 @@ import { evaluarReapertura } from '@/lib/visit-note-reopen';
 import { COVERAGE_FIELDS, resolveCoverage, serializeCoverage } from '@/lib/coverage';
 import { buildPatientContextConRecetas, PATIENT_CONTEXT_SELECT } from '@/lib/patient-context';
 import { llegadaMarcadaPorElProvider } from '@/lib/appointment-scope';
+import { filtroPorAlcance } from '@/lib/alcance-listas';
 import { CaseUrlModal } from '@/components/cases/case-url-modal';
 import { ConsultationClient } from './consultation-client';
 
@@ -88,9 +89,12 @@ export default async function DoctorConsultationPage({
       },
     },
     }),
-    // Plantillas globales disponibles + favoritas del doctor (autollenan la nota)
+    // Plantillas que le tocan a ESTE doctor + sus favoritas (autollenan la nota).
+    // "Globales" era la descripción vieja y la consulta la cumplía al pie: traía
+    // todo sin mirar `scope`, así que una plantilla personal de otro médico
+    // aparecía en esta lista.
     db.template.findMany({
-      where: { deletedAt: null, isActive: true },
+      where: { deletedAt: null, isActive: true, ...filtroPorAlcance(provider.userId) },
       select: {
         id: true, title: true, description: true, encounterType: true,
         sections: { select: { sectionKey: true, content: true }, orderBy: { orderIndex: 'asc' } },

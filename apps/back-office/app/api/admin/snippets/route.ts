@@ -18,6 +18,7 @@ import { db, writeAuditLog, Prisma } from '@precision-medical/database';
 import { createServerClient } from '@precision-medical/auth/server';
 import { fetchDbRole } from '@precision-medical/auth/v2-apps';
 import { resolveActor } from '@/lib/actor';
+import { filtroPorAlcance } from '@/lib/alcance-listas';
 import {
   SNIPPET_SECTIONS, SNIPPET_MESSAGE_SECTIONS, isSnippetSection, ownMessageSection, type SnippetSection,
 } from '@/lib/snippet-sections';
@@ -92,20 +93,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   /**
    * QUIÉN VE QUÉ. Los compartidos son de todos; los personales, solo de su
-   * autor.
-   *
-   * Este filtro es la otra mitad de haber abierto `scope` en el POST y sin él
-   * el alcance sería decorativo: hasta hoy la consulta traía TODO porque todo
-   * era `SHARED`, así que el primer snippet personal de un provider habría
-   * aparecido en la pantalla de los demás.
-   *
-   * `scope: null` entra en "compartido" a propósito: la columna tiene default
-   * pero una fila cargada por fuera podría no tenerlo, y esconderla sería peor
-   * que mostrarla — es texto de la clínica, no dato clínico.
+   * autor. La regla estaba escrita acá a mano y ahora vive en un solo lugar
+   * —`lib/alcance-listas`—, porque plantillas necesita la MISMA y no la tenía.
+   * El comportamiento no cambia: es la misma expresión.
    */
-  const deQuien = session.userId
-    ? { OR: [{ scope: { not: 'PERSONAL' as const } }, { scope: 'PERSONAL' as const, createdById: session.userId }] }
-    : { scope: { not: 'PERSONAL' as const } };
+  const deQuien = filtroPorAlcance(session.userId);
 
   const rows = await db.snippet.findMany({
     where: { deletedAt: null, ...deQuien, ...(sections ? { sectionKey: { in: [...sections] } } : {}) },

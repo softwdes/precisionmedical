@@ -15,6 +15,7 @@ import { db } from '@precision-medical/database';
 import { fetchDbRole } from '@precision-medical/auth/v2-apps';
 import { getSessionProvider } from '@/lib/get-session-provider';
 import { getSessionUser } from '@/lib/session';
+import { filtroPorAlcance } from '@/lib/alcance-listas';
 import { TemplatesClient, type DoctorTemplate } from './templates-client';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -27,7 +28,7 @@ export default async function DoctorTemplatesPage(): Promise<React.ReactElement>
   if (!provider) return <></>; // el layout ya renderiza el estado sin perfil
 
   const rows = await db.template.findMany({
-    where: { deletedAt: null },
+    where: { deletedAt: null, ...filtroPorAlcance(provider.userId) },
     include: {
       sections: { orderBy: { orderIndex: 'asc' } },
       favorites: provider.userId

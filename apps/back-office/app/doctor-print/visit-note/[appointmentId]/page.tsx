@@ -136,6 +136,8 @@ export default async function VisitNotePrintPage({ params }: Props): Promise<Rea
       },
       case: {
         select: {
+          // `caseType` decide QUÉ logo va en el membrete — ver `marcaDelCaso`.
+          caseType: true,
           caseCode: true, accidentDate: true, accidentType: true,
           primaryPolicyNumber: true,
           primaryInsurance: { select: { name: true } },
@@ -242,6 +244,24 @@ export default async function VisitNotePrintPage({ params }: Props): Promise<Rea
    * Los tonos claros son la traducción de los violetas que había, conservando la
    * misma relación de claridad para no alterar el peso visual de la hoja.
    */
+  /**
+   * QUÉ MARCA va en el membrete. Devin, 2026-10-05: *"for telemed the logo will
+   * likely be the Precision Medical Urgent Care and Family Practice Logo but
+   * that will just be determined by whether it's an MVA case or a GM case"*.
+   *
+   * O sea: **lo decide el TIPO DE CASO, no la sede**. Un accidente de tránsito
+   * sale con Pain Management and Orthopedics; lo demás, con Urgent Care and
+   * Family Practice. Una visita de telemedicina de un caso MVA lleva la de Pain
+   * Management, aunque "telemedicina" suene a medicina general.
+   *
+   * Sin caso —una visita suelta— cae en Urgent Care, que es la marca general de
+   * la clínica.
+   */
+  const esMVA = a.case?.caseType === 'MVA';
+  const marcaDelCaso = esMVA
+    ? { src: '/logo-pm-pain-management.png', alt: 'Precision Medical Pain Management and Orthopedics' }
+    : { src: '/logo-pm.png', alt: 'Precision Medical Urgent Care and Family Practice' };
+
   const ACENTO = '#1E4D8C';
   const ACENTO_OSC = '#163A63';
   const BORDE_CITA = '#CFE0F3';
@@ -371,7 +391,7 @@ export default async function VisitNotePrintPage({ params }: Props): Promise<Rea
           <div className="lh">
             <div className="lhl">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo-pm.png" alt="Precision Medical" />
+              <img src={marcaDelCaso.src} alt={marcaDelCaso.alt} />
               <div>
                 <div className="cn">{a.clinic.name}</div>
                 {clinicLine && <div className="cs">{clinicLine}</div>}

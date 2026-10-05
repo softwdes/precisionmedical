@@ -171,7 +171,7 @@ export function PistaDelPremio({ me, goals, shareCents, labelMeta, money, approv
           <Dato label={approved ? t('approved') : t('earned')} className="text-emerald-text">{money(me.payoutCents)}</Dato>
           {enCurso && (mostrarCerca ? (
             <Dato label={t('closest')} className="text-text-muted" sub={t('closestSub', { goal: labelMeta(masCerca!.g), actual: masCerca!.r.actual, target: masCerca!.r.target })}>
-              +{money(porMeta)}
+              ≈ +{money(porMeta)}
             </Dato>
           ) : (
             <Dato label={t('projected')} className="text-text-muted">{money(c.proyCents)}</Dato>
@@ -242,6 +242,9 @@ export function PistaDelPremio({ me, goals, shareCents, labelMeta, money, approv
       {mensaje}
       {enCurso && !llego && dias.pasados < 5 && (
         <p className="-mt-2 text-[11px] text-text-muted">{t('projEarly', { n: dias.pasados })}</p>
+      )}
+      {enCurso && (
+        <p className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber-text">{t('notFixed')}</p>
       )}
     </section>
   );

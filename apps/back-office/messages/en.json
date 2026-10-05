@@ -7337,7 +7337,8 @@
         "msgTeamBehind": "Your team is behind pace: a push now is worth more than at month end.",
         "deficitItem": "{n} {goal}",
         "deficitUsage": "{n} usage pts",
-        "projEarly": "The projection comes from {n, plural, one {# business day} other {# business days}}: it still moves a lot. What counts is the green."
+        "projEarly": "The projection comes from {n, plural, one {# business day} other {# business days}}: it still moves a lot. What counts is the green.",
+        "notFixed": "Amounts aren’t final yet: if a patient cancels or doesn’t show, that appointment stops counting and your total can go down. They become final when the Admin approves the month."
       },
       "kpiPointsAuto": "added by the system",
       "comingSoon": "Coming soon",
@@ -7359,7 +7360,23 @@
       "goalSpeedUp": "Speed up",
       "goalShouldHave": "Should be at {n} today",
       "goalHave": "Got it ✔",
-      "goalEachMixed": "Each goal met adds {amount} (the other half comes from the team)"
+      "goalEachMixed": "Each goal met adds {amount} (the other half comes from the team)",
+      "goalWorth": "worth ≈ {amount}",
+      "goalDropsIfLost": "If the patient cancels or doesn’t show, that appointment stops counting.",
+      "metricHelp": {
+        "APPTS_BOOKED": "Appointments you book in LM this month.",
+        "NEW_CASES": "New patients: cases you create from a call.",
+        "SAVED_APPTS": "An appointment that was about to be lost and you move it to another day instead of cancelling it. It counts as long as the new date holds.",
+        "REACTIVATIONS": "Patients who hadn’t come in for over 3 months and you book them an appointment.",
+        "SMS_PATIENTS": "Patients you text from LM (one per patient per day).",
+        "FORM_LINKS": "Form links you send a patient from LM (one per patient per day).",
+        "CHECKINS": "Patients you check in when they arrive.",
+        "DOCUMENTS": "Documents you upload to the patient’s chart (one per patient per day).",
+        "CONFIRMATIONS": "Appointments you confirm with the patient.",
+        "NOTES_SIGNED": "Visit notes you sign.",
+        "CONSULTS_DONE": "Visits you finish: the patient is marked as seen.",
+        "LAB_ORDERS": "Lab orders you create."
+      }
     },
     "revision": {
       "allergiesLabel": "Allergies",

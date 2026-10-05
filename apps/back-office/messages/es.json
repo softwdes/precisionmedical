@@ -7337,7 +7337,8 @@
         "msgTeamBehind": "Tu equipo va atrás del ritmo: un empujón ahora vale más que a fin de mes.",
         "deficitItem": "{n} {goal}",
         "deficitUsage": "{n} pts de uso",
-        "projEarly": "La proyección sale de {n, plural, one {# día hábil} other {# días hábiles}}: todavía se mueve mucho. Lo que cuenta es lo verde."
+        "projEarly": "La proyección sale de {n, plural, one {# día hábil} other {# días hábiles}}: todavía se mueve mucho. Lo que cuenta es lo verde.",
+        "notFixed": "Los montos todavía no son fijos: si un paciente cancela o no viene, esa cita deja de contar y lo que llevas puede bajar. Quedan fijos cuando el Admin aprueba el mes."
       },
       "kpiPointsAuto": "los suma el sistema",
       "comingSoon": "Próximamente",
@@ -7359,7 +7360,23 @@
       "goalSpeedUp": "Acelera",
       "goalShouldHave": "Hoy deberías llevar {n}",
       "goalHave": "Ya la tienes ✔",
-      "goalEachMixed": "Cada meta cumplida suma {amount} (la otra mitad viene del equipo)"
+      "goalEachMixed": "Cada meta cumplida suma {amount} (la otra mitad viene del equipo)",
+      "goalWorth": "vale ≈ {amount}",
+      "goalDropsIfLost": "Si el paciente cancela o no viene, esa cita deja de contar.",
+      "metricHelp": {
+        "APPTS_BOOKED": "Citas que agendas tú en LM este mes.",
+        "NEW_CASES": "Pacientes nuevos: casos que creas desde una llamada.",
+        "SAVED_APPTS": "Una cita que se iba a perder y la cambias a otro día en vez de cancelarla. Cuenta mientras la nueva fecha siga en pie.",
+        "REACTIVATIONS": "Pacientes que llevaban más de 3 meses sin venir y les agendas una cita.",
+        "SMS_PATIENTS": "Pacientes a los que les escribes por SMS desde LM (uno por paciente por día).",
+        "FORM_LINKS": "Links de formulario que le mandas a un paciente desde LM (uno por paciente por día).",
+        "CHECKINS": "Pacientes a los que les haces check-in cuando llegan.",
+        "DOCUMENTS": "Documentos que subes al expediente del paciente (uno por paciente por día).",
+        "CONFIRMATIONS": "Citas que confirmas con el paciente.",
+        "NOTES_SIGNED": "Notas de visita que firmas.",
+        "CONSULTS_DONE": "Consultas que terminas: el paciente queda como atendido.",
+        "LAB_ORDERS": "Órdenes de laboratorio que creas."
+      }
     },
     "revision": {
       "allergiesLabel": "Alergias",

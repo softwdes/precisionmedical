@@ -64,6 +64,13 @@ type Estado =
   | { tipo: 'fuera'; previous: Previous | null }
   | { tipo: 'listo'; data: Data };
 
+/**
+ * Las metas que cuelgan de una cita: suman al agendar (o reprogramar) y dejan de
+ * sumar si el paciente cancela o no viene (Erick, 2026-10-05). Hay que decirlo,
+ * porque el número puede bajar y eso sin aviso se lee como un error.
+ */
+const METRICAS_DE_CITA = new Set<MetricKey>(['APPTS_BOOKED', 'SAVED_APPTS', 'REACTIVATIONS']);
+
 /** Cada cuánto se recalcula sola la pantalla abierta. */
 const REFRESCO_MS = 90_000;
 
@@ -332,11 +339,19 @@ export function MisPremiosClient(): React.ReactElement {
                   {abierto && (
                     <span className="text-[10.5px] text-text-muted">
                       {hit ? t('goalHave') : t('goalShouldHave', { n: deberia })}
-                      {' · '}<span className="font-semibold text-emerald-text">+{money(mixto ? Math.round(porMeta / 2) : porMeta)}</span>
+                      {' · '}<span className="font-semibold text-emerald-text">{t('goalWorth', { amount: money(mixto ? Math.round(porMeta / 2) : porMeta) })}</span>
                     </span>
                   )}
                   {g.kind === 'USAGE' && <span className="text-[10.5px] text-text-muted">{t('goalUsageHint', { cap: USO_TOPE_DIARIO })}</span>}
-                  {(g.kind === 'CALLS' || g.kind === 'METRIC') && <span className="text-[10.5px] text-text-muted">{t('goalAuto')}</span>}
+                  {g.kind === 'METRIC' && g.metric && t.has(`metricHelp.${g.metric}`) && (
+                    <span className="text-[10.5px] text-text-2">{t(`metricHelp.${g.metric}`)}</span>
+                  )}
+                  {g.kind === 'METRIC' && g.metric && METRICAS_DE_CITA.has(g.metric) && (
+                    <span className="text-[10.5px] text-amber-text">{t('goalDropsIfLost')}</span>
+                  )}
+                  {(g.kind === 'CALLS' || g.kind === 'METRIC') && !(g.metric && t.has(`metricHelp.${g.metric}`)) && (
+                    <span className="text-[10.5px] text-text-muted">{t('goalAuto')}</span>
+                  )}
                 </div>
               );
             })}

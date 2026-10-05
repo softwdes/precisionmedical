@@ -7364,9 +7364,9 @@
       "goalWorth": "worth ≈ {amount}",
       "goalDropsIfLost": "If the patient cancels or doesn’t show, that appointment stops counting.",
       "metricHelp": {
-        "APPTS_BOOKED": "Appointments you book in LM this month.",
+        "APPTS_BOOKED": "Appointments you book in LM this month that still stand: cancelled and no-show ones don’t count.",
         "NEW_CASES": "New patients: cases you create from a call.",
-        "SAVED_APPTS": "An appointment that was about to be lost and you move it to another day instead of cancelling it. It counts as long as the new date holds.",
+        "SAVED_APPTS": "An appointment the patient was about to lose and you move it to another day instead of cancelling it. It counts as long as the new date holds: if the patient cancels or no-shows, it stops counting.",
         "REACTIVATIONS": "Patients who hadn’t come in for over 3 months and you book them an appointment.",
         "SMS_PATIENTS": "Patients you text from LM (one per patient per day).",
         "FORM_LINKS": "Form links you send a patient from LM (one per patient per day).",

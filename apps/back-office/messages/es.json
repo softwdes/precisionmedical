@@ -7364,9 +7364,9 @@
       "goalWorth": "vale ≈ {amount}",
       "goalDropsIfLost": "Si el paciente cancela o no viene, esa cita deja de contar.",
       "metricHelp": {
-        "APPTS_BOOKED": "Citas que agendas tú en LM este mes.",
+        "APPTS_BOOKED": "Citas que agendas tú en LM este mes y que siguen en pie: las canceladas y las que el paciente no vino no cuentan.",
         "NEW_CASES": "Pacientes nuevos: casos que creas desde una llamada.",
-        "SAVED_APPTS": "Una cita que se iba a perder y la cambias a otro día en vez de cancelarla. Cuenta mientras la nueva fecha siga en pie.",
+        "SAVED_APPTS": "Una cita que el paciente iba a perder y tú la cambias a otro día en vez de cancelarla. Cuenta mientras la nueva fecha siga en pie: si el paciente cancela o no viene, deja de contar.",
         "REACTIVATIONS": "Pacientes que llevaban más de 3 meses sin venir y les agendas una cita.",
         "SMS_PATIENTS": "Pacientes a los que les escribes por SMS desde LM (uno por paciente por día).",
         "FORM_LINKS": "Links de formulario que le mandas a un paciente desde LM (uno por paciente por día).",

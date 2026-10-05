@@ -98,7 +98,8 @@ export const METRICAS: Record<MetricKey, { es: string; en: string; points: numbe
   MEMBERSHIPS_NEW: { es: 'Membresías nuevas',       en: 'New memberships',        points: 0,  comingSoon: true },
   REACTIVATIONS:   { es: 'Reactivaciones',          en: 'Reactivations',          points: 6 },
   NEW_CASES:       { es: 'Pacientes nuevos',        en: 'New patients',           points: 5 },
-  SAVED_APPTS:     { es: 'Citas salvadas',          en: 'Saved appointments',     points: 3 },
+  // 'Citas salvadas' / 'Saved' se leía como 'guardar' (Erick, 2026-10-05): el nombre dice qué es.
+  SAVED_APPTS:     { es: 'Citas reprogramadas',     en: 'Rescheduled appointments', points: 3 },
   APPTS_BOOKED:    { es: 'Citas agendadas',         en: 'Appointments booked',    points: 2 },
   CHECKINS:        { es: 'Check-ins',               en: 'Check-ins',              points: 2 },
   SMS_PATIENTS:    { es: 'SMS a pacientes',         en: 'Patients texted',        points: 1 },

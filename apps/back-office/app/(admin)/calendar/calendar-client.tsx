@@ -348,6 +348,58 @@ function minToSlot(min: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
+/**
+ * Minuto del día en Denver. Lo necesita el reparto de avisos por slots, que
+ * tiene que alinear hacia abajo al tamaño de celda de CADA vista.
+ */
+function minutosEnDenver(isoString: string): number {
+  const t = new Date(isoString).toLocaleTimeString(localeApp(), {
+    timeZone: 'America/Denver', hour12: false, hour: '2-digit', minute: '2-digit',
+  });
+  const [rawH, m] = t.split(':').map(Number) as [number, number];
+  return (rawH % 24) * 60 + m; // en-US + hour12:false devuelve "24:00" para medianoche
+}
+
+/** Un aviso en una celda: `continua` = viene de una fila de arriba. */
+interface AvisoEnSlot { block: TimeBlock; continua: boolean }
+
+/**
+ * Reparte cada aviso en TODOS los slots que ocupa, no solo en el de su hora.
+ *
+ * Devin (2026-10-05): *"Adding schedule notes (Lunch/meetings, etc) does not
+ * appear for the time selected. Only blocks the 30 minute block"*. El dato
+ * estaba bien —el diálogo guarda `durationMinutes` y la API lo devuelve—; lo
+ * que fallaba era el dibujo: el mapa usaba `slotOf(b.startsAt)` y nada más, así
+ * que un almuerzo de 60 min se pintaba en una sola celda. Los "30 minutos" que
+ * vio son el alto de la celda de la vista SEMANA; en la de DÍA el mismo aviso
+ * se veía de 15. Que el número dependiera de la vista era la pista.
+ *
+ * Es el mismo `starts`/`covers` que ya usan las citas en la vista de día, pero
+ * resuelto al armar el mapa para que sirva a las tres vistas a la vez.
+ *
+ * `pasoMin` es el alto de celda de quien pregunta: 30 en la semana, 15 en el
+ * día. El inicio se alinea HACIA ABAJO —un aviso a las 12:10 empieza a pintarse
+ * en la celda de las 12:00— porque si no, no caería en ninguna celda y
+ * desaparecería; y la duración nunca baja de una celda, para que un aviso de 5
+ * minutos siga siendo visible.
+ */
+function mapaDeAvisos(
+  blocks: TimeBlock[], pasoMin: number,
+): Record<string, Record<string, AvisoEnSlot[]>> {
+  const mapa: Record<string, Record<string, AvisoEnSlot[]>> = {};
+  for (const b of blocks) {
+    const day = denverDateStr(new Date(b.startsAt));
+    const ini = minutosEnDenver(b.startsAt);
+    const fin = ini + Math.max(pasoMin, b.durationMinutes);
+    const primero = Math.floor(ini / pasoMin) * pasoMin;
+    for (let m = primero; m < fin; m += pasoMin) {
+      const slot = minToSlot(m);
+      ((mapa[day] ??= {})[slot] ??= []).push({ block: b, continua: m > primero });
+    }
+  }
+  return mapa;
+}
+
 /** Igual que slotOf() pero redondeando a bloques de 15 min. */
 function slotOf15(isoString: string): string {
   const t = new Date(isoString).toLocaleTimeString(localeApp(), {
@@ -555,27 +607,42 @@ function FilterChip({
  * mejor que cualquier color, y funciona igual en los dos temas porque sale de
  * tokens, no de un hex.
  */
-function BlockCard({ block, onClick, compact, providerLabel }: {
+function BlockCard({ block, onClick, compact, providerLabel, continua }: {
   block: TimeBlock; onClick: () => void; compact?: boolean; providerLabel?: string;
+  /**
+   * La celda viene de una fila de arriba: mismo relleno, SIN repetir el texto.
+   * Un almuerzo de una hora cruza cuatro celdas en la vista de día, y escribir
+   * "Lunch" en las cuatro se lee como cuatro almuerzos, no como uno largo. Es
+   * el mismo criterio con el que ya se dibuja una cita que cruza filas.
+   */
+  continua?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={(e) => { e.stopPropagation(); onClick(); }}
       title={block.label}
-      className={`w-full min-w-0 text-left rounded transition-all hover:brightness-125 ${compact ? 'px-1.5 py-[2px]' : 'px-2 py-1'}`}
+      className={`w-full min-w-0 text-left transition-all hover:brightness-125 ${
+        compact ? 'px-1.5 py-[2px]' : 'px-2 py-1'
+      } ${continua ? 'rounded-b' : 'rounded'}`}
       style={{
         background: 'repeating-linear-gradient(135deg, var(--bg-3) 0 6px, transparent 6px 12px)',
         border: '1px dashed var(--border-strong)',
+        // Sin la línea de arriba, las celdas encadenadas se leen como una sola
+        // franja y no como una pila de recuadros.
+        borderTop: continua ? 'none' : undefined,
         color: 'var(--text-2)',
+        minHeight: continua ? '100%' : undefined,
       }}>
+      {!continua && (
       <span className={`font-medium truncate block ${compact ? 'text-[10px]' : 'text-[11px]'}`}>
         {block.label}
       </span>
+      )}
       {/* De QUE doctor es. La celda del grid es del DIA y ahi conviven todos los
           doctores, asi que un "Lunch" suelto no dice a quien pertenece — y ese
           es justo el dato que hace falta para poder darle esa hora a otro. */}
-      {providerLabel && (
+      {providerLabel && !continua && (
         <span className={`truncate block opacity-70 ${compact ? 'text-[9px]' : 'text-[10px]'}`}>
           {providerLabel}
         </span>
@@ -1452,21 +1519,17 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
   }
 
   /**
-   * Mismo bucketing que las citas: dia de Denver -> slot -> avisos.
+   * Avisos repartidos por los slots que OCUPAN — ver `mapaDeAvisos`. Van dos
+   * mapas porque la celda mide distinto en cada vista: 30 min en la semana y 15
+   * en el día. Un solo mapa obligaría a una de las dos a mentir.
    *
    * ⚠️ Desde que los bloqueos se repiten, la API manda una fila por OCURRENCIA
    * y todas comparten el `id` de su regla: un almuerzo son cinco filas con el
    * mismo id en la misma semana. Por eso el `key` de React es `id|startsAt` y
    * no `id` — con el id solo, React deduplica y se pinta un solo día.
    */
-  const blockMap: Record<string, Record<string, TimeBlock[]>> = {};
-  for (const b of blocks) {
-    const day  = denverDateStr(new Date(b.startsAt));
-    const slot = slotOf(b.startsAt);
-    if (!blockMap[day]) blockMap[day] = {};
-    if (!blockMap[day][slot]) blockMap[day][slot] = [];
-    blockMap[day][slot].push(b);
-  }
+  const blockMap    = mapaDeAvisos(blocks, WEEK_SLOT_MIN);
+  const blockMapDia = mapaDeAvisos(blocks, DAY_SLOT_MIN);
 
   const firstVisitCount = visibleAppointments.filter(a => a.visitNumber === 0).length;
   const pendingConfirm  = visibleAppointments.filter(a => a.status === 'SCHEDULED').length;
@@ -2055,8 +2118,9 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                               <Plus className="w-2.5 h-2.5 text-cyan/60" />
                             </div>
                           )}
-                          {cellBlocks.map(b => (
-                            <BlockCard key={`${b.id}|${b.startsAt}`} block={b} compact
+                          {cellBlocks.map(({ block: b, continua }) => (
+                            <BlockCard key={`${b.id}|${b.startsAt}|${slot}`} block={b} compact
+                              continua={continua}
                               providerLabel={b.providerName ?? undefined}
                               onClick={() => { setEditingBlock(b); setBlockDialogOpen(true); }} />
                           ))}
@@ -2177,7 +2241,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
 
           const renderSlotRow = (slot: string) => {
             const cellAppts = starts[slot] ?? [];
-            const cellBlocks = blockMap[dayKey]?.[slot] ?? [];
+            const cellBlocks = blockMapDia[dayKey]?.[slot] ?? [];
             const contAppts = covers[slot] ?? [];
             const isCont    = cellAppts.length === 0 && contAppts.length > 0;
             const isDrop    = dropTarget === `${dayKey}|${slot}`;
@@ -2287,9 +2351,10 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                       el ojo llegue a la pildora de disponible. La pildora se sigue
                       mostrando a proposito — el aviso NO bloquea, la hora sigue
                       libre y se puede agendar. */}
-                  {cellBlocks.map(b => (
-                    <div key={`${b.id}|${b.startsAt}`} className="flex-1 min-w-0">
-                      <BlockCard block={b} providerLabel={b.providerName ?? undefined}
+                  {cellBlocks.map(({ block: b, continua }) => (
+                    <div key={`${b.id}|${b.startsAt}|${slot}`} className="flex-1 min-w-0">
+                      <BlockCard block={b} continua={continua}
+                        providerLabel={b.providerName ?? undefined}
                         onClick={() => { setEditingBlock(b); setBlockDialogOpen(true); }} />
                     </div>
                   ))}
@@ -2588,8 +2653,8 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                          salen en todas las columnas; los que tienen sede, sólo en
                          la suya. Es lo que dice el modelo: `clinicId` es opcional
                          a propósito (un "no hay luz" no es de una oficina). */
-                      const avisos = (blockMap[dayKey]?.[slot] ?? [])
-                        .filter(b => !b.clinicId || b.clinicId === col.id);
+                      const avisos = (blockMapDia[dayKey]?.[slot] ?? [])
+                        .filter(({ block }) => !block.clinicId || block.clinicId === col.id);
 
                       return (
                         <div
@@ -2599,13 +2664,15 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                             sigue ? '' : 'cursor-pointer hover:bg-white/[0.03]'
                           }`}
                         >
-                          {avisos.map(b => (
+                          {avisos.map(({ block: b, continua }) => (
                             <div
-                              key={`${b.id}|${b.startsAt}`}
-                              className="rounded px-1.5 py-0.5 text-[9.5px] font-semibold truncate bg-text-muted/10 border border-dashed border-text-muted/40 text-text-muted"
+                              key={`${b.id}|${b.startsAt}|${slot}`}
+                              className={`px-1.5 py-0.5 text-[9.5px] font-semibold truncate bg-text-muted/10 border border-dashed border-text-muted/40 text-text-muted ${
+                                continua ? 'rounded-b border-t-0 min-h-[12px]' : 'rounded'
+                              }`}
                               title={b.label}
                             >
-                              {b.label}
+                              {!continua && b.label}
                             </div>
                           ))}
 

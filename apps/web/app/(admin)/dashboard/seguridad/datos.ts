@@ -35,7 +35,7 @@ export async function leerSeguridad(dias = DIAS): Promise<DatosSeguridad> {
       .in('action', ACCIONES as unknown as string[])
       .gte('createdAt', desde)
       .order('createdAt', { ascending: false })
-      .limit(500),
+      .limit(2000),
     admin.from('users')
       .select('id, email, role, status, mfaEnabled, lastLoginAt, failedLoginAttempts, lockedUntil')
       .is('deletedAt', null),
@@ -107,6 +107,7 @@ export async function leerSeguridad(dias = DIAS): Promise<DatosSeguridad> {
     conIntentos: us
       .filter((u) => (u.failedLoginAttempts as number) > 0 || u.lockedUntil)
       .map((u) => ({
+        id: u.id as string,
         correo: u.email as string,
         intentos: (u.failedLoginAttempts as number) ?? 0,
         hasta: (u.lockedUntil as string | null) ?? null,

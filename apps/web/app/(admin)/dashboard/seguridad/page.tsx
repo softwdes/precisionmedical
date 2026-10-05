@@ -30,7 +30,17 @@ export async function generateMetadata() {
 
 export const dynamic = 'force-dynamic';
 
-export default async function SeguridadPage(): Promise<React.ReactElement> {
+/**
+ * La ventana la elige quien mira, y viaja por la URL en vez de por estado del
+ * cliente: así el enlace a "los últimos 7 días" se puede pegar en un chat, y
+ * `router.refresh()` —el refresco automático de la pantalla— vuelve a pedir
+ * exactamente la misma ventana sin que el cliente tenga que acordarse de nada.
+ */
+const VENTANAS = [1, 2, 7] as const;
+
+export default async function SeguridadPage({ searchParams }: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<React.ReactElement> {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.email) redirect('/login');
@@ -39,6 +49,9 @@ export default async function SeguridadPage(): Promise<React.ReactElement> {
     .from('users').select('role').eq('email', user.email).single();
   if (data?.role !== 'SUPER_ADMIN') redirect('/dashboard');
 
-  const datos = await leerSeguridad();
-  return <SeguridadClient datos={datos} />;
+  const pedido = Number((await searchParams).dias);
+  const dias = (VENTANAS as readonly number[]).includes(pedido) ? pedido : 2;
+
+  const datos = await leerSeguridad(dias);
+  return <SeguridadClient datos={datos} dias={dias} />;
 }

@@ -120,7 +120,16 @@ export const PROTECCIONES: Proteccion[] = [
   {
     id: 'cabeceras', nombre: 'Security headers',
     detalle: 'HSTS, anti-clickjacking, anti-sniffing',
-    estado: { clinica: true, providers: true, attorneys: true, timeclock: false, admin: false },
+    /*
+     * Las cinco, desde `8d3a1fb2`. Medido el 2026-10-05 contra producción, no
+     * deducido del `next.config.mjs`: la vez anterior lo deduje y dije que
+     * Attorneys no las tenía, cuando a ese host lo sirve el mismo build que a
+     * Clinic.
+     *
+     *   admin.lienmaster.net → HSTS · SAMEORIGIN · nosniff · camera=() micro=() geo=()
+     *   pmtc.lienmaster.net  → HSTS · SAMEORIGIN · nosniff · camera=() micro=() geo=(self)
+     */
+    estado: { clinica: true, providers: true, attorneys: true, timeclock: true, admin: true },
   },
 ];
 
@@ -152,7 +161,8 @@ export interface Cuentas {
   pendientesQueEntran: number;
   nuncaEntraron: number;
   trabadasAhora: number;
-  conIntentos: Array<{ correo: string; intentos: number; hasta: string | null }>;
+  /** El `id` es para el botón de desbloquear: `/api/users/[id]/unlock`. */
+  conIntentos: Array<{ id: string; correo: string; intentos: number; hasta: string | null }>;
 }
 
 export interface DatosSeguridad {

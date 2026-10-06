@@ -2322,5 +2322,119 @@
       "noOwnGoals": "No goals of their own: their horse runs with the team’s progress ({pct}).",
       "privacy": "Admins only. Staff only see their own horse; the supervisor sees their team’s table."
     }
+  },
+  "security": {
+    "title": "Security Center",
+    "subtitle": "All five modules — what protects them, and who is trying to get in.",
+    "live": "LIVE",
+    "reading": "READING…",
+    "btn24": "24 h",
+    "btn48": "48 h",
+    "btn7": "7 days",
+    "monthLabel": "Monthly report",
+    "monthNone": "By month…",
+    "refresh": "Refresh",
+    "refreshTitle": "Read it again now",
+    "win24": "the last 24 hours",
+    "win48": "the last 48 hours",
+    "win7": "the last 7 days",
+    "errRead": "Could not read the security log. The figures below are not zero — they are unknown.",
+    "emptyFor": "Nothing recorded for <b>{que}</b> in {ventana}. The zeros below are this filter, not the system.",
+    "emptyNote": "Providers and Attorneys run on the same deployment as Clinic, and until 2026-10-06 every sign-in through those two hosts was stored as Clinic. Their history starts empty on purpose and fills from the next sign-in onward.",
+    "showAllModules": "Show all five modules",
+    "exposure": "Overall exposure",
+    "exposureSub": "{modulos} modules × {prot} protections",
+    "exposureAria": "Overall exposure: {n} out of 100",
+    "radarTitle": "Where sign-ins come from",
+    "radarClean": "{n, plural, one {# IP with no failures} other {# IPs with no failures}}",
+    "radarMixed": "{n, plural, one {# that failed and then got in} other {# that failed and then got in}}",
+    "radarBad": "{n, plural, one {# that only ever failed} other {# that only ever failed}}",
+    "radarHint": "Closer to the center means more recent. Dot size is the number of attempts.",
+    "radarAria": "Radar of the {n} IPs seen in this window",
+    "statAttempts": "sign-in attempts",
+    "statSignedIn": "signed in",
+    "statWrong": "wrong password",
+    "statIps": "distinct IPs",
+    "statIpsBad": "IPs that only failed",
+    "statLocked": "accounts locked now",
+    "filtered": "filtered: {que}",
+    "removeFilter": "Remove this filter",
+    "byModule": "By module",
+    "byModuleHint": "pick one to filter everything below",
+    "showAllShort": "show all five",
+    "ofExposure": "of {total} · exposure {exp}",
+    "nAttempts": "{n, plural, one {# attempt} other {# attempts}}",
+    "nFailed": "{n, plural, one {# failed} other {# failed}}",
+    "nOk": "{n, plural, one {# ok} other {# ok}}",
+    "noAttempts": "no attempts in this window",
+    "matrixTitle": "What protects each module",
+    "codeChecked": "code checked {fecha}",
+    "colProtection": "Protection",
+    "markOk": "Covered",
+    "markPartial": "Built in, but nobody uses it",
+    "markOpen": "Open",
+    "ipsTitle": "Where they come from",
+    "clearIp": "clear {ip}",
+    "noIps": "No sign-in attempts in this window.",
+    "locationUnknown": "location unknown",
+    "eventsTitle": "What happened",
+    "noEvents": "Nothing recorded in this window.",
+    "andMore": "and {n} more in this window",
+    "ofThree": "{n} of 3",
+    "accountsTitle": "Accounts · all {n}, across the five modules",
+    "riskMfa": "No two-factor",
+    "riskMfaAdmins": "{n, plural, one {Including # administrator account} other {Including # administrator accounts}}",
+    "riskMfaNone": "Every account has it",
+    "riskPending": "Pending verification, and can sign in anyway",
+    "riskPendingD": "Inactive and suspended accounts are blocked. Pending is not — it looks like a lock and holds nothing.",
+    "riskNever": "Never signed in",
+    "riskNeverD": "Created and unused. Each one is a live password nobody watches.",
+    "riskLocked": "Locked right now",
+    "riskLockedD": "They clear at midnight, or with the Unlock button below.",
+    "withAttempts": "Accounts with failed attempts",
+    "lockedUntil": "locked until {cuando}",
+    "unlock": "Unlock",
+    "unlocking": "Unlocking…",
+    "unlocked": "Unlocked",
+    "unlockFailed": "Failed",
+    "unlockTitle": "Clear the lock and the failed attempts",
+    "unlockNothing": "Nothing to clear on this account",
+    "footer": "<b>Reads itself every 45 seconds</b> while this tab is open, straight from the Admin project — the same place the lockout writes to. <b>Still missing:</b> a blocked-IP list. Today a bad IP gets throttled, not banned.",
+    "act": {
+      "LOGIN_SUCCESS": "Signed in",
+      "LOGIN_FAILED": "Wrong password",
+      "ACCOUNT_LOCKED": "Account locked",
+      "ACCOUNT_UNLOCKED": "Manual unlock"
+    },
+    "prot": {
+      "candado": {
+        "nombre": "Account lockout",
+        "detalle": "3 wrong passwords and the account closes until tomorrow"
+      },
+      "aviso": {
+        "nombre": "Warning before lockout",
+        "detalle": "Says \"1 attempt left\" on the second failure"
+      },
+      "registro": {
+        "nombre": "IP logging",
+        "detalle": "Every attempt stored with its IP, country, city and module"
+      },
+      "freno": {
+        "nombre": "Per-IP throttle",
+        "detalle": "8 reports and 30 checks per IP every 10 minutes"
+      },
+      "origen": {
+        "nombre": "Attempt endpoint closed",
+        "detalle": "Rejects anything that does not come from our own screens"
+      },
+      "mfa": {
+        "nombre": "Two-factor step",
+        "detalle": "Built into the login — but nobody has it turned on yet"
+      },
+      "cabeceras": {
+        "nombre": "Security headers",
+        "detalle": "HSTS, anti-clickjacking, anti-sniffing"
+      }
+    }
   }
 }

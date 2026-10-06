@@ -79,47 +79,46 @@ export const MODULOS = [
 export const MEDIDO_EL = '2026-10-05';
 
 export interface Proteccion {
+  /**
+   * El identificador manda: el nombre y el detalle que se leen en pantalla
+   * viven en `security.prot.<id>.nombre` y `.detalle` de los `messages`, para
+   * que sigan al selector ES/EN. Acá queda solo lo que es un hecho del código.
+   *
+   * Si agregás una protección, agregá también sus dos claves en los DOS
+   * idiomas: next-intl no falla con una clave faltante, pinta la clave cruda.
+   */
   id: string;
-  nombre: string;
-  detalle: string;
   /** Por módulo: true = cubierto, false = abierto, 'parcial' = existe pero no se usa. */
   estado: Record<string, boolean | 'parcial'>;
 }
 
 export const PROTECCIONES: Proteccion[] = [
   {
-    id: 'candado', nombre: 'Account lockout',
-    detalle: '3 wrong passwords and the account closes until tomorrow',
+    id: 'candado',
     estado: { clinica: true, providers: true, attorneys: true, timeclock: true, admin: true },
   },
   {
-    id: 'aviso', nombre: 'Warning before lockout',
-    detalle: '"1 attempt left" on the second failure',
+    id: 'aviso',
     estado: { clinica: true, providers: true, attorneys: true, timeclock: true, admin: true },
   },
   {
-    id: 'registro', nombre: 'IP logging',
-    detalle: 'Every attempt stored with its IP, country, city and module',
+    id: 'registro',
     estado: { clinica: true, providers: true, attorneys: true, timeclock: true, admin: true },
   },
   {
-    id: 'freno', nombre: 'Per-IP throttle',
-    detalle: '8 reports and 30 checks per IP every 10 minutes',
+    id: 'freno',
     estado: { clinica: true, providers: true, attorneys: true, timeclock: true, admin: true },
   },
   {
-    id: 'origen', nombre: 'Attempt endpoint closed',
-    detalle: 'Rejects anything that does not come from our own screens',
+    id: 'origen',
     estado: { clinica: true, providers: true, attorneys: true, timeclock: true, admin: true },
   },
   {
-    id: 'mfa', nombre: 'Two-factor step',
-    detalle: 'Built into the login — but nobody has it turned on yet',
+    id: 'mfa',
     estado: { clinica: 'parcial', providers: 'parcial', attorneys: 'parcial', timeclock: false, admin: false },
   },
   {
-    id: 'cabeceras', nombre: 'Security headers',
-    detalle: 'HSTS, anti-clickjacking, anti-sniffing',
+    id: 'cabeceras',
     /*
      * Las cinco, desde `8d3a1fb2`. Medido el 2026-10-05 contra producción, no
      * deducido del `next.config.mjs`: la vez anterior lo deduje y dije que
@@ -170,6 +169,16 @@ export interface DatosSeguridad {
   porIp: PorIp[];
   cuentas: Cuentas;
   desde: string;
+  /**
+   * El final de la ventana. Para "últimos N días" es ahora; para un mes
+   * cerrado es el primer instante del mes siguiente.
+   *
+   * Viaja a la pantalla porque los cubos de las chispas y la cercanía del
+   * radar se reparten entre `desde` y `hasta`. Antes usaban `Date.now()`, que
+   * para un mes terminado empuja todo contra el borde izquierdo y deja el
+   * gráfico plano.
+   */
+  hasta: string;
   /** Falso cuando la consulta falló: la pantalla lo dice en vez de mostrar ceros. */
   ok: boolean;
 }

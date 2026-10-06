@@ -2322,5 +2322,119 @@
       "noOwnGoals": "No tiene metas propias: su caballo corre con el avance del equipo ({pct}).",
       "privacy": "Solo la ven los admins. Los empleados ven solo su propio caballo; la supervisora, la tabla de su equipo."
     }
+  },
+  "security": {
+    "title": "Centro de Seguridad",
+    "subtitle": "Los cinco módulos: qué los protege y quién está intentando entrar.",
+    "live": "EN VIVO",
+    "reading": "LEYENDO…",
+    "btn24": "24 h",
+    "btn48": "48 h",
+    "btn7": "7 días",
+    "monthLabel": "Reporte por mes",
+    "monthNone": "Por mes…",
+    "refresh": "Actualizar",
+    "refreshTitle": "Volver a leer ahora",
+    "win24": "las últimas 24 horas",
+    "win48": "las últimas 48 horas",
+    "win7": "los últimos 7 días",
+    "errRead": "No se pudo leer el registro de seguridad. Los números de abajo no son cero: son desconocidos.",
+    "emptyFor": "No hay nada registrado para <b>{que}</b> en {ventana}. Los ceros de abajo son del filtro, no del sistema.",
+    "emptyNote": "Providers y Attorneys corren en el mismo despliegue que Clinic, y hasta el 2026-10-06 cada ingreso por esos dos hosts se guardaba como Clinic. Su historial empieza vacío a propósito y se llena desde el próximo ingreso.",
+    "showAllModules": "Mostrar los cinco módulos",
+    "exposure": "Exposición general",
+    "exposureSub": "{modulos} módulos × {prot} protecciones",
+    "exposureAria": "Exposición general: {n} sobre 100",
+    "radarTitle": "De dónde vienen los ingresos",
+    "radarClean": "{n, plural, one {# IP sin fallos} other {# IPs sin fallos}}",
+    "radarMixed": "{n, plural, one {# que falló y después entró} other {# que fallaron y después entraron}}",
+    "radarBad": "{n, plural, one {# que solo falló} other {# que solo fallaron}}",
+    "radarHint": "Más cerca del centro es más reciente. El tamaño del punto es la cantidad de intentos.",
+    "radarAria": "Radar de las {n} IPs vistas en esta ventana",
+    "statAttempts": "intentos de ingreso",
+    "statSignedIn": "entraron",
+    "statWrong": "contraseña incorrecta",
+    "statIps": "IPs distintas",
+    "statIpsBad": "IPs que solo fallaron",
+    "statLocked": "cuentas trabadas ahora",
+    "filtered": "filtrado: {que}",
+    "removeFilter": "Quitar este filtro",
+    "byModule": "Por módulo",
+    "byModuleHint": "elegí uno para filtrar todo lo de abajo",
+    "showAllShort": "ver los cinco",
+    "ofExposure": "de {total} · exposición {exp}",
+    "nAttempts": "{n, plural, one {# intento} other {# intentos}}",
+    "nFailed": "{n, plural, one {# fallido} other {# fallidos}}",
+    "nOk": "{n, plural, one {# ok} other {# ok}}",
+    "noAttempts": "sin intentos en esta ventana",
+    "matrixTitle": "Qué protege a cada módulo",
+    "codeChecked": "código revisado el {fecha}",
+    "colProtection": "Protección",
+    "markOk": "Cubierto",
+    "markPartial": "Existe, pero nadie lo usa",
+    "markOpen": "Abierto",
+    "ipsTitle": "De dónde vienen",
+    "clearIp": "quitar {ip}",
+    "noIps": "No hubo intentos de ingreso en esta ventana.",
+    "locationUnknown": "ubicación desconocida",
+    "eventsTitle": "Qué pasó",
+    "noEvents": "Nada registrado en esta ventana.",
+    "andMore": "y {n} más en esta ventana",
+    "ofThree": "{n} de 3",
+    "accountsTitle": "Cuentas · las {n}, en los cinco módulos",
+    "riskMfa": "Sin doble factor",
+    "riskMfaAdmins": "{n, plural, one {Incluida # cuenta de administrador} other {Incluidas # cuentas de administrador}}",
+    "riskMfaNone": "Todas las cuentas lo tienen",
+    "riskPending": "Pendientes de verificar, y entran igual",
+    "riskPendingD": "Las cuentas inactivas y suspendidas sí se bloquean. \"Pendiente\" no: parece un candado y no retiene nada.",
+    "riskNever": "Nunca entraron",
+    "riskNeverD": "Creadas y sin usar. Cada una es una contraseña viva que nadie mira.",
+    "riskLocked": "Trabadas en este momento",
+    "riskLockedD": "Se abren solas a la medianoche, o con el botón Desbloquear de acá abajo.",
+    "withAttempts": "Cuentas con intentos fallidos",
+    "lockedUntil": "trabada hasta {cuando}",
+    "unlock": "Desbloquear",
+    "unlocking": "Desbloqueando…",
+    "unlocked": "Desbloqueada",
+    "unlockFailed": "Falló",
+    "unlockTitle": "Levantar el candado y borrar los intentos fallidos",
+    "unlockNothing": "No hay nada que levantar en esta cuenta",
+    "footer": "<b>Se lee sola cada 45 segundos</b> mientras esta pestaña esté abierta, directo del proyecto Admin, que es donde escribe el candado. <b>Todavía falta:</b> una lista de IPs bloqueadas. Hoy a una IP mala se la frena, no se la echa.",
+    "act": {
+      "LOGIN_SUCCESS": "Entró",
+      "LOGIN_FAILED": "Contraseña incorrecta",
+      "ACCOUNT_LOCKED": "Cuenta trabada",
+      "ACCOUNT_UNLOCKED": "Desbloqueo manual"
+    },
+    "prot": {
+      "candado": {
+        "nombre": "Candado de la cuenta",
+        "detalle": "3 contraseñas erradas y la cuenta se cierra hasta mañana"
+      },
+      "aviso": {
+        "nombre": "Aviso antes de trabarse",
+        "detalle": "Avisa \"queda 1 intento\" en el segundo fallo"
+      },
+      "registro": {
+        "nombre": "Registro de IP",
+        "detalle": "Cada intento queda con su IP, país, ciudad y módulo"
+      },
+      "freno": {
+        "nombre": "Freno por IP",
+        "detalle": "8 reportes y 30 consultas por IP cada 10 minutos"
+      },
+      "origen": {
+        "nombre": "Endpoint de intentos cerrado",
+        "detalle": "Rechaza todo lo que no venga de nuestras propias pantallas"
+      },
+      "mfa": {
+        "nombre": "Paso de doble factor",
+        "detalle": "Está en el login, pero nadie lo tiene activado todavía"
+      },
+      "cabeceras": {
+        "nombre": "Cabeceras de seguridad",
+        "detalle": "HSTS, anti-clickjacking, anti-sniffing"
+      }
+    }
   }
 }

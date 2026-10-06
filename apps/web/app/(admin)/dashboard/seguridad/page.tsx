@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createServerClient, createAdminClient } from '@precision-medical/auth/server';
-import { leerSeguridad } from './datos';
+import { leerSeguridad, mesCerrado, ultimosDias } from './datos';
 import { SeguridadClient } from './seguridad-client';
 
 /**
@@ -38,6 +38,25 @@ export const dynamic = 'force-dynamic';
  */
 const VENTANAS = [1, 2, 7] as const;
 
+/** Cuántos meses cerrados se ofrecen hacia atrás. */
+const MESES_ATRAS = 12;
+
+/**
+ * Los meses que se pueden pedir, del más reciente al más viejo, en `YYYY-MM`.
+ *
+ * Se arman ACÁ y no en la pantalla porque el navegador y el servidor pueden
+ * estar en husos distintos: una lista calculada en los dos lados puede diferir
+ * en el primer o el último día del mes y romper la hidratación. Las etiquetas
+ * sí las pone la pantalla, que es la que sabe el idioma elegido.
+ */
+function mesesDisponibles(): string[] {
+  const hoy = new Date();
+  return Array.from({ length: MESES_ATRAS }, (_, i) => {
+    const d = new Date(Date.UTC(hoy.getUTCFullYear(), hoy.getUTCMonth() - i, 1));
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+  });
+}
+
 export default async function SeguridadPage({ searchParams }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<React.ReactElement> {
@@ -49,9 +68,27 @@ export default async function SeguridadPage({ searchParams }: {
     .from('users').select('role').eq('email', user.email).single();
   if (data?.role !== 'SUPER_ADMIN') redirect('/dashboard');
 
-  const pedido = Number((await searchParams).dias);
+  const params = await searchParams;
+  const meses = mesesDisponibles();
+
+  /*
+   * Un mes pedido manda sobre los días. Si el mes no existe o no está en la
+   * lista —URL escrita a mano, enlace viejo— se cae a la ventana de días en vez
+   * de mostrar un error: esta pantalla tiene que abrir siempre.
+   */
+  const mesPedido = typeof params.mes === 'string' && meses.includes(params.mes) ? params.mes : null;
+  const rango = mesPedido ? mesCerrado(mesPedido) : null;
+
+  const pedido = Number(params.dias);
   const dias = (VENTANAS as readonly number[]).includes(pedido) ? pedido : 2;
 
-  const datos = await leerSeguridad(dias);
-  return <SeguridadClient datos={datos} dias={dias} />;
+  const datos = await leerSeguridad(rango ?? ultimosDias(dias));
+  return (
+    <SeguridadClient
+      datos={datos}
+      dias={dias}
+      mes={rango ? mesPedido : null}
+      meses={meses}
+    />
+  );
 }

@@ -20,6 +20,34 @@ import { ACCIONES, type Accion, type Cuentas, type DatosSeguridad, type Evento, 
 /** Ventana por defecto: dos días. Es lo que cabe en una pantalla sin filtrar. */
 const DIAS = 2;
 
+/** La ventana que se consulta. `hasta` abierto significa "hasta ahora". */
+export interface Ventana { desde: string; hasta?: string }
+
+/** Los últimos N días, que es lo que pide la pantalla cuando no eligen un mes. */
+export const ultimosDias = (dias: number): Ventana =>
+  ({ desde: new Date(Date.now() - dias * 86_400_000).toISOString() });
+
+/**
+ * Un mes cerrado, de `YYYY-MM`, en UTC.
+ *
+ * En UTC y no en la hora de la clínica a propósito: las filas se guardan en
+ * UTC, así que un mes definido en UTC se corresponde exactamente con un corte
+ * de la columna. Definirlo en Denver movería el borde seis horas y las últimas
+ * seis horas de cada mes caerían en el reporte del mes siguiente —un desfase
+ * que nadie ve hasta que dos reportes no suman el total.
+ */
+export function mesCerrado(mes: string): Ventana | null {
+  const m = /^(\d{4})-(\d{2})$/.exec(mes);
+  if (!m) return null;
+  const anio = Number(m[1]);
+  const num = Number(m[2]);
+  if (num < 1 || num > 12) return null;
+  return {
+    desde: new Date(Date.UTC(anio, num - 1, 1)).toISOString(),
+    hasta: new Date(Date.UTC(anio, num, 1)).toISOString(),
+  };
+}
+
 /**
  * Le devuelve la `Z` a las fechas que vienen de Postgres.
  *
@@ -47,11 +75,12 @@ const utc = (v: string | null | undefined): string | null => {
   return /[Zz]$|[+-]\d{2}:?\d{2}$/.test(v) ? v : `${v}Z`;
 };
 
-export async function leerSeguridad(dias = DIAS): Promise<DatosSeguridad> {
+export async function leerSeguridad(ventana: Ventana = ultimosDias(DIAS)): Promise<DatosSeguridad> {
   const admin = createAdminClient();
-  const desde = new Date(Date.now() - dias * 86_400_000).toISOString();
+  const { desde } = ventana;
+  const hasta = ventana.hasta ?? new Date().toISOString();
   const vacio: DatosSeguridad = {
-    eventos: [], porIp: [], desde,
+    eventos: [], porIp: [], desde, hasta,
     cuentas: { total: 0, sinMfa: 0, adminsSinMfa: 0, pendientesQueEntran: 0, nuncaEntraron: 0, trabadasAhora: 0, conIntentos: [] },
     ok: false,
   };
@@ -61,6 +90,7 @@ export async function leerSeguridad(dias = DIAS): Promise<DatosSeguridad> {
       .select('action, ipAddress, createdAt, metadata, actorUserId')
       .in('action', ACCIONES as unknown as string[])
       .gte('createdAt', desde)
+      .lt('createdAt', hasta)
       .order('createdAt', { ascending: false })
       .limit(2000),
     admin.from('users')
@@ -144,5 +174,5 @@ export async function leerSeguridad(dias = DIAS): Promise<DatosSeguridad> {
       })),
   };
 
-  return { eventos, porIp, cuentas, desde, ok: true };
+  return { eventos, porIp, cuentas, desde, hasta, ok: true };
 }

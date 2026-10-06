@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { useLocale, useTranslations } from 'next-intl';
 import { Badge, cn } from '@precision/ui';
 import { Clock, RefreshCw, ShieldAlert, ShieldCheck, Unlock } from 'lucide-react';
 import {
@@ -45,11 +46,18 @@ import {
  *
  * Todo respeta `prefers-reduced-motion`.
  *
- * ── Por qué en inglés y en duro ────────────────────────────────────────────
+ * ── El idioma ──────────────────────────────────────────────────────────────
  *
- * Erick, 2026-10-03: las vistas de seguridad hablan inglés, igual que los
- * logins. No van por `messages/` — poner el mismo texto en los dos idiomas
- * sería trabajo sin resultado.
+ * Sigue al selector ES/EN como el resto del Admin, bajo `security.*`.
+ *
+ * Nació en inglés y en duro porque estiré a esta pantalla una decisión de Erick
+ * del 2026-10-03 que era para los LOGIN —"ese es el idioma oficial en el
+ * login"—. Él nunca dijo eso del Centro de Seguridad, y el 2026-10-06 lo
+ * señaló: el selector cambia todo el Admin menos esto. Era mi extensión, no su
+ * regla.
+ *
+ * Las horas y los nombres de los meses también siguen el idioma activo, por
+ * `useLocale()`; la zona horaria no, que es siempre la de la clínica.
  */
 
 const ZONA = 'America/Denver';
@@ -64,10 +72,15 @@ const C = {
   grisTenue: 'rgba(148,163,184,0.10)',
 };
 
-const hora = (iso: string): string =>
-  new Intl.DateTimeFormat('en-US', {
+const hora = (iso: string, idioma: string): string =>
+  new Intl.DateTimeFormat(idioma, {
     timeZone: ZONA, month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
   }).format(new Date(iso));
+
+/** "octubre de 2026" / "October 2026", desde `2026-10`. */
+const nombreDeMes = (mes: string, idioma: string): string =>
+  new Intl.DateTimeFormat(idioma, { month: 'long', year: 'numeric', timeZone: 'UTC' })
+    .format(new Date(`${mes}-01T00:00:00Z`));
 
 /** Cuántas protecciones cubren a este módulo, y cuánto lo dejan expuesto. */
 function puntaje(modulo: string): { activas: number; total: number; exposicion: number } {
@@ -210,6 +223,7 @@ function useConteo(fin: number, quieto: boolean): number {
 
 /** El medidor de exposición: un arco que se llena y una aguja. */
 function Medidor({ valor, quieto }: { valor: number; quieto: boolean }): React.ReactElement {
+  const tr = useTranslations('security');
   const ref = useLienzo((p, t) => {
     const { ctx, w, h } = p;
     const cx = w / 2;
@@ -286,15 +300,15 @@ function Medidor({ valor, quieto }: { valor: number; quieto: boolean }): React.R
           ref={ref}
           className="block h-[150px] w-full"
           role="img"
-          aria-label={`Overall exposure: ${valor} out of 100`}
+          aria-label={tr('exposureAria', { n: valor })}
         />
         <div className="pointer-events-none absolute inset-x-0 bottom-4 text-center">
           <div className={cn('text-3xl font-bold tabular-nums leading-none', tono(valor))}>{n}</div>
         </div>
       </div>
-      <div className="mt-1 text-center text-tiny uppercase tracking-widest text-text-muted">Overall exposure</div>
+      <div className="mt-1 text-center text-tiny uppercase tracking-widest text-text-muted">{tr('exposure')}</div>
       <div className="mt-1 text-center text-tiny text-text-3">
-        {MODULOS.length} modules × {PROTECCIONES.length} protections
+        {tr('exposureSub', { modulos: MODULOS.length, prot: PROTECCIONES.length })}
       </div>
     </div>
   );
@@ -308,11 +322,12 @@ function rumbo(s: string): number {
 }
 
 /** El radar: cada IP es un punto. Más al centro = más reciente. */
-function Radar({ ips, quieto, desde }: {
-  ips: PorIp[]; quieto: boolean; desde: string;
+function Radar({ ips, quieto, desde, hasta }: {
+  ips: PorIp[]; quieto: boolean; desde: string; hasta: string;
 }): React.ReactElement {
+  const tr = useTranslations('security');
   const t0 = new Date(desde).getTime();
-  const t1 = Date.now();
+  const t1 = new Date(hasta).getTime();
 
   const ref = useLienzo((p, t) => {
     const { ctx, w, h } = p;
@@ -401,18 +416,16 @@ function Radar({ ips, quieto, desde }: {
         ref={ref}
         className="mx-auto block aspect-square w-full max-w-[180px]"
         role="img"
-        aria-label={`Radar of the ${ips.length} IPs seen in this window`}
+        aria-label={tr('radarAria', { n: ips.length })}
       />
       <div className="min-w-0 self-center">
-        <h2 className="text-tiny font-bold uppercase tracking-widest text-text-muted">Where sign-ins come from</h2>
+        <h2 className="text-tiny font-bold uppercase tracking-widest text-text-muted">{tr('radarTitle')}</h2>
         <div className="mt-2.5 space-y-1.5 text-small text-text-2">
-          <Clave color={C.cian}  texto={`${limpias} IP${limpias === 1 ? '' : 's'} with no failures`} />
-          <Clave color={C.aviso} texto={`${mixtas} that failed and then got in`} />
-          <Clave color={C.mal}   texto={`${sucias} that only ever failed`} />
+          <Clave color={C.cian}  texto={tr('radarClean', { n: limpias })} />
+          <Clave color={C.aviso} texto={tr('radarMixed', { n: mixtas })} />
+          <Clave color={C.mal}   texto={tr('radarBad',   { n: sucias })} />
         </div>
-        <p className="mt-3 text-tiny leading-relaxed text-text-3">
-          Closer to the center means more recent. Dot size is the number of attempts.
-        </p>
+        <p className="mt-3 text-tiny leading-relaxed text-text-3">{tr('radarHint')}</p>
       </div>
     </div>
   );
@@ -468,18 +481,24 @@ function Chispa({ serie, col }: { serie: number[]; col: string }): React.ReactEl
   return <canvas ref={ref} className="mt-2 block h-[26px] w-full" aria-hidden="true" />;
 }
 
-/** En qué cubo de la ventana cae un evento. */
-function cubo(cuando: string, desde: string, n: number): number {
+/**
+ * En qué cubo de la ventana cae un evento.
+ *
+ * El final es `hasta` y no `Date.now()`: con un mes ya terminado, "ahora" está
+ * semanas más allá del último dato y todo el gráfico se apelmaza contra el
+ * borde izquierdo.
+ */
+function cubo(cuando: string, desde: string, hasta: string, n: number): number {
   const t0 = new Date(desde).getTime();
-  const paso = Math.max(1, (Date.now() - t0) / n);
+  const paso = Math.max(1, (new Date(hasta).getTime() - t0) / n);
   const i = Math.floor((new Date(cuando).getTime() - t0) / paso);
   return Math.min(n - 1, Math.max(0, i));
 }
 
 /** Reparte los eventos en `n` cubos a lo largo de la ventana. */
-function serieDe(eventos: Evento[], desde: string, n = 14): number[] {
+function serieDe(eventos: Evento[], desde: string, hasta: string, n = 14): number[] {
   const cubos = new Array<number>(n).fill(0);
-  for (const e of eventos) cubos[cubo(e.cuando, desde, n)]++;
+  for (const e of eventos) cubos[cubo(e.cuando, desde, hasta, n)]++;
   return cubos;
 }
 
@@ -490,9 +509,9 @@ function serieDe(eventos: Evento[], desde: string, n = 14): number[] {
  * cifras era decir que sí lo es. Una pantalla de seguridad que repite un gráfico
  * en dos lugares distintos enseña a no mirarlos.
  */
-function serieIps(eventos: Evento[], desde: string, n = 14): number[] {
+function serieIps(eventos: Evento[], desde: string, hasta: string, n = 14): number[] {
   const vistas = Array.from({ length: n }, () => new Set<string>());
-  for (const e of eventos) if (e.ip) vistas[cubo(e.cuando, desde, n)]!.add(e.ip);
+  for (const e of eventos) if (e.ip) vistas[cubo(e.cuando, desde, hasta, n)]!.add(e.ip);
   return vistas.map((s) => s.size);
 }
 
@@ -521,6 +540,7 @@ function Barra({ pct, clase, quieto, demora = 0 }: {
 
 /** Los siete cuadritos de un módulo: uno por protección, encendiéndose en fila. */
 function Cuadros({ modulo, quieto }: { modulo: string; quieto: boolean }): React.ReactElement {
+  const tr = useTranslations('security');
   const [on, setOn] = React.useState(quieto);
   React.useEffect(() => {
     if (quieto) { setOn(true); return; }
@@ -535,7 +555,7 @@ function Cuadros({ modulo, quieto }: { modulo: string; quieto: boolean }): React
         return (
           <span
             key={p.id}
-            title={`${p.nombre} — ${e === true ? 'covered' : e === 'parcial' ? 'built in, unused' : 'open'}`}
+            title={`${tr(`prot.${p.id}.nombre`)} — ${e === true ? tr('markOk') : e === 'parcial' ? tr('markPartial') : tr('markOpen')}`}
             className={cn(
               'h-2 flex-1 rounded-sm',
               e === true ? 'bg-emerald' : e === 'parcial' ? 'bg-amber' : 'bg-rose/40',
@@ -554,25 +574,19 @@ function Cuadros({ modulo, quieto }: { modulo: string; quieto: boolean }): React
 
 /* ───────────────────────────── la pantalla ─────────────────────────────── */
 
-const ETIQUETA: Record<string, string> = {
-  LOGIN_SUCCESS: 'Signed in', LOGIN_FAILED: 'Wrong password',
-  ACCOUNT_LOCKED: 'Account locked', ACCOUNT_UNLOCKED: 'Manual unlock',
-};
 const COLOR: Record<string, string> = {
   LOGIN_SUCCESS: 'text-emerald', LOGIN_FAILED: 'text-rose',
   ACCOUNT_LOCKED: 'text-rose', ACCOUNT_UNLOCKED: 'text-brand-text',
 };
 
-const VENTANAS: Array<{ dias: number; texto: string }> = [
-  { dias: 1, texto: '24 h' },
-  { dias: 2, texto: '48 h' },
-  { dias: 7, texto: '7 days' },
-];
+const VENTANAS = [1, 2, 7] as const;
 
-export function SeguridadClient({ datos, dias }: {
-  datos: DatosSeguridad; dias: number;
+export function SeguridadClient({ datos, dias, mes, meses }: {
+  datos: DatosSeguridad; dias: number; mes: string | null; meses: string[];
 }): React.ReactElement {
-  const { cuentas, desde, ok } = datos;
+  const { cuentas, desde, hasta, ok } = datos;
+  const tr = useTranslations('security');
+  const idioma = useLocale();
   const quieto = useQuieto();
   const router = useRouter();
   const ruta = usePathname();
@@ -622,6 +636,11 @@ export function SeguridadClient({ datos, dias }: {
     [datos.porIp, modulo],
   );
 
+  const ventana     = mes
+    ? nombreDeMes(mes, idioma)
+    : tr(dias === 1 ? 'win24' : dias === 2 ? 'win48' : 'win7');
+  const nombreModulo = modulo ? MODULOS.find((m) => m.id === modulo)?.nombre ?? modulo : null;
+  const queFiltra   = [nombreModulo, ip].filter(Boolean).join(' · ');
   const fallidos    = eventos.filter((e) => e.accion === 'LOGIN_FAILED').length;
   const exitosos    = eventos.filter((e) => e.accion === 'LOGIN_SUCCESS').length;
   const sospechosas = porIp.filter((x) => x.fallidos > 0 && x.exitosos === 0);
@@ -634,15 +653,21 @@ export function SeguridadClient({ datos, dias }: {
     });
   };
 
+  /** Un mes cerrado, o volver a la ventana corta cuando eligen el vacío. */
+  const cambiarMes = (m: string): void => {
+    empezar(() => {
+      router.push(m ? `${ruta}?mes=${m}` : `${ruta}?dias=${dias}`);
+      setRefrescado(Date.now());
+    });
+  };
+
   return (
     <div className="space-y-7">
       {/* ── La cabecera ───────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-text-1">Security Center</h1>
-          <p className="mt-1 text-small text-text-2">
-            All five modules — what protects them, and who is trying to get in.
-          </p>
+          <h1 className="text-2xl font-bold text-text-1">{tr('title')}</h1>
+          <p className="mt-1 text-small text-text-2">{tr('subtitle')}</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -655,83 +680,144 @@ export function SeguridadClient({ datos, dias }: {
               pendiente ? 'bg-brand-text' : 'bg-emerald',
               quieto ? '' : 'animate-pulse',
             )} />
-            {pendiente ? 'READING…' : `LIVE · ${segundos ?? 0}s`}
+            {pendiente ? tr('reading') : `${tr('live')} · ${segundos ?? 0}s`}
           </span>
 
           <div className="inline-flex overflow-hidden rounded-lg border border-row-sep">
-            {VENTANAS.map((v) => (
+            {VENTANAS.map((d) => (
               <button
-                key={v.dias}
+                key={d}
                 type="button"
-                onClick={() => cambiarVentana(v.dias)}
+                onClick={() => cambiarVentana(d)}
                 className={cn(
                   'px-3 py-1 text-tiny transition-colors',
-                  v.dias === dias ? 'bg-brand text-white' : 'text-text-3 hover:bg-bg-1 hover:text-text-1',
+                  !mes && d === dias ? 'bg-brand text-white' : 'text-text-3 hover:bg-bg-1 hover:text-text-1',
                 )}
               >
-                {v.texto}
+                {tr(d === 1 ? 'btn24' : d === 2 ? 'btn48' : 'btn7')}
               </button>
             ))}
           </div>
 
+          {/*
+            * El reporte por mes. Pedido de Erick el 2026-10-06.
+            *
+            * Un `<select>` del sistema y no un desplegable propio: son doce
+            * opciones sin estado, y el nativo ya sabe de teclado, de pantalla
+            * chica y de lector de pantalla.
+            *
+            * Las etiquetas se arman acá con el idioma activo; la LISTA viene del
+            * servidor para que los dos lados no discrepen por huso horario.
+            */}
+          <select
+            value={mes ?? ''}
+            onChange={(e) => cambiarMes(e.target.value)}
+            aria-label={tr('monthLabel')}
+            className={cn(
+              'rounded-lg border px-2.5 py-1 text-tiny transition-colors',
+              mes ? 'border-brand bg-brand/20 text-brand-text' : 'border-row-sep bg-transparent text-text-3 hover:text-text-1',
+            )}
+          >
+            <option value="">{tr('monthNone')}</option>
+            {meses.map((m) => (
+              <option key={m} value={m}>{nombreDeMes(m, idioma)}</option>
+            ))}
+          </select>
+
           <button
             type="button"
             onClick={refrescar}
-            title="Read it again now"
+            title={tr('refreshTitle')}
             className="inline-flex items-center gap-1.5 rounded-lg border border-row-sep px-3 py-1 text-tiny text-text-3 transition-colors hover:bg-bg-1 hover:text-text-1"
           >
             <RefreshCw className={cn('h-3 w-3', pendiente && !quieto && 'animate-spin')} />
-            Refresh
+            {tr('refresh')}
           </button>
         </div>
       </div>
 
       {!ok && (
         <div className="rounded-lg border border-rose/30 bg-rose/10 px-4 py-3 text-small text-rose">
-          Could not read the security log. The figures below are not zero — they are unknown.
+          {tr('errRead')}
+        </div>
+      )}
+
+      {/*
+        * Cuando el filtro no deja nada, decirlo.
+        *
+        * Erick, 2026-10-06: eligió 7 días con Attorneys puesto y vio seis ceros
+        * y un radar en blanco. Lo leyó como una falla de la ventana. No lo era
+        * —había 66 intentos en esos 7 días— pero la pantalla no daba forma de
+        * saberlo. Los ceros eran del filtro, no del sistema, y eso hay que
+        * escribirlo, no dejarlo deducir.
+        */}
+      {filtrado && eventos.length === 0 && (
+        <div className="rounded-lg border border-amber/30 bg-amber/10 px-4 py-3">
+          <p className="text-small text-text-1">
+            {tr.rich('emptyFor', {
+              que: queFiltra, ventana,
+              b: (c) => <b>{c}</b>,
+            })}
+          </p>
+          {(modulo === 'providers' || modulo === 'attorneys') && (
+            <p className="mt-1.5 text-tiny leading-relaxed text-text-2">{tr('emptyNote')}</p>
+          )}
+          <button
+            type="button"
+            onClick={() => { setModulo(null); setIp(null); }}
+            className="mt-2.5 rounded-lg border border-row-sep bg-bg-1 px-3 py-1 text-tiny text-text-1 transition-colors hover:bg-surface"
+          >
+            {tr('showAllModules')}
+          </button>
         </div>
       )}
 
       {/* ── El medidor y el radar ─────────────────────────────────────── */}
       <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-[minmax(0,300px)_1fr]">
         <Medidor key={exposicionGeneral()} valor={exposicionGeneral()} quieto={quieto} />
-        <Radar ips={porIp} quieto={quieto} desde={desde} />
+        <Radar ips={porIp} quieto={quieto} desde={desde} hasta={hasta} />
       </div>
 
       {/* ── Las cifras ────────────────────────────────────────────────── */}
       <section>
         <h2 className="mb-3 flex flex-wrap items-center gap-2 text-tiny font-bold uppercase tracking-widest text-text-muted">
-          Last {dias === 1 ? '24 hours' : dias === 2 ? '48 hours' : '7 days'}
+          {ventana}
           {filtrado && (
-            <span className="rounded-full bg-brand/15 px-2 py-0.5 normal-case tracking-normal text-brand-text">
-              {[modulo && MODULOS.find((m) => m.id === modulo)?.nombre, ip].filter(Boolean).join(' · ')}
-            </span>
+            <button
+              type="button"
+              onClick={() => { setModulo(null); setIp(null); }}
+              title={tr('removeFilter')}
+              className="inline-flex items-center gap-1.5 rounded-full border border-brand bg-brand/20 px-2.5 py-0.5 normal-case tracking-normal text-brand-text transition-colors hover:bg-brand/30"
+            >
+              {tr('filtered', { que: queFiltra })}
+              <span aria-hidden="true">×</span>
+            </button>
           )}
         </h2>
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
-          <Cifra n={eventos.length} l="sign-in attempts" col={C.cian} quieto={quieto}
-                 serie={serieDe(eventos, desde)} />
-          <Cifra n={exitosos} l="signed in" t="text-emerald" col={C.ok} quieto={quieto}
-                 serie={serieDe(eventos.filter((e) => e.accion === 'LOGIN_SUCCESS'), desde)} />
-          <Cifra n={fallidos} l="wrong password" t={fallidos ? 'text-rose' : undefined} col={C.mal} quieto={quieto}
-                 serie={serieDe(eventos.filter((e) => e.accion === 'LOGIN_FAILED'), desde)} />
-          <Cifra n={porIp.length} l="distinct IPs" col={C.cian} quieto={quieto}
-                 serie={serieIps(eventos, desde)} />
-          <Cifra n={sospechosas.length} l="IPs that only failed"
-                 t={sospechosas.length ? 'text-rose' : 'text-emerald'} col={C.mal} quieto={quieto}
-                 serie={serieIps(eventos.filter((e) => e.accion === 'LOGIN_FAILED'), desde)} />
-          <Cifra n={cuentas.trabadasAhora} l="accounts locked now"
-                 t={cuentas.trabadasAhora ? 'text-amber' : 'text-emerald'} col={C.aviso} quieto={quieto}
-                 serie={serieDe(eventos.filter((e) => e.accion === 'ACCOUNT_LOCKED'), desde)} />
+          <Cifra n={eventos.length} l={tr('statAttempts')} col={C.cian} quieto={quieto}
+                 serie={serieDe(eventos, desde, hasta)} />
+          <Cifra n={exitosos} l={tr('statSignedIn')} tonoClase="text-emerald" col={C.ok} quieto={quieto}
+                 serie={serieDe(eventos.filter((e) => e.accion === 'LOGIN_SUCCESS'), desde, hasta)} />
+          <Cifra n={fallidos} l={tr('statWrong')} tonoClase={fallidos ? 'text-rose' : undefined} col={C.mal} quieto={quieto}
+                 serie={serieDe(eventos.filter((e) => e.accion === 'LOGIN_FAILED'), desde, hasta)} />
+          <Cifra n={porIp.length} l={tr('statIps')} col={C.cian} quieto={quieto}
+                 serie={serieIps(eventos, desde, hasta)} />
+          <Cifra n={sospechosas.length} l={tr('statIpsBad')}
+                 tonoClase={sospechosas.length ? 'text-rose' : 'text-emerald'} col={C.mal} quieto={quieto}
+                 serie={serieIps(eventos.filter((e) => e.accion === 'LOGIN_FAILED'), desde, hasta)} />
+          <Cifra n={cuentas.trabadasAhora} l={tr('statLocked')}
+                 tonoClase={cuentas.trabadasAhora ? 'text-amber' : 'text-emerald'} col={C.aviso} quieto={quieto}
+                 serie={serieDe(eventos.filter((e) => e.accion === 'ACCOUNT_LOCKED'), desde, hasta)} />
         </div>
       </section>
 
       {/* ── Por módulo: acá se filtra todo ────────────────────────────── */}
       <section>
         <h2 className="mb-3 flex flex-wrap items-center gap-2 text-tiny font-bold uppercase tracking-widest text-text-muted">
-          By module
+          {tr('byModule')}
           <span className="normal-case tracking-normal font-medium text-text-3">
-            · pick one to filter everything below
+            · {tr('byModuleHint')}
           </span>
           {modulo && (
             <button
@@ -739,7 +825,7 @@ export function SeguridadClient({ datos, dias }: {
               onClick={() => setModulo(null)}
               className="rounded-full border border-row-sep px-2 py-0.5 normal-case tracking-normal font-medium text-text-3 transition-colors hover:text-text-1"
             >
-              show all five
+              {tr('showAllShort')}
             </button>
           )}
         </h2>
@@ -766,7 +852,7 @@ export function SeguridadClient({ datos, dias }: {
                 <div className="mt-0.5 truncate font-mono text-tiny text-text-3">{m.host}</div>
                 <div className="mt-3 flex items-baseline gap-1.5">
                   <span className={cn('text-xl font-bold tabular-nums', tono(p.exposicion))}>{p.activas}</span>
-                  <span className="text-tiny text-text-3">of {p.total} · exposure {p.exposicion}</span>
+                  <span className="text-tiny text-text-3">{tr('ofExposure', { total: p.total, exp: p.exposicion })}</span>
                 </div>
                 <div className="mt-2">
                   <Barra
@@ -779,8 +865,8 @@ export function SeguridadClient({ datos, dias }: {
                 <Cuadros modulo={m.id} quieto={quieto} />
                 <div className="mt-2.5 text-tiny text-text-3">
                   {vistos > 0
-                    ? <>{vistos} attempt{vistos === 1 ? '' : 's'}{malos > 0 && <span className="text-rose"> · {malos} failed</span>}</>
-                    : 'no attempts in this window'}
+                    ? <>{tr('nAttempts', { n: vistos })}{malos > 0 && <span className="text-rose"> · {tr('nFailed', { n: malos })}</span>}</>
+                    : tr('noAttempts')}
                 </div>
               </button>
             );
@@ -791,16 +877,16 @@ export function SeguridadClient({ datos, dias }: {
       {/* ── La matriz ─────────────────────────────────────────────────── */}
       <section>
         <h2 className="mb-3 flex flex-wrap items-center gap-2 text-tiny font-bold uppercase tracking-widest text-text-muted">
-          What protects each module
+          {tr('matrixTitle')}
           <span className="inline-flex items-center gap-1 normal-case tracking-normal font-medium text-text-3">
-            <Clock className="h-3 w-3" /> code checked {MEDIDO_EL}
+            <Clock className="h-3 w-3" /> {tr('codeChecked', { fecha: MEDIDO_EL })}
           </span>
         </h2>
         <div className="overflow-x-auto rounded-lg bg-bg-1">
           <table className="w-full min-w-[640px] text-small">
             <thead>
               <tr className="border-b border-row-sep">
-                <th className="px-4 py-3 text-left text-tiny font-bold uppercase tracking-wider text-text-muted">Protection</th>
+                <th className="px-4 py-3 text-left text-tiny font-bold uppercase tracking-wider text-text-muted">{tr('colProtection')}</th>
                 {MODULOS.map((m) => (
                   <th
                     key={m.id}
@@ -819,8 +905,8 @@ export function SeguridadClient({ datos, dias }: {
               {PROTECCIONES.map((p) => (
                 <tr key={p.id} className="border-b border-row-sep last:border-0">
                   <td className="px-4 py-3">
-                    <div className="text-text-1">{p.nombre}</div>
-                    <div className="mt-0.5 text-tiny text-text-3">{p.detalle}</div>
+                    <div className="text-text-1">{tr(`prot.${p.id}.nombre`)}</div>
+                    <div className="mt-0.5 text-tiny text-text-3">{tr(`prot.${p.id}.detalle`)}</div>
                   </td>
                   {MODULOS.map((m) => (
                     <td
@@ -841,19 +927,19 @@ export function SeguridadClient({ datos, dias }: {
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <section className="min-w-0">
           <h2 className="mb-3 flex flex-wrap items-center gap-2 text-tiny font-bold uppercase tracking-widest text-text-muted">
-            Where they come from
+            {tr('ipsTitle')}
             {ip && (
               <button
                 type="button"
                 onClick={() => setIp(null)}
                 className="rounded-full border border-row-sep px-2 py-0.5 normal-case tracking-normal font-medium text-text-3 transition-colors hover:text-text-1"
               >
-                clear {ip}
+                {tr('clearIp', { ip })}
               </button>
             )}
           </h2>
           <div className="rounded-lg bg-bg-1 px-4 py-1">
-            {porIp.length === 0 && <p className="py-4 text-small text-text-3">No sign-in attempts in this window.</p>}
+            {porIp.length === 0 && <p className="py-4 text-small text-text-3">{tr('noIps')}</p>}
             {porIp.map((x) => (
               <FilaIp
                 key={x.ip}
@@ -867,14 +953,12 @@ export function SeguridadClient({ datos, dias }: {
         </section>
 
         <section className="min-w-0">
-          <h2 className="mb-3 text-tiny font-bold uppercase tracking-widest text-text-muted">What happened</h2>
+          <h2 className="mb-3 text-tiny font-bold uppercase tracking-widest text-text-muted">{tr('eventsTitle')}</h2>
           <div className="rounded-lg bg-bg-1 px-4 py-1">
-            {eventos.length === 0 && <p className="py-4 text-small text-text-3">Nothing recorded in this window.</p>}
+            {eventos.length === 0 && <p className="py-4 text-small text-text-3">{tr('noEvents')}</p>}
             {eventos.slice(0, 16).map((e, i) => <FilaEvento key={i} e={e} />)}
             {eventos.length > 16 && (
-              <p className="py-2.5 text-tiny text-text-3">
-                and {eventos.length - 16} more in this window
-              </p>
+              <p className="py-2.5 text-tiny text-text-3">{tr('andMore', { n: eventos.length - 16 })}</p>
             )}
           </div>
         </section>
@@ -884,9 +968,7 @@ export function SeguridadClient({ datos, dias }: {
       <Riesgos cuentas={cuentas} onCambio={refrescar} />
 
       <p className="border-t border-row-sep pt-4 text-tiny leading-relaxed text-text-3">
-        <b className="text-text-2">Reads itself every 45 seconds</b> while this tab is open, straight from the
-        Admin project — the same place the lockout writes to.{' '}
-        <b className="text-text-2">Still missing:</b> a blocked-IP list. Today a bad IP gets throttled, not banned.
+        {tr.rich('footer', { b: (c) => <b className="text-text-2">{c}</b> })}
       </p>
     </div>
   );
@@ -894,13 +976,13 @@ export function SeguridadClient({ datos, dias }: {
 
 /* ───────────────────────────── las piezas ──────────────────────────────── */
 
-function Cifra({ n, l, t, col, serie, quieto }: {
-  n: number; l: string; t?: string; col: string; serie: number[]; quieto: boolean;
+function Cifra({ n, l, tonoClase, col, serie, quieto }: {
+  n: number; l: string; tonoClase?: string; col: string; serie: number[]; quieto: boolean;
 }): React.ReactElement {
   const v = useConteo(n, quieto);
   return (
     <div className="min-w-0 rounded-lg bg-bg-1 p-4">
-      <div className={cn('text-2xl font-bold tabular-nums leading-none', t ?? 'text-text-1')}>{v}</div>
+      <div className={cn('text-2xl font-bold tabular-nums leading-none', tonoClase ?? 'text-text-1')}>{v}</div>
       <div className="mt-1.5 text-tiny text-text-3">{l}</div>
       <Chispa serie={serie} col={col} />
     </div>
@@ -908,14 +990,21 @@ function Cifra({ n, l, t, col, serie, quieto }: {
 }
 
 function Marca({ estado }: { estado: boolean | 'parcial' | undefined }): React.ReactElement {
-  if (estado === true)      return <span className="inline-block rounded px-1.5 py-0.5 text-tiny font-bold bg-emerald/15 text-emerald">✓</span>;
-  if (estado === 'parcial') return <span className="inline-block rounded px-1.5 py-0.5 text-tiny font-bold bg-amber/15 text-amber" title="Built in, but nobody uses it">○</span>;
-  return <span className="inline-block rounded px-1.5 py-0.5 text-tiny font-bold bg-rose/15 text-rose">✕</span>;
+  const tr = useTranslations('security');
+  if (estado === true) {
+    return <span title={tr('markOk')} className="inline-block rounded px-1.5 py-0.5 text-tiny font-bold bg-emerald/15 text-emerald">✓</span>;
+  }
+  if (estado === 'parcial') {
+    return <span title={tr('markPartial')} className="inline-block rounded px-1.5 py-0.5 text-tiny font-bold bg-amber/15 text-amber">○</span>;
+  }
+  return <span title={tr('markOpen')} className="inline-block rounded px-1.5 py-0.5 text-tiny font-bold bg-rose/15 text-rose">✕</span>;
 }
 
 function FilaIp({ x, quieto, activa, onClick }: {
   x: PorIp; quieto: boolean; activa: boolean; onClick: () => void;
 }): React.ReactElement {
+  const tr = useTranslations('security');
+  const idioma = useLocale();
   const soloFallos = x.fallidos > 0 && x.exitosos === 0;
   const donde = [x.ciudad, x.pais].filter(Boolean).join(', ');
   const total = Math.max(1, x.fallidos + x.exitosos);
@@ -938,9 +1027,9 @@ function FilaIp({ x, quieto, activa, onClick }: {
           {x.ip}
         </span>
         <span className="font-mono text-tiny tabular-nums text-text-3">
-          {x.fallidos > 0 && <span className="text-rose">{x.fallidos} failed</span>}
+          {x.fallidos > 0 && <span className="text-rose">{tr('nFailed', { n: x.fallidos })}</span>}
           {x.fallidos > 0 && x.exitosos > 0 && ' · '}
-          {x.exitosos > 0 && <span>{x.exitosos} ok</span>}
+          {x.exitosos > 0 && <span>{tr('nOk', { n: x.exitosos })}</span>}
         </span>
       </div>
 
@@ -955,9 +1044,9 @@ function FilaIp({ x, quieto, activa, onClick }: {
       </div>
 
       <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3 text-tiny text-text-3">
-        <span>{hora(x.ultimo)}{x.modulos.length > 0 && ` · ${x.modulos.join(', ')}`}</span>
+        <span>{hora(x.ultimo, idioma)}{x.modulos.length > 0 && ` · ${x.modulos.join(', ')}`}</span>
         {/* Sin ubicación no se inventa nada: se dice que no se sabe. */}
-        <span className="font-mono">{donde || 'location unknown'}</span>
+        <span className="font-mono">{donde || tr('locationUnknown')}</span>
       </div>
     </button>
   );
@@ -979,12 +1068,14 @@ function Franja({ pct, clase, quieto }: { pct: number; clase: string; quieto: bo
 }
 
 function FilaEvento({ e }: { e: Evento }): React.ReactElement {
+  const tr = useTranslations('security');
+  const idioma = useLocale();
   return (
     <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5 border-b border-row-sep py-2 text-small last:border-0">
-      <time className="font-mono text-tiny tabular-nums text-text-3">{hora(e.cuando)}</time>
-      <span className={cn('font-semibold', COLOR[e.accion] ?? 'text-text-2')}>{ETIQUETA[e.accion] ?? e.accion}</span>
+      <time className="font-mono text-tiny tabular-nums text-text-3">{hora(e.cuando, idioma)}</time>
+      <span className={cn('font-semibold', COLOR[e.accion] ?? 'text-text-2')}>{tr(`act.${e.accion}`)}</span>
       {e.intentos !== null && e.accion === 'LOGIN_FAILED' && (
-        <span className="text-tiny text-text-3">{e.intentos} of 3</span>
+        <span className="text-tiny text-text-3">{tr('ofThree', { n: e.intentos })}</span>
       )}
       <span className="min-w-0 flex-1 truncate text-tiny text-text-3">{e.correo ?? '—'}</span>
       {e.modulo && <span className="rounded bg-surface px-1.5 text-tiny text-text-3">{e.modulo}</span>}
@@ -994,32 +1085,32 @@ function FilaEvento({ e }: { e: Evento }): React.ReactElement {
 }
 
 function Riesgos({ cuentas, onCambio }: { cuentas: Cuentas; onCambio: () => void }): React.ReactElement {
+  const tr = useTranslations('security');
+  const idioma = useLocale();
   return (
     <section>
       <h2 className="mb-3 text-tiny font-bold uppercase tracking-widest text-text-muted">
-        Accounts · all {cuentas.total}, across the five modules
+        {tr('accountsTitle', { n: cuentas.total })}
       </h2>
       <div className="rounded-lg bg-bg-1 px-4 py-1">
         <Riesgo
-          t="No two-factor"
-          d={cuentas.adminsSinMfa > 0
-            ? `Including ${cuentas.adminsSinMfa} administrator account${cuentas.adminsSinMfa > 1 ? 's' : ''}`
-            : 'Every account has it'}
+          titulo={tr('riskMfa')}
+          detalle={cuentas.adminsSinMfa > 0 ? tr('riskMfaAdmins', { n: cuentas.adminsSinMfa }) : tr('riskMfaNone')}
           v={`${cuentas.sinMfa} / ${cuentas.total}`} malo={cuentas.sinMfa > 0}
         />
         <Riesgo
-          t="Pending verification, and can sign in anyway"
-          d="Inactive and suspended accounts are blocked. Pending is not — it looks like a lock and holds nothing"
+          titulo={tr('riskPending')}
+          detalle={tr('riskPendingD')}
           v={cuentas.pendientesQueEntran} malo={cuentas.pendientesQueEntran > 0}
         />
         <Riesgo
-          t="Never signed in"
-          d="Created and unused. Each one is a live password nobody watches"
+          titulo={tr('riskNever')}
+          detalle={tr('riskNeverD')}
           v={cuentas.nuncaEntraron} aviso={cuentas.nuncaEntraron > 0}
         />
         <Riesgo
-          t="Locked right now"
-          d="They clear at midnight, or with the Unlock button below"
+          titulo={tr('riskLocked')}
+          detalle={tr('riskLockedD')}
           v={cuentas.trabadasAhora} aviso={cuentas.trabadasAhora > 0}
         />
       </div>
@@ -1027,7 +1118,7 @@ function Riesgos({ cuentas, onCambio }: { cuentas: Cuentas; onCambio: () => void
       {cuentas.conIntentos.length > 0 && (
         <div className="mt-2.5 rounded-lg bg-bg-1 px-4 py-3">
           <div className="mb-2 text-tiny font-bold uppercase tracking-wider text-text-muted">
-            Accounts with failed attempts
+            {tr('withAttempts')}
           </div>
           {cuentas.conIntentos.map((c) => {
             const trabada = Boolean(c.hasta) && new Date(c.hasta as string).getTime() > Date.now();
@@ -1035,8 +1126,8 @@ function Riesgos({ cuentas, onCambio }: { cuentas: Cuentas; onCambio: () => void
               <div key={c.correo} className="flex flex-wrap items-center justify-between gap-2 border-b border-row-sep py-2 last:border-0">
                 <span className="text-small text-text-1">{c.correo}</span>
                 <span className="flex items-center gap-2">
-                  <span className="font-mono text-small tabular-nums text-text-2">{c.intentos} of 3</span>
-                  {trabada && <Badge variant="destructive">locked until {hora(c.hasta as string)}</Badge>}
+                  <span className="font-mono text-small tabular-nums text-text-2">{tr('ofThree', { n: c.intentos })}</span>
+                  {trabada && <Badge variant="destructive">{tr('lockedUntil', { cuando: hora(c.hasta as string, idioma) })}</Badge>}
                   <Desbloquear id={c.id} activo={trabada || c.intentos > 0} onListo={onCambio} />
                 </span>
               </div>
@@ -1059,6 +1150,7 @@ function Riesgos({ cuentas, onCambio }: { cuentas: Cuentas; onCambio: () => void
 function Desbloquear({ id, activo, onListo }: {
   id: string; activo: boolean; onListo: () => void;
 }): React.ReactElement {
+  const tr = useTranslations('security');
   const [estado, setEstado] = React.useState<'listo' | 'yendo' | 'hecho' | 'error'>('listo');
 
   const tocar = async (): Promise<void> => {
@@ -1078,7 +1170,7 @@ function Desbloquear({ id, activo, onListo }: {
       type="button"
       disabled={!activo || estado === 'yendo' || estado === 'hecho'}
       onClick={() => { void tocar(); }}
-      title={activo ? 'Clear the lock and the failed attempts' : 'Nothing to clear on this account'}
+      title={activo ? tr('unlockTitle') : tr('unlockNothing')}
       className={cn(
         'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-tiny transition-colors',
         estado === 'error' ? 'border-rose/40 text-rose'
@@ -1088,19 +1180,19 @@ function Desbloquear({ id, activo, onListo }: {
       )}
     >
       <Unlock className="h-3 w-3" />
-      {estado === 'yendo' ? 'Unlocking…' : estado === 'hecho' ? 'Unlocked' : estado === 'error' ? 'Failed' : 'Unlock'}
+      {estado === 'yendo' ? tr('unlocking') : estado === 'hecho' ? tr('unlocked') : estado === 'error' ? tr('unlockFailed') : tr('unlock')}
     </button>
   );
 }
 
-function Riesgo({ t, d, v, malo, aviso }: {
-  t: string; d: string; v: number | string; malo?: boolean; aviso?: boolean;
+function Riesgo({ titulo, detalle, v, malo, aviso }: {
+  titulo: string; detalle: string; v: number | string; malo?: boolean; aviso?: boolean;
 }): React.ReactElement {
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-row-sep py-3 last:border-0">
       <div className="min-w-0">
-        <div className="text-small text-text-1">{t}</div>
-        <div className="mt-0.5 text-tiny text-text-3">{d}</div>
+        <div className="text-small text-text-1">{titulo}</div>
+        <div className="mt-0.5 text-tiny text-text-3">{detalle}</div>
       </div>
       <div className={cn('font-mono text-base font-bold tabular-nums', malo ? 'text-rose' : aviso ? 'text-amber' : 'text-emerald')}>{v}</div>
     </div>

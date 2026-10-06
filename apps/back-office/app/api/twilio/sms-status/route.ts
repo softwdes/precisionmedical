@@ -15,13 +15,43 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import twilio from 'twilio';
-import { db } from '@precision-medical/database';
+import { db, type MessageStatus } from '@precision-medical/database';
 import { mapTwilioStatus } from '@/lib/sms';
 
 export const dynamic = 'force-dynamic';
 
 /** Twilio reintenta si no ve un 2xx, así que se responde 200 siempre. */
 const ok = () => new NextResponse('', { status: 200 });
+
+/**
+ * Qué estado puede PISAR a cuál. El estado solo avanza, nunca retrocede.
+ *
+ * ── Por qué hace falta ─────────────────────────────────────────────────────
+ *
+ * Twilio manda `queued`, `sent` y `delivered` como tres POST sueltos y **no
+ * garantiza el orden**. Cuando salen casi juntos, el `queued` puede llegar
+ * después del `delivered` — y hasta hoy esta ruta aplicaba el último que
+ * entrara, así que un mensaje entregado volvía a "en cola".
+ *
+ * Medido el 2026-10-06 sobre los envíos reales: **81 de 466 salientes** —uno
+ * de cada seis— figuraban QUEUED teniendo `deliveredAt` puesto, que es una
+ * contradicción que sólo puede escribir esta ruta. La prueba de que fue una
+ * carrera y no otra cosa está en los tiempos: en los entregados, la última
+ * escritura cae 0,00 s después del acuse; en los 81 atascados cae 0,35 s
+ * DESPUÉS. Algo escribió luego del "entregado", y lo único que escribe acá es
+ * un aviso más viejo llegando tarde.
+ *
+ * En la clínica eso se leía como "el mensaje nunca salió" y en la consola de
+ * Twilio decía entregado. El registro contradecía al proveedor.
+ */
+const PUEDE_PISAR: Record<MessageStatus, readonly MessageStatus[]> = {
+  // Nada: es el estado inicial con el que nace la fila.
+  QUEUED:      [],
+  SENT:        ['QUEUED'],
+  DELIVERED:   ['QUEUED', 'SENT'],
+  UNDELIVERED: ['QUEUED', 'SENT'],
+  FAILED:      ['QUEUED', 'SENT'],
+};
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
@@ -64,8 +94,20 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     // `updateMany` y no `update`: un SID que no conocemos no es un error. Pasa
     // si el proceso murió entre que Twilio aceptó el mensaje y lo registramos.
+    //
+    // El `status` del WHERE es el guardia de orden: la fila solo se toca si
+    // está en un estado anterior. Va en la condición y no en un `if` leído
+    // antes, porque entre leer y escribir puede entrar otro aviso — la base
+    // decide, en una sola operación.
+    const anteriores = PUEDE_PISAR[mapped] ?? [];
+    if (anteriores.length === 0) {
+      // `queued` no puede adelantar a nada. Llega tarde o llega primero; en
+      // los dos casos la fila ya nació en QUEUED y no hay nada que escribir.
+      return ok();
+    }
+
     const res = await db.messageLog.updateMany({
-      where: { providerMessageId: sid },
+      where: { providerMessageId: sid, status: { in: [...anteriores] } },
       data: {
         status: mapped,
         ...(mapped === 'DELIVERED' ? { deliveredAt: new Date() } : {}),

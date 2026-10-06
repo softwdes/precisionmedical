@@ -302,6 +302,15 @@ const TWILIO_WEBHOOKS = new Set([
   // Se diagnostico comparando: `sms-status` daba 405 (la ruta existe) y
   // `sms-incoming` daba 307. Esa diferencia es el test para la proxima vez.
   '/api/twilio/sms-incoming',
+  // ⚠️ Y la misma historia otra vez, con el correo. Medido contra produccion
+  // el 2026-10-06: `email-status` daba 307 y las otras cinco 405. SendGrid nos
+  // avisaba que el correo habia llegado, el middleware lo mandaba al login, y
+  // 220 correos quedaron en QUEUED desde el 14-sep — "le avisamos al paciente"
+  // era una suposicion, no un dato.
+  //
+  // Esta ruta NO queda abierta: se autentica con `?token=` en la URL (ver su
+  // encabezado). El middleware mira `pathname`, asi que la query no estorba.
+  '/api/twilio/email-status',
 ]);
 
 /** Módulo que gobierna esta request de API, o null si no está gobernada. */

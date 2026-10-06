@@ -138,7 +138,7 @@ export function InlineText({
  */
 export function InlineCombo({
   value, options, onSave, readOnly, title, emptyHint,
-  abreConLaLista = false, abreConDobleClic = false, ancho, alCrear, enterCrea = false, tono,
+  abreConLaLista = false, abreConDobleClic = false, ancho, alCrear, enterCrea = false,
 }: {
   value: string | null;
   options: { id: string; name: string }[];
@@ -220,18 +220,6 @@ export function InlineCombo({
    * tenia razon: lo rompi yo al separar la celda en dos modos.
    */
   enterCrea?: boolean;
-  /**
-   * Clases para el DISPARADOR, cuando esta celda no es el dato principal.
-   *
-   * Van al final del `className` y por eso el que las pasa usa `!`: el
-   * disparador ya trae `text-text-2` propio y, a igual especificidad, no gana
-   * el que está después en el atributo sino el que está después en la hoja de
-   * estilos. Sin el `!` la clase entra y no hace nada — en silencio.
-   *
-   * Hoy lo usa la segunda línea de la columna del abogado, que es secundaria
-   * del bufete y tiene que verse como tal.
-   */
-  tono?: string;
   alCrear?: {
     /**
      * Rotulo del boton, ej. `Agregar "Todd Livingston" a Claggett & Sykes`.
@@ -342,7 +330,6 @@ export function InlineCombo({
         onClick={e => { if (abreConDobleClic && e.detail !== 0) return; open(e.currentTarget); }}
         onDoubleClick={e => { if (abreConDobleClic) open(e.currentTarget); }}
         className={TRIGGER_CLS + (ancho ? ` ${ancho} line-clamp-2` : ' truncate block') + (value ? ' text-text-2' : '')
-          + (tono ? ` ${tono}` : '')
           + (editing ? ' invisible' : '')
           // Sin esto el doble clic selecciona la palabra antes de abrir y queda
           // el texto resaltado en azul debajo del panel.

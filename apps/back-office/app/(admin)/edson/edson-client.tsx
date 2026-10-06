@@ -311,21 +311,22 @@ export function EdsonClient({ clinics, providers, providersFiltro, carriers, law
   const router = useRouter();
 
   /**
-   * Abogados dados de alta en esta sesión desde una celda.
+   * Bufetes dados de alta en esta sesión desde la celda.
    *
-   * `lawyers` lo arma el server component y no se vuelve a pedir, así que sin
+   * `firms` lo arma el server component y no se vuelve a pedir, así que sin
    * esto el que acaba de crearse no aparecería en las demás filas hasta
    * recargar — y el optimista de la fila que lo creó mostraría un guion,
    * porque el nombre se busca en el catálogo.
+   *
+   * Hubo un par gemelo para ABOGADOS y se fue el 2026-10-06: la columna dejó
+   * de editar al abogado y pasó a ser solo el bufete. Las personas se dan de
+   * alta desde el panel, que tiene su propio camino.
    */
-  const [nuevosAbogados, setNuevosAbogados] = useState<{ id: string; name: string }[]>([]);
-  /** Lo mismo para los bufetes dados de alta desde la celda. */
   const [nuevosBufetes, setNuevosBufetes] = useState<{ id: string; name: string }[]>([]);
-  // Se funden por id: las rutas de alta devuelven al que YA existía cuando el
+  // Se funden por id: la ruta de alta devuelve al que YA existía cuando el
   // nombre se repite, y en la próxima carga el mismo llega por los dos lados.
   // Dos opciones con el mismo `id` rompen las keys de la lista.
   const filtroProviders  = useMemo(() => new Set(providersFiltro), [providersFiltro]);
-  const catalogoAbogados = useMemo(() => fundir(lawyers, nuevosAbogados), [lawyers, nuevosAbogados]);
   const catalogoBufetes  = useMemo(() => fundir(firms,   nuevosBufetes),  [firms,   nuevosBufetes]);
 
   const [vista, setVista] = useState<Vista>('seguimiento');
@@ -641,54 +642,6 @@ export function EdsonClient({ clinics, providers, providersFiltro, carriers, law
     }
   }
 
-  /**
-   * Alta de un abogado en el bufete del caso, desde la celda.
-   *
-   * La ruta es la misma que usa el modal (`quick-create-member`): crea la
-   * PERSONA dentro de un bufete que ya existe y la deja en el catálogo, que es
-   * lo que hace que el próximo caso de ese bufete ya la encuentre. Si ya
-   * estaba —por correo o por nombre— la ruta devuelve el id que hay en vez de
-   * crear un gemelo, y se usa ese.
-   *
-   * El catálogo de abogados llega del server component y acá no se vuelve a
-   * pedir: el recién creado se suma a `nuevosAbogados` para que aparezca en la
-   * lista del resto de las filas sin recargar la página. En la próxima carga
-   * entra por el camino normal y `catalogoAbogados` lo deduplica por id.
-   */
-  async function altaAbogado(nombre: string, parentFirmId: string) {
-    // El PRIMER token es el nombre y el resto el apellido — mismo criterio que
-    // el modal, para que las dos puertas carguen igual.
-    const partes = nombre.trim().split(/\s+/);
-    try {
-      const res  = await fetch('/api/admin/lawyers/quick-create-member', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          parentFirmId,
-          firstName: partes[0] ?? '',
-          lastName: partes.slice(1).join(' '),
-          memberRole: 'ATTORNEY',
-        }),
-      });
-      const json = await res.json().catch(() => ({}));
-
-      // Ya existía: se usa al que hay en vez de dejar a Edson sin salida.
-      if (!res.ok && json?.lawyerId) {
-        const yaEstaba = { id: json.lawyerId as string, name: (json.params?.name as string) ?? nombre.trim() };
-        setNuevosAbogados(prev => [...prev, yaEstaba]);
-        return yaEstaba;
-      }
-      if (!res.ok) { setError(t('saveFailed')); return null; }
-
-      const l = json.lawyer as { id: string; firstName: string | null; lastName: string | null };
-      const alta = { id: l.id, name: `${l.firstName ?? ''} ${l.lastName ?? ''}`.trim() };
-      setNuevosAbogados(prev => [...prev, alta]);
-      return alta;
-    } catch {
-      setError(t('saveFailed'));
-      return null;
-    }
-  }
 
   /**
    * Alta de un bufete desde la celda, para los casos que no tienen ninguno.
@@ -1088,13 +1041,15 @@ export function EdsonClient({ clinics, providers, providersFiltro, carriers, law
               <DataTable.Th className={COL_LG}>{t('colProvider')}</DataTable.Th>
               <DataTable.Th className={COL_LG}>{t('colLossDate')}</DataTable.Th>
               {/*
-                * El rótulo nombra las DOS cosas y en el orden en que se ven:
-                * arriba el bufete, abajo el abogado. Decía solo "Attorney"
-                * mientras la línea principal pasaba a ser la oficina, y una
-                * columna llamada Abogado cuyo valor grande es el bufete es
-                * exactamente la confusión que estamos saliendo de arreglar.
+                * Sigue diciendo "Attorney" aunque la columna muestre el BUFETE,
+                * y es a propósito: es el rótulo que Edson leyó ahí durante
+                * meses, y durante meses lo que vio debajo fue la oficina. Es su
+                * vocabulario, no un error.
+                *
+                * Por un día dijo "Bufete / abogado", mientras la columna llevó
+                * los dos datos. Volvió atrás cuando el abogado salió de acá.
                 */}
-              <DataTable.Th>{t('colFirmAttorney')}</DataTable.Th>
+              <DataTable.Th>{t('colAttorney')}</DataTable.Th>
               <DataTable.Th className={COL_MD}>
                 {/*
                   * Rotulo corto: el completo son 23 caracteres y partia el
@@ -1183,19 +1138,6 @@ export function EdsonClient({ clinics, providers, providersFiltro, carriers, law
                      * nota del badge, más abajo.
                      */
                     const gente = row.managerCount + (row.attorneyName ? 1 : 0);
-                    /*
-                     * ¿Lo tecleado es el nombre de una OFICINA?
-                     *
-                     * Una sola definición para los dos lugares que la necesitan:
-                     * el botón de alta (que no debe ofrecerla como persona) y el
-                     * guardado (que no debe escribirla en el campo del abogado).
-                     * Cuando estaban separados, uno bloqueaba y el otro ofrecía.
-                     */
-                    const esNombreDeBufete = (q: string) => {
-                      const t = q.trim().toLowerCase();
-                      return !!t && (t === row.firmName?.trim().toLowerCase() ||
-                        catalogoBufetes.some(f => f.name.trim().toLowerCase() === t));
-                    };
                     return (
                       <Fragment key={row.caseId}>
                       <DataTable.Row style={rowBg ? { background: rowBg } : undefined}>
@@ -1510,47 +1452,27 @@ export function EdsonClient({ clinics, providers, providersFiltro, carriers, law
                             />
                             </Vistazo>
                             {/*
-                              * LINEA 2 — EL ABOGADO, solo si hay uno y no repite
-                              * al bufete.
+                              * EL ABOGADO NO VA EN LA COLUMNA.
                               *
-                              * No se dibuja vacía a propósito. Dibujarla siempre
-                              * costaría un renglón en las ~103 filas de la cola
-                              * que tienen bufete y todavía no tienen abogado, y
-                              * ese alto es justo lo que Edson peleó para ver 22
-                              * filas en vez de 10. Para esas, el camino de alta
-                              * es "+ Add attorney" en el panel, que es por donde
-                              * él entra.
+                              * Acá vivió un segundo renglón con el abogado, y
+                              * duró un día. Erick lo cerró el 2026-10-06 con el
+                              * modelo que Edson usa de verdad: la COLUMNA ES EL
+                              * BUFETE —lo que teclea ahí es la oficina— y las
+                              * personas, abogados y encargados, viven en el
+                              * panel que abre el ícono de al lado.
+                              *
+                              * Textual: "le da clic al icono, salen los abogados
+                              * y los case managers, acá está bien... pero Edson
+                              * agrega un attorney y lo reemplaza, lo pone al
+                              * revés". El abogado se apoderaba del renglón
+                              * principal y empujaba al bufete a la línea chica.
+                              *
+                              * Por eso tampoco hay que deduplicar nada acá: con
+                              * un solo dato en la columna no hay forma de que se
+                              * repita. Las rondas de "why is duplicating the
+                              * information" eran el síntoma de meter dos cosas
+                              * en un lugar que alcanza para una.
                               */}
-                            {row.attorneyName && !mismaInfo(row.attorneyName, row.firmName ?? '') && (
-                            <Vistazo texto={row.attorneyName} titulo={t('fieldAttorney')}>
-                            <InlineCombo
-                              ancho="max-w-full"
-                              tono="!text-text-muted"
-                              value={row.attorneyName}
-                              options={catalogoAbogados}
-                              readOnly={archived}
-                              title={t('editAttorney')}
-                              emptyHint={t('attorneyFreeText')}
-                              alCrear={archived || !row.lawFirmId ? undefined : {
-                                etiqueta: (q: string) => esNombreDeBufete(q)
-                                  ? null
-                                  : t('attorneyAddToFirm', { nombre: q, bufete: row.firmName ?? '' }),
-                                crear: (q: string) => altaAbogado(q, row.lawFirmId as string),
-                              }}
-                              onSave={next => {
-                                if (next.text && esNombreDeBufete(next.text)) {
-                                  setError(t('attorneyIsFirm')); return Promise.resolve(false);
-                                }
-                                return saveTo(
-                                  `/api/admin/cases/${row.caseId}/update-legal-insurance`,
-                                  row.caseId,
-                                  { attorneyName: next.id ? (catalogoAbogados.find(l => l.id === next.id)?.name ?? null) : next.text },
-                                  { attorneyId: next.id, attorneyNameRaw: next.text },
-                                );
-                              }}
-                            />
-                            </Vistazo>
-                            )}
                             </span>
                             <button
                               type="button"
@@ -2079,34 +2001,6 @@ function fundir(
   return [...porId.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/**
- * ¿El abogado y el bufete dicen LO MISMO?
- *
- * Edson, 2026-10-06: "there is no need to show the same twice". Tenía razón y
- * la comparación exacta que había no alcanzaba: "Brian Hills" sobre
- * "Brian Hills Law" son dos textos distintos y la misma información.
- *
- * Tres criterios, y cada uno salió de un caso real de la base:
- *  · uno CONTIENE al otro ....... "Brian Hills" ⊂ "Brian Hills Law"
- *  · las dos primeras palabras .. "NO ATTORNEY / AT FAULT" vs "NO ATTORNEY YET"
- *  · sin iniciales sueltas ...... "Erik Mullins" vs "Erik L. Mullins"
- *
- * Medido sobre las 178 filas que tienen los dos datos: oculta 9 pares
- * distintos, todos repetición, y deja los 20 que aportan de verdad —
- * "Sergio Garcia" sobre "Garcia Law", "Zeb Q. Weeks" sobre "Flickinger
- * Boulton Robson Weeks". Ese segundo número es el que importa: una regla
- * demasiado amplia también habría acertado los 9.
- */
-function mismaInfo(a: string, b: string): boolean {
-  // Las iniciales sueltas se van: no distinguen a nadie y rompen la comparación.
-  const norm = (s: string) => s.trim().toLowerCase()
-    .replace(/[.,&/]/g, ' ').replace(/\s+/g, ' ')
-    .split(' ').filter(w => w.length > 1).join(' ').trim();
-  const dosPrimeras = (s: string) => norm(s).split(' ').slice(0, 2).join(' ');
-  const A = norm(a), B = norm(b);
-  if (!A || !B) return false;
-  return A === B || A.includes(B) || B.includes(A) || dosPrimeras(a) === dosPrimeras(b);
-}
 
 function Vistazo({ texto, titulo, children }: {
   texto: string | null | undefined;

@@ -92,3 +92,4 @@ export { ReleaseNotesDialog } from './release-notes-dialog';
 // `/patients` (back office + provider) y `/attorney/cases`.
 export { FotoGrandeDialog } from './foto-grande-dialog';
 export type { FotoGrande } from './foto-grande-dialog';
+export { usePagination, DEFAULT_PAGE_SIZE } from './use-pagination';

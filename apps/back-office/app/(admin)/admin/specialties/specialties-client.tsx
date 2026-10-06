@@ -24,7 +24,7 @@ import {
   StatusPill,
   TagPill,
   DataTable,
-  TableFooter,
+  TableFooter, usePagination,
   EmptyState,
 } from '@/components/ui-phoenix';
 
@@ -86,6 +86,8 @@ export function SpecialtiesClient({ specialties, stats }: Props) {
     return true;
   });
 
+  const pg = usePagination(filtered, { resetOn: [search, filter] });
+
   const refresh = () => startTransition(() => router.refresh());
 
   return (
@@ -145,7 +147,7 @@ export function SpecialtiesClient({ specialties, stats }: Props) {
                   </DataTable.Td>
                 </tr>
               ) : (
-                filtered.map((sp) => (
+                pg.pageItems.map((sp) => (
                   <DataTable.Row key={sp.id}>
                     <DataTable.Td>
                       <div className="flex items-center gap-2.5">
@@ -202,6 +204,7 @@ export function SpecialtiesClient({ specialties, stats }: Props) {
           </DataTable.Table>
         </DataTable.Scroll>
         <TableFooter
+          pagination={pg}
           left={`${filtered.length} de ${stats.total} especialidades`}
           right={<span className="font-mono">phoenix-dev · local</span>}
         />

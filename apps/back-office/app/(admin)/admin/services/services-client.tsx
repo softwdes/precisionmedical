@@ -23,7 +23,7 @@ import {
   IconAction,
   TagPill,
   DataTable,
-  TableFooter,
+  TableFooter, usePagination,
   EmptyState,
 } from '@/components/ui-phoenix';
 
@@ -109,6 +109,8 @@ export function ServicesClient({ services, stats }: Props) {
     if (categoryFilter !== 'all' && s.category !== categoryFilter) return false;
     return true;
   });
+
+  const pg = usePagination(filtered, { resetOn: [tab, search, filter, categoryFilter] });
 
   const refresh = () => startTransition(() => router.refresh());
 
@@ -203,7 +205,7 @@ export function ServicesClient({ services, stats }: Props) {
                   </DataTable.Td>
                 </tr>
               ) : (
-                filtered.map((s) => (
+                pg.pageItems.map((s) => (
                   <DataTable.Row key={s.id} muted={!s.isActive} highlight={s.isFavorite}>
                     <DataTable.Td align="center" className="px-2">
                       <button
@@ -250,6 +252,7 @@ export function ServicesClient({ services, stats }: Props) {
           </DataTable.Table>
         </DataTable.Scroll>
         <TableFooter
+          pagination={pg}
           left={t('footerShowing', { count: filtered.length })}
           right={<span className="font-mono">phoenix-dev · fiscal year 2026</span>}
         />

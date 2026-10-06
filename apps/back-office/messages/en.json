@@ -2461,7 +2461,10 @@
       "edLink": "Link",
       "edCheckbox": "Checkbox",
       "edBlank": "Blank field",
-      "uiUseTyped": "Use \"{texto}\""
+      "uiUseTyped": "Use \"{texto}\"",
+      "pagePrev": "Previous page",
+      "pageNext": "Next page",
+      "pageRange": "{from}–{to} of {total}"
     },
     "specialties": {
       "fieldColorLabel": "Color · identifier in the calendar and dashboard",

@@ -2461,7 +2461,10 @@
       "edLink": "Enlace",
       "edCheckbox": "Casilla",
       "edBlank": "Campo en blanco",
-      "uiUseTyped": "Usar «{texto}»"
+      "uiUseTyped": "Usar «{texto}»",
+      "pagePrev": "Página anterior",
+      "pageNext": "Página siguiente",
+      "pageRange": "{from}–{to} de {total}"
     },
     "specialties": {
       "fieldColorLabel": "Color · identificador en calendario y dashboard",

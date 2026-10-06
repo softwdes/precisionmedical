@@ -24,7 +24,7 @@ import {
   StatusPill,
   TagPill,
   DataTable,
-  TableFooter,
+  TableFooter, usePagination,
   EmptyState,
   EntityAvatar,
 } from '@/components/ui-phoenix';
@@ -104,6 +104,8 @@ export function InsurancesClient({ insurances, stats }: Props) {
     return true;
   });
 
+  const pg = usePagination(filtered, { resetOn: [search, filter] });
+
   const refresh = () => startTransition(() => router.refresh());
 
   return (
@@ -165,7 +167,7 @@ export function InsurancesClient({ insurances, stats }: Props) {
                   </DataTable.Td>
                 </tr>
               ) : (
-                filtered.map((ins) => (
+                pg.pageItems.map((ins) => (
                   <DataTable.Row
                     key={ins.id}
                     muted={!ins.isActive}
@@ -234,6 +236,7 @@ export function InsurancesClient({ insurances, stats }: Props) {
           </DataTable.Table>
         </DataTable.Scroll>
         <TableFooter
+          pagination={pg}
           left={t('footerLeft', { n: filtered.length, total: stats.total })}
           right={
             <span className="flex items-center gap-4">

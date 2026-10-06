@@ -13,7 +13,7 @@ import {
 } from '@precision/ui';
 import {
   PageHeader, KpiCard, FilterPill, IconAction, StatusPill,
-  DataTable, TableFooter, EmptyState, EntityAvatar,
+  DataTable, TableFooter, usePagination, EmptyState, EntityAvatar,
 } from '@/components/ui-phoenix';
 
 // Catálogo de ajustadores — paso 1 de la vista de tracking de Edson.
@@ -80,6 +80,8 @@ export function AdjustersClient({ adjusters, carriers, stats }: Props) {
     if (filter === 'inactive' && a.status === 'ACTIVE') return false;
     return true;
   });
+
+  const pg = usePagination(filtered, { resetOn: [search, filter, carrierId] });
 
   const refresh = () => startTransition(() => router.refresh());
 
@@ -152,7 +154,7 @@ export function AdjustersClient({ adjusters, carriers, stats }: Props) {
                   </DataTable.Td>
                 </tr>
               ) : (
-                filtered.map((a) => {
+                pg.pageItems.map((a) => {
                   const noPhone = !a.phone && !a.phone2;
                   return (
                     <DataTable.Row
@@ -225,6 +227,7 @@ export function AdjustersClient({ adjusters, carriers, stats }: Props) {
           </DataTable.Table>
         </DataTable.Scroll>
         <TableFooter
+          pagination={pg}
           left={t('footerLeft', { shown: filtered.length, total: stats.total })}
           right={
             <span className="flex items-center gap-4">

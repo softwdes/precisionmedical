@@ -28,7 +28,6 @@ import { useTranslations } from 'next-intl';
 import { Plus, Pencil, Trash2, Shield, RefreshCw } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
 import { TagPill } from '@/components/ui-phoenix';
-import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { localeApp } from '@/lib/fechas';
 import { fmtPhone } from '@/lib/telefono-formato';
 
@@ -306,6 +305,32 @@ const INS_TYPE_COLOR: Record<string, string> = {
  */
 const AUTO_ENTRY_ID = '__auto__';
 
+/**
+ * Una fila de `case_auto_insurances` como entrada del formulario.
+ *
+ * Cada una lleva **el id de SU fila**: es lo que la API necesita para saber
+ * cuál actualizar. Antes se le ponía `AUTO_ENTRY_ID` fijo a la única que había,
+ * porque la tabla era 1:1 con el caso (hasta el 2026-10-06).
+ */
+function entradaDesdeFila(row: Record<string, unknown>): InsuranceEntry {
+  const carrier  = row.carrier  as { name?: string } | null;
+  const adjuster = row.adjuster as { name?: string; phone?: string } | null;
+  return {
+    ...emptyInsEntry('AUTO'),
+    id: String(row.id),
+    carrier: carrier?.name ?? String(row.carrierNameRaw ?? ''),
+    policyId: String(row.policyId ?? ''),
+    lossDate: row.lossDate ? String(row.lossDate).slice(0, 10) : '',
+    pipAvailable: PIP_TO_TEXT[String(row.pipAvailable)] ?? '',
+    claimNum: String(row.claimNum ?? ''),
+    adjusterName: adjuster?.name ?? String(row.adjusterNameRaw ?? ''),
+    adjusterPhone: adjuster?.phone ?? String(row.adjusterPhoneRaw ?? ''),
+    comments: String(row.comments ?? ''),
+    fullLien: Boolean(row.fullLien),
+    lienComments: String(row.lienComments ?? ''),
+  };
+}
+
 const PIP_TO_TEXT: Record<string, string> = {
   YES: 'Y', NO: 'N', UNKNOWN: '', NOT_APPLICABLE: 'N/A',
 };
@@ -358,14 +383,33 @@ export function SegurosDialog({ caso, titular, onClose }: {
   const [saving, setSaving]         = useState(false);
   const [loading, setLoading]       = useState(!!caso);
   const [error, setError]           = useState('');
-  /** El auto nuevo que está por pisar al que ya hay — espera confirmación. */
-  const [porReemplazar, setPorReemplazar] = useState<InsuranceEntry | null>(null);
 
   const caseId = caso?.id ?? null;
 
-  // El seguro de auto se pide al abrir el modal en vez de viajar en el payload
-  // de la lista de pacientes, que ya es pesado y se abre mucho más seguido que
-  // este diálogo.
+  /**
+   * Los seguros de auto del caso, desde el servidor.
+   *
+   * Se pide al abrir el modal en vez de viajar en el payload de la lista de
+   * pacientes, que ya es pesado y se abre mucho más seguido que este diálogo.
+   *
+   * Y se vuelve a pedir después de guardar: la fila nueva nace con su id del
+   * lado del servidor, y adivinarlo acá dejaría la pantalla y la base contando
+   * cosas distintas.
+   */
+  async function recargarAutos() {
+    if (!caseId) return;
+    try {
+      const res  = await fetch(`/api/admin/cases/${caseId}/auto-insurance`);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) return;
+      const filas: Array<Record<string, unknown>> = json.autoInsurances ?? [];
+      setInsurances(prev => [
+        ...filas.map((row) => entradaDesdeFila(row)),
+        ...prev.filter(i => i.insType !== 'AUTO'),
+      ]);
+    } catch { /* si falla, queda lo que ya estaba en pantalla */ }
+  }
+
   useEffect(() => {
     if (!caseId) return;
     let cancelled = false;
@@ -374,23 +418,20 @@ export function SegurosDialog({ caso, titular, onClose }: {
         const res  = await fetch(`/api/admin/cases/${caseId}/auto-insurance`);
         const json = await res.json().catch(() => ({}));
         if (cancelled || !res.ok) return;
-        const row = json.autoInsurance;
-        if (!row) return;
-        const entry: InsuranceEntry = {
-          ...emptyInsEntry('AUTO'),
-          id: AUTO_ENTRY_ID,
-          carrier: row.carrier?.name ?? row.carrierNameRaw ?? '',
-          policyId: row.policyId ?? '',
-          lossDate: row.lossDate ? String(row.lossDate).slice(0, 10) : '',
-          pipAvailable: PIP_TO_TEXT[row.pipAvailable] ?? '',
-          claimNum: row.claimNum ?? '',
-          adjusterName: row.adjuster?.name ?? row.adjusterNameRaw ?? '',
-          adjusterPhone: row.adjuster?.phone ?? row.adjusterPhoneRaw ?? '',
-          comments: row.comments ?? '',
-          fullLien: row.fullLien ?? false,
-          lienComments: row.lienComments ?? '',
-        };
-        setInsurances(prev => [entry, ...prev.filter(i => i.id !== AUTO_ENTRY_ID)]);
+        /*
+          TODOS los de auto, cada uno con el id de SU fila.
+
+          Antes venía uno solo y se le ponía `AUTO_ENTRY_ID` fijo, porque la
+          tabla era 1:1 con el caso. Desde el 2026-10-06 son varios y cada
+          entrada lleva su id real: es lo que la API necesita para saber **cuál**
+          actualizar en vez de pisar al primero.
+        */
+        const filas: Array<Record<string, unknown>> = json.autoInsurances ?? (json.autoInsurance ? [json.autoInsurance] : []);
+        if (!filas.length) return;
+        setInsurances(prev => [
+          ...filas.map((row) => entradaDesdeFila(row)),
+          ...prev.filter(i => i.insType !== 'AUTO'),
+        ]);
       } catch { /* si falla, el modal muestra solo los MEDICAL */ }
       finally { if (!cancelled) setLoading(false); }
     })();
@@ -420,6 +461,9 @@ export function SegurosDialog({ caso, titular, onClose }: {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        // Con varios por caso, el id dice CUAL se escribe. Sin el, la API crea
+        // uno nuevo — que es lo que hay que hacer con una entrada recien hecha.
+        autoInsuranceId: entry.id === AUTO_ENTRY_ID ? undefined : entry.id,
         carrierNameRaw: entry.carrier.trim() || null,
         policyId: entry.policyId.trim() || null,
         lossDate: entry.lossDate || null,
@@ -442,28 +486,13 @@ export function SegurosDialog({ caso, titular, onClose }: {
 
   const insTypeLabel = { MEDICAL: t('segurosTypeMedical'), AUTO: t('segurosTypeAuto') };
 
-  /**
-   * ¿Esto va a PISAR el seguro de auto que ya está cargado?
-   *
-   * La tabla es 1:1 con el caso, así que un segundo auto reemplaza al primero.
-   * Eso estaba decidido, pero **ocurría en silencio**: recepción cargaba el
-   * seguro del tercero, guardaba, y el del paciente desaparecía sin un aviso
-   * (reportado el 2026-10-06).
-   *
-   * Es reemplazo sólo cuando se está cargando uno NUEVO —`id` propio— habiendo
-   * ya otro. Editar el que existe entra con `AUTO_ENTRY_ID` y no avisa nada:
-   * ahí no se pierde nada.
-   */
-  function pisaElAutoExistente(entry: InsuranceEntry): boolean {
-    return entry.insType === 'AUTO'
-      && entry.id !== AUTO_ENTRY_ID
-      && insurances.some(i => i.insType === 'AUTO');
-  }
-
+  /*
+    Acá hubo, por unas horas del 2026-10-06, un cartel que avisaba "esto va a
+    reemplazar al seguro de auto que ya está". Era correcto mientras la tabla
+    era 1:1 con el caso; **ahora cabe más de uno y ya no reemplaza nada**, así
+    que el aviso pasaría a decir algo falso. Se fue con el `@unique`.
+  */
   async function handleUpsert(entry: InsuranceEntry) {
-    if (!caseId) return;
-    // Con uno ya cargado, no se guarda hasta que la persona diga que sí.
-    if (pisaElAutoExistente(entry)) { setPorReemplazar(entry); return; }
     await guardarEntrada(entry);
   }
 
@@ -474,9 +503,10 @@ export function SegurosDialog({ caso, titular, onClose }: {
       if (entry.insType === 'AUTO') {
         // La tabla es 1:1 con el caso: un segundo auto reemplaza al anterior en
         // vez de agregarse, que es lo que el JSON dejaba hacer sin querer.
-        const withId = { ...entry, id: AUTO_ENTRY_ID };
-        if (!(await saveAuto(withId))) return;
-        setInsurances(prev => [withId, ...prev.filter(i => i.insType !== 'AUTO')]);
+        if (!(await saveAuto(entry))) return;
+        // Se recarga desde el servidor: la fila nueva nace con su id alla, y
+        // adivinarlo aca dejaria la pantalla y la base contando cosas distintas.
+        await recargarAutos();
       } else {
         const exists  = insurances.some(i => i.id === entry.id);
         const updated = exists
@@ -493,10 +523,12 @@ export function SegurosDialog({ caso, titular, onClose }: {
     if (!caseId) return;
     setSaving(true); setError('');
     try {
-      if (id === AUTO_ENTRY_ID) {
-        const res = await fetch(`/api/admin/cases/${caseId}/auto-insurance`, { method: 'DELETE' });
+      if (insurances.find(i => i.id === id)?.insType === 'AUTO') {
+        // Por id de FILA: el caso puede tener varios y hay que borrar el que se
+        // toco, no 'el' seguro de auto.
+        const res = await fetch(`/api/admin/cases/${caseId}/auto-insurance?autoInsuranceId=${encodeURIComponent(id)}`, { method: 'DELETE' });
         if (!res.ok) { setError(t('errorDelete')); return; }
-        setInsurances(prev => prev.filter(i => i.id !== AUTO_ENTRY_ID));
+        setInsurances(prev => prev.filter(i => i.id !== id));
       } else {
         const updated = insurances.filter(i => i.id !== id);
         if (!(await saveMedical(updated))) return;
@@ -619,31 +651,6 @@ export function SegurosDialog({ caso, titular, onClose }: {
         />
       )}
 
-      {/*
-        El aviso que faltaba. Un caso guarda UN seguro de auto, así que cargar
-        otro reemplaza al que está — y antes eso pasaba sin decir nada.
-
-        El cartel nombra al que se va a perder: "esto va a reemplazar a X" se
-        entiende; "ya existe un seguro de auto" obliga a ir a mirar cuál era.
-      */}
-      {porReemplazar && (
-        <ConfirmDialog
-          open
-          variant="danger"
-          title={t('segurosReplaceAutoTitle')}
-          description={t('segurosReplaceAuto', {
-            actual: insurances.find(i => i.insType === 'AUTO')?.carrier?.trim() || t('segurosTypeAuto'),
-            nuevo:  porReemplazar.carrier?.trim() || t('segurosTypeAuto'),
-          })}
-          confirmLabel={t('segurosReplaceAutoConfirm')}
-          onConfirm={() => {
-            const entry = porReemplazar;
-            setPorReemplazar(null);
-            void guardarEntrada(entry);
-          }}
-          onCancel={() => setPorReemplazar(null)}
-        />
-      )}
     </>
   );
 }

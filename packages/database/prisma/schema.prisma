@@ -3314,7 +3314,8 @@ model Case {
 
   // Appointments, notas y firmas del lien
   appointments         Appointment[]         @relation("CaseAppointments")
-  autoInsurance        CaseAutoInsurance?
+  /// VARIOS desde el 2026-10-06 — ver el comentario del modelo.
+  autoInsurances       CaseAutoInsurance[]
   tracking             CaseTracking?
   trackingNotes        CaseTrackingNote[]
   caseManagers         CaseManager[]
@@ -3545,7 +3546,16 @@ enum PipAvailability {
 model CaseAutoInsurance {
   id String @id @default(cuid())
 
-  caseId String @unique
+  /// VARIOS por caso desde el 2026-10-06 (decisión de Erick).
+  ///
+  /// Era `@unique` —uno por caso— y el guardado hacía `upsert`, así que cargar
+  /// un segundo seguro de auto **reemplazaba al primero en silencio**. Y en un
+  /// MVA son dos de verdad: el del paciente y el del tercero que lo chocó, cada
+  /// uno con su póliza, su reclamo y su ajustador.
+  ///
+  /// El orden es por `createdAt`: el primero cargado es el principal, que es el
+  /// que muestran las pantallas donde entra UNO solo.
+  caseId String
   case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
 
   /// Solo cuando el carrier del seguro de auto NO es el `primaryInsurance` del
@@ -3583,6 +3593,8 @@ model CaseAutoInsurance {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  /// Lo daba el `@unique` de `caseId` hasta que pasaron a ser varios por caso.
+  @@index([caseId])
   @@index([carrierId])
   @@index([adjusterId])
   @@index([pipAvailable])

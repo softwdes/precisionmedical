@@ -219,14 +219,15 @@ interface CaseInfo {
    * Pay" y no leía el PIP. Opcional porque no todas las superficies que arman
    * este objeto lo mandan.
    */
-  autoInsurance?: {
+  autoInsurances?: Array<{
+    id: string;
     policyId: string | null;
     lossDate: string | null;
     pipAvailable: string;
     claimNum: string | null;
     carrierNameRaw: string | null;
     carrier: { id: string; name: string; shortCode: string; color: string; type: string } | null;
-  } | null;
+  }>;
   specialty: {
     id: string;
     name: string;
@@ -1547,11 +1548,11 @@ function SegurosDelCaso({ caseInfo, isAttorney, onEnlazar }: {
   */
   const sueltas = declarados.filter(d => d !== polizaPrimaria && d !== polizaSecundaria);
 
-  const auto = caseInfo.autoInsurance ?? null;
-
   /**
-   * El nombre de la aseguradora de auto: la enlazada, o lo que se escribió a
-   * mano. Si no hay ninguna de las dos, tarjeta gris.
+   * Los seguros de AUTO del caso. Desde el 2026-10-06 pueden ser varios.
+   *
+   * El nombre de cada uno sale de la aseguradora enlazada o de lo escrito a
+   * mano; si no hay ninguna de las dos, la tarjeta va gris.
    *
    * ⚠️ **NO se hereda la primaria del caso**, aunque el schema diga que
    * `carrierId` vacío significa "es la misma que la del caso". Se probó contra
@@ -1564,9 +1565,9 @@ function SegurosDelCaso({ caseInfo, isAttorney, onEnlazar }: {
    * Es el mismo criterio con el que `buscarCarrier` se niega a enlazar por
    * coincidencia parcial: ante la duda, no se adivina.
    */
-  const autoNombre = auto?.carrier?.name ?? auto?.carrierNameRaw ?? null;
+  const autos = caseInfo.autoInsurances ?? [];
 
-  if (!caseInfo.primaryInsurance && declarados.length === 0 && !auto) {
+  if (!caseInfo.primaryInsurance && declarados.length === 0 && autos.length === 0) {
     return <div className="text-text-muted text-sm italic">{t('noPrimaryInsurance')}</div>;
   }
 
@@ -1582,38 +1583,43 @@ function SegurosDelCaso({ caseInfo, isAttorney, onEnlazar }: {
         del detalle no lo seguía. Eran 230 casos con la sección vacía teniendo el
         seguro cargado.
       */}
-      {auto && (
-        <div className={autoNombre
-          ? 'rounded-md border border-cyan/40 bg-cyan/10 p-3'
-          : 'rounded-md border border-border bg-white/5 p-3'}>
-          <div className="flex items-center gap-3">
-            {auto.carrier && <EntityAvatar code={auto.carrier.shortCode} color={auto.carrier.color} />}
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className={`font-semibold text-sm ${autoNombre ? 'text-text-1' : 'text-text-muted italic'}`}>
-                  {autoNombre ?? t('autoCarrierMissing')}
-                </span>
-                <span className="text-[9px] uppercase tracking-wider font-semibold text-cyan border border-cyan/30 rounded px-1.5 py-px">
-                  PIP
-                </span>
+      {/* Una tarjeta por seguro de auto: desde el 2026-10-06 un caso puede
+          tener varios —el del paciente y el del tercero que lo chocó—. */}
+      {autos.map((a) => {
+        const nombre = a.carrier?.name ?? a.carrierNameRaw ?? null;
+        return (
+          <div key={a.id} className={nombre
+            ? 'rounded-md border border-cyan/40 bg-cyan/10 p-3'
+            : 'rounded-md border border-border bg-white/5 p-3'}>
+            <div className="flex items-center gap-3">
+              {a.carrier && <EntityAvatar code={a.carrier.shortCode} color={a.carrier.color} />}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`font-semibold text-sm ${nombre ? 'text-text-1' : 'text-text-muted italic'}`}>
+                    {nombre ?? t('autoCarrierMissing')}
+                  </span>
+                  <span className="text-[9px] uppercase tracking-wider font-semibold text-cyan border border-cyan/30 rounded px-1.5 py-px">
+                    PIP
+                  </span>
+                </div>
+                <div className="text-text-muted text-[11px]">{t('insTypePip')}</div>
               </div>
-              <div className="text-text-muted text-[11px]">{t('insTypePip')}</div>
+            </div>
+            <div className="mt-2 space-y-1 text-xs">
+              {a.lossDate && (
+                <div><span className="text-text-muted">{t('autoLossLabel')}</span> <span className="text-text-1">{fechaCalendario(a.lossDate)}</span></div>
+              )}
+              {a.policyId && (
+                <div><span className="text-text-muted">{t('policyLabel')}</span> <code className="text-text-1 font-mono">{a.policyId}</code></div>
+              )}
+              {a.claimNum && (
+                <div><span className="text-text-muted">{t('autoClaimLabel')}</span> <code className="text-text-1 font-mono">{a.claimNum}</code></div>
+              )}
+              <div><span className="text-text-muted">{t('autoPipLabel')}</span> <span className="text-text-1">{etiquetaPip(a.pipAvailable, t)}</span></div>
             </div>
           </div>
-          <div className="mt-2 space-y-1 text-xs">
-            {auto.lossDate && (
-              <div><span className="text-text-muted">{t('autoLossLabel')}</span> <span className="text-text-1">{fechaCalendario(auto.lossDate)}</span></div>
-            )}
-            {auto.policyId && (
-              <div><span className="text-text-muted">{t('policyLabel')}</span> <code className="text-text-1 font-mono">{auto.policyId}</code></div>
-            )}
-            {auto.claimNum && (
-              <div><span className="text-text-muted">{t('autoClaimLabel')}</span> <code className="text-text-1 font-mono">{auto.claimNum}</code></div>
-            )}
-            <div><span className="text-text-muted">{t('autoPipLabel')}</span> <span className="text-text-1">{etiquetaPip(auto.pipAvailable, t)}</span></div>
-          </div>
-        </div>
-      )}
+        );
+      })}
 
       {caseInfo.primaryInsurance && (
         <div className="rounded-md border border-cyan/30 bg-cyan/5 p-3">

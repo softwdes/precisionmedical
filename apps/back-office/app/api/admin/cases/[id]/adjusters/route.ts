@@ -45,8 +45,16 @@ const SELECT = {
 
 /** La aseguradora efectiva del caso: la del seguro de auto, o la del caso. */
 async function resolveCarrierId(caseId: string): Promise<string | null> {
-  const row = await db.caseAutoInsurance.findUnique({
-    where: { caseId }, select: { carrierId: true },
+  /*
+    El PRIMERO que tenga aseguradora enlazada, no el primero a secas: con varios
+    seguros de auto por caso (2026-10-06), si el primero se cargó sin carrier y
+    el segundo sí lo tiene, quedarse con el primero devolvería null y la lista
+    de ajustadores saldría vacía teniendo de dónde sacarla.
+  */
+  const row = await db.caseAutoInsurance.findFirst({
+    where: { caseId, carrierId: { not: null } },
+    orderBy: { createdAt: 'asc' },
+    select: { carrierId: true },
   });
   if (row?.carrierId) return row.carrierId;
   const kase = await db.case.findUnique({

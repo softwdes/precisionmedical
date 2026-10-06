@@ -176,8 +176,17 @@ export async function getCaseDetailData(id: string): Promise<CaseDetailData | nu
        * Es el mismo callejón que describe `seguro-declarado.ts`: el dato se
        * mudó de lugar y la pantalla que lo mostraba no se enteró.
        */
-      autoInsurance: {
+      /**
+       * TODOS, el primero cargado adelante.
+       *
+       * Desde el 2026-10-06 un caso puede tener varios seguros de auto —el del
+       * paciente y el del tercero que lo chocó—, así que la portada los lista
+       * en vez de mostrar uno.
+       */
+      autoInsurances: {
+        orderBy: { createdAt: 'asc' },
         select: {
+          id: true,
           policyId: true,
           lossDate: true,
           pipAvailable: true,
@@ -335,15 +344,13 @@ export async function getCaseDetailData(id: string): Promise<CaseDetailData | nu
        * acá como si fuera un dato del seguro sería inventar una confirmación que
        * nadie dio.
        */
-      autoInsurance: caseRecord.autoInsurance
-        ? {
-            ...caseRecord.autoInsurance,
-            lossDate:
-              caseRecord.autoInsurance.lossDate && caseRecord.autoInsurance.lossDate.getUTCFullYear() >= 1900
-                ? caseRecord.autoInsurance.lossDate.toISOString()
-                : null,
-          }
-        : null,
+      autoInsurances: caseRecord.autoInsurances.map((a) => ({
+        ...a,
+        lossDate:
+          a.lossDate && a.lossDate.getUTCFullYear() >= 1900
+            ? a.lossDate.toISOString()
+            : null,
+      })),
       /**
        * El seguro que DECLARÓ el paciente en su formulario.
        *

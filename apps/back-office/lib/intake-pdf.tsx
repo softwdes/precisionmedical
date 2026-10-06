@@ -433,14 +433,15 @@ async function buildPDF(data: {
     consentSignaturePng: string | null;
     lawFirm: { firmName: string | null; phone: string | null; email: string | null } | null;
     attorney: { firstName: string | null; lastName: string | null; phone: string | null; email: string | null } | null;
-    autoInsurance: {
+    autoInsurances: Array<{
+      id: string;
       policyId: string | null;
       claimNum: string | null;
       lossDate: Date | null;
       pipAvailable: string;
       carrierNameRaw: string | null;
       carrier: { name: string } | null;
-    } | null;
+    }>;
     primaryInsurance: { name: string } | null;
     primaryPolicyNumber: string | null;
     secondaryInsurance: { name: string } | null;
@@ -504,7 +505,9 @@ async function buildPDF(data: {
    * es mejor que elegir una en silencio. Son 5 casos en toda la base y uno solo
    * con conflicto real (medido el 2026-10-03).
    */
-  const autoTabla = caseData.autoInsurance;
+  /* El PRIMERO para la ficha principal; los demas se listan abajo. */
+  const autos = caseData.autoInsurances ?? [];
+  const autoTabla = autos[0] ?? null;
   const autoDeclarado = (Array.isArray((cd as { insurances?: unknown } | null)?.insurances)
     ? ((cd as { insurances: Record<string, unknown>[] }).insurances)
     : []
@@ -856,12 +859,40 @@ async function buildPDF(data: {
                 />
               </View>
             )}
+            {/*
+              Los DEMÁS seguros de auto del caso.
+
+              Desde el 2026-10-06 un caso puede tener varios —el del paciente y
+              el del tercero que lo chocó—, y el papel que va al bufete y al
+              seguro tiene que traerlos todos: el primero ya salió arriba.
+            */}
+            {autos.slice(1).map((a) => (
+              <View key={a.id} style={s.sectionBody} wrap={false}>
+                <TableRow2
+                  l1="Carrier:"
+                  v1={a.carrier?.name ?? a.carrierNameRaw ?? '—'}
+                  l2="Policy #:"
+                  v2={a.policyId}
+                />
+                <TableRow2
+                  l1="Claim #:"
+                  v1={a.claimNum}
+                  l2="Date of loss:"
+                  v2={a.lossDate && new Date(a.lossDate).getUTCFullYear() >= 1900 ? fmtDate(a.lossDate) : null}
+                />
+                <TableRow
+                  label="PIP available:"
+                  value={PIP_TEXTO[a.pipAvailable] ?? PIP_TEXTO.UNKNOWN}
+                  last
+                />
+              </View>
+            ))}
             {hayDosCompanias && (
               /*
-                La segunda compañía. Solo aparece cuando hay DOS nombres
-                distintos, uno de cada lado: fundirlos en una ficha imprimiría un
+                La compañía DECLARADA por el paciente, cuando no coincide con
+                ninguna de las cargadas. Fundirlas en una ficha imprimiría un
                 seguro que no existe —el número de póliza de una con el nombre de
-                la otra—, y elegir uno en silencio escondería que alguien tiene
+                la otra—, y elegir una en silencio escondería que alguien tiene
                 que resolverlo.
               */
               <View style={s.sectionBody} wrap={false}>
@@ -1147,8 +1178,11 @@ export async function respuestaIntakePdf(
        * quien lo mostraba no se enteró—; la portada del caso se arregló en
        * `a3160964`.
        */
-      autoInsurance: {
+      /** TODOS, el primero cargado adelante — pueden ser varios desde el 2026-10-06. */
+      autoInsurances: {
+        orderBy: { createdAt: 'asc' },
         select: {
+          id: true,
           policyId: true, claimNum: true, lossDate: true, pipAvailable: true,
           carrierNameRaw: true,
           carrier: { select: { name: true } },
@@ -1214,7 +1248,7 @@ export async function respuestaIntakePdf(
       consentSignaturePng:   caseRecord.consentSignaturePng,
       lawFirm:               caseRecord.lawFirm,
       attorney:              caseRecord.attorney,
-      autoInsurance:         caseRecord.autoInsurance,
+      autoInsurances:        caseRecord.autoInsurances,
       primaryInsurance:      caseRecord.primaryInsurance,
       primaryPolicyNumber:   caseRecord.primaryPolicyNumber,
       secondaryInsurance:    caseRecord.secondaryInsurance,

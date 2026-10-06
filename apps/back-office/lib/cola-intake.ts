@@ -219,7 +219,8 @@ export async function colaIntake(opts?: { dias?: number }): Promise<ColaIntake> 
           caseType: true,
           accidentDate: true, accidentType: true,
           intakeSubmission: { select: { id: true } },
-          autoInsurance: { select: { id: true } },
+          /* `take: 1`: sólo interesa SI HAY, y desde el 2026-10-06 puede haber varios. */
+          autoInsurances: { select: { id: true }, take: 1 },
           patient: {
             select: {
               id: true, firstName: true, lastName: true, dateOfBirth: true,
@@ -262,7 +263,7 @@ export async function colaIntake(opts?: { dias?: number }): Promise<ColaIntake> 
       accidentDate: c.accidentDate,
       accidentType: c.accidentType,
       hasIntakeSubmission: !!c.intakeSubmission,
-      hasAutoInsurance: !!c.autoInsurance,
+      hasAutoInsurance: c.autoInsurances.length > 0,
     };
     if (intakeFirmado(caso)) continue;
 

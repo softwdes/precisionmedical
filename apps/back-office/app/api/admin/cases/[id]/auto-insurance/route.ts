@@ -16,6 +16,16 @@ import { db, writeAuditLog, Prisma } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 
 const InputSchema = z.object({
+  /**
+   * CUÁL de los seguros de auto del caso se escribe.
+   *
+   * Sin él se CREA uno nuevo. Con él se actualiza esa fila — y la ruta
+   * comprueba que sea de este caso antes de tocarla.
+   *
+   * Nació el 2026-10-06, cuando un caso pasó a poder tener varios: hasta
+   * entonces había uno solo y el `caseId` de la URL alcanzaba para saber cuál.
+   */
+  autoInsuranceId: z.string().optional(),
   carrierId: z.string().nullable().optional(),
   carrierNameRaw: z.string().max(200).nullable().optional(),
   policyId: z.string().max(60).nullable().optional(),
@@ -40,6 +50,8 @@ const InputSchema = z.object({
  * nadie mando — justo lo que este endpoint existe para evitar.
  */
 const PartialSchema = z.object({
+  /** Cuál de los del caso. Sin él, el primero — ver el PATCH. */
+  autoInsuranceId: z.string().optional(),
   carrierId: z.string().nullable().optional(),
   carrierNameRaw: z.string().max(200).nullable().optional(),
   policyId: z.string().max(60).nullable().optional(),
@@ -77,13 +89,26 @@ export async function GET(
 ): Promise<NextResponse> {
   const { id } = await params;
 
-  const row = await db.caseAutoInsurance.findUnique({
+  /*
+    TODOS los del caso, el primero cargado adelante.
+
+    Desde el 2026-10-06 un caso puede tener varios — el del paciente y el del
+    tercero que lo chocó. Antes esto era un `findUnique` por `caseId` y la tabla
+    era 1:1, así que el segundo reemplazaba al primero sin avisar.
+
+    Se sigue devolviendo `autoInsurance` en singular —el PRIMERO— porque hay
+    pantallas que muestran uno solo; las que ya saben de varios leen
+    `autoInsurances`. Así ningún consumidor se rompe de golpe.
+  */
+  const rows = await db.caseAutoInsurance.findMany({
     where: { caseId: id },
+    orderBy: { createdAt: 'asc' },
     include: {
       carrier:  { select: { id: true, name: true } },
       adjuster: { select: { id: true, name: true, phone: true, extension: true } },
     },
   });
+  const row = rows[0] ?? null;
 
   // La grilla y el modal caen a los datos del caso cuando la fila no los tiene:
   // la aseguradora y la fecha del accidente ya viven ahí y no se duplican.
@@ -100,6 +125,7 @@ export async function GET(
   return NextResponse.json({
     ok: true,
     autoInsurance: row,
+    autoInsurances: rows,
     fallback: {
       carrier: kase.primaryInsurance,
       policyId: kase.primaryPolicyNumber,
@@ -151,13 +177,30 @@ export async function PUT(
     lienComments: parsed.lienComments ?? null,
   };
 
-  const before = await db.caseAutoInsurance.findUnique({ where: { caseId: id } });
+  /*
+    Con VARIOS por caso, cuál se escribe lo dice el `autoInsuranceId` del body:
 
-  const saved = await db.caseAutoInsurance.upsert({
-    where:  { caseId: id },
-    create: { caseId: id, ...data },
-    update: data,
-  });
+      · viene     → se actualiza ESA fila
+      · no viene  → se CREA una nueva
+
+    Antes era un `upsert` por `caseId` con la tabla 1:1, así que cargar un
+    segundo seguro reemplazaba al primero en silencio. Ese era el bug que
+    reportaron el 2026-10-06.
+
+    El id se valida contra el caso de la URL a propósito: sin eso, mandando el
+    id de la fila de OTRO caso se podría editar desde acá.
+  */
+  let before = null as Awaited<ReturnType<typeof db.caseAutoInsurance.findUnique>>;
+  if (parsed.autoInsuranceId) {
+    before = await db.caseAutoInsurance.findUnique({ where: { id: parsed.autoInsuranceId } });
+    if (!before || before.caseId !== id) {
+      return NextResponse.json({ error: 'AUTO_INSURANCE_NOT_FOUND' }, { status: 404 });
+    }
+  }
+
+  const saved = before
+    ? await db.caseAutoInsurance.update({ where: { id: before.id }, data })
+    : await db.caseAutoInsurance.create({ data: { caseId: id, ...data } });
 
   await writeAuditLog(db, {
     actorType: actor.actorType,
@@ -235,13 +278,25 @@ export async function PATCH(
     return NextResponse.json({ error: 'NOTHING_TO_UPDATE' }, { status: 400 });
   }
 
-  const before = await db.caseAutoInsurance.findUnique({ where: { caseId: id } });
+  /*
+    Cuál se toca: el `autoInsuranceId` del body, y si no viene, el PRIMERO del
+    caso — que es el que la grilla está mostrando cuando alguien hace clic en el
+    chip del PIP.
 
-  const saved = await db.caseAutoInsurance.upsert({
-    where:  { caseId: id },
-    create: { caseId: id, ...data },
-    update: data,
-  });
+    Si el caso no tiene ninguno todavía, se crea: el PATCH venía de un `upsert`
+    y esa parte se conserva.
+  */
+  const before = parsed.autoInsuranceId
+    ? await db.caseAutoInsurance.findUnique({ where: { id: parsed.autoInsuranceId } })
+    : await db.caseAutoInsurance.findFirst({ where: { caseId: id }, orderBy: { createdAt: 'asc' } });
+
+  if (parsed.autoInsuranceId && (!before || before.caseId !== id)) {
+    return NextResponse.json({ error: 'AUTO_INSURANCE_NOT_FOUND' }, { status: 404 });
+  }
+
+  const saved = before
+    ? await db.caseAutoInsurance.update({ where: { id: before.id }, data })
+    : await db.caseAutoInsurance.create({ data: { caseId: id, ...data } });
 
   await writeAuditLog(db, {
     actorType: actor.actorType,
@@ -266,10 +321,23 @@ export async function DELETE(
   const { id } = await params;
   const actor = await resolveActor(req.headers);
 
-  const before = await db.caseAutoInsurance.findUnique({ where: { caseId: id } });
-  if (!before) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
+  /*
+    Cuál se borra: el `autoInsuranceId` del query, y sin él el PRIMERO del caso
+    — que es lo que hacía antes, cuando sólo podía haber uno.
 
-  await db.caseAutoInsurance.delete({ where: { caseId: id } });
+    Va por query y no por body porque un DELETE con cuerpo lo tratan distinto
+    varios intermediarios, y acá alcanza con un identificador.
+  */
+  const idPedido = req.nextUrl.searchParams.get('autoInsuranceId');
+  const before = idPedido
+    ? await db.caseAutoInsurance.findUnique({ where: { id: idPedido } })
+    : await db.caseAutoInsurance.findFirst({ where: { caseId: id }, orderBy: { createdAt: 'asc' } });
+
+  if (!before || before.caseId !== id) {
+    return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
+  }
+
+  await db.caseAutoInsurance.delete({ where: { id: before.id } });
 
   await writeAuditLog(db, {
     actorType: actor.actorType,

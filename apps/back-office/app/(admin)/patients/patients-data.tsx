@@ -210,7 +210,8 @@ export async function PatientsData({
         intakeSubmission: { select: { id: true } },
         // El seguro de auto salio del JSON a su propia tabla; sin esto la barra
         // de completitud marcaria "falta seguro" en casos que si lo tienen.
-        autoInsurance: { select: { id: true } },
+        /* `take: 1`: sólo interesa SI HAY, y desde el 2026-10-06 puede haber varios. */
+          autoInsurances: { select: { id: true }, take: 1 },
       },
     }),
     selfiesDePacientes(patientIds).catch(() => new Map<string, string>()),
@@ -260,7 +261,7 @@ export async function PatientsData({
           intakeFormCompletedAt: latestCaseMap[p.id].intakeFormCompletedAt?.toISOString() ?? null,
           consentsData:          latestCaseMap[p.id].consentsData as Record<string, unknown> | null,
           hasIntakeSubmission:   !!latestCaseMap[p.id].intakeSubmission,
-          hasAutoInsurance:      !!latestCaseMap[p.id].autoInsurance,
+          hasAutoInsurance:      latestCaseMap[p.id].autoInsurances.length > 0,
         }
       : null,
   }));

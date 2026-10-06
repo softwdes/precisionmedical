@@ -30,7 +30,8 @@ export async function GET(
       intakeFormCompletedAt: true,
       consentsData: true,
       intakeSubmission: { select: { id: true } },
-      autoInsurance:    { select: { id: true } },
+      /* `take: 1`: sólo interesa SI HAY, y desde el 2026-10-06 puede haber varios. */
+          autoInsurances:   { select: { id: true }, take: 1 },
     },
   });
 
@@ -71,7 +72,7 @@ export async function GET(
       intakeFormCompletedAt: c.intakeFormCompletedAt?.toISOString() ?? null,
       consentsData:         c.consentsData,
       hasIntakeSubmission:  !!c.intakeSubmission,
-      hasAutoInsurance:     !!c.autoInsurance,
+      hasAutoInsurance:     c.autoInsurances.length > 0,
       firstAppointment:     cAppts[0]                  ? { scheduledFor: cAppts[0].toISOString() }                  : null,
       lastAppointment:      cAppts.length > 1           ? { scheduledFor: cAppts[cAppts.length - 1].toISOString() } : null,
     };

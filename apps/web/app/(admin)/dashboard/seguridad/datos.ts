@@ -1,6 +1,7 @@
 import 'server-only';
 import { createAdminClient } from '@precision-medical/auth/server';
-import { ACCIONES, type Accion, type Cuentas, type DatosSeguridad, type Evento, type PorIp } from './modelo';
+import { listarBloqueadas } from '@precision-medical/auth/ips-bloqueadas';
+import { ACCIONES, type Accion, type Cuentas, type DatosSeguridad, type Evento, type IpEchada, type PorIp } from './modelo';
 
 /**
  * La consulta del Centro de Seguridad. Solo servidor.
@@ -80,12 +81,12 @@ export async function leerSeguridad(ventana: Ventana = ultimosDias(DIAS)): Promi
   const { desde } = ventana;
   const hasta = ventana.hasta ?? new Date().toISOString();
   const vacio: DatosSeguridad = {
-    eventos: [], porIp: [], desde, hasta,
+    eventos: [], porIp: [], bloqueadas: [], desde, hasta,
     cuentas: { total: 0, sinMfa: 0, adminsSinMfa: 0, pendientesQueEntran: 0, nuncaEntraron: 0, trabadasAhora: 0, conIntentos: [] },
     ok: false,
   };
 
-  const [regs, usrs] = await Promise.all([
+  const [regs, usrs, echadas] = await Promise.all([
     admin.from('audit_logs')
       .select('action, ipAddress, createdAt, metadata, actorUserId')
       .in('action', ACCIONES as unknown as string[])
@@ -96,6 +97,17 @@ export async function leerSeguridad(ventana: Ventana = ultimosDias(DIAS)): Promi
     admin.from('users')
       .select('id, email, role, status, mfaEnabled, lastLoginAt, failedLoginAttempts, lockedUntil')
       .is('deletedAt', null),
+    /*
+     * La lista de bloqueadas va en el MISMO `Promise.all`: cada viaje a la
+     * base cuesta ~137 ms y lo que importa en esta pantalla es cuántos van en
+     * fila, no cuántos hay. En paralelo no cuesta nada.
+     *
+     * `listarBloqueadas` nunca lanza: si la tabla todavía no existe en el
+     * proyecto Admin devuelve una lista vacía y el resto de la pantalla
+     * funciona igual. Es a propósito: el DDL lo corre Erick a mano y el
+     * despliegue puede llegar antes.
+     */
+    listarBloqueadas(),
   ]);
 
   if (regs.error || usrs.error || !regs.data || !usrs.data) {
@@ -174,5 +186,14 @@ export async function leerSeguridad(ventana: Ventana = ultimosDias(DIAS)): Promi
       })),
   };
 
-  return { eventos, porIp, cuentas, desde, hasta, ok: true };
+  const bloqueadas: IpEchada[] = echadas.map((b) => ({
+    ip: b.ip,
+    motivo: b.motivo,
+    bloqueadaEl: utc(b.bloqueadaEl)!,
+    hasta: utc(b.hasta),
+    pais: b.pais,
+    ciudad: b.ciudad,
+  }));
+
+  return { eventos, porIp, cuentas, bloqueadas, desde, hasta, ok: true };
 }

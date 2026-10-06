@@ -61,6 +61,7 @@
 
 import { randomUUID } from 'node:crypto';
 import type { Contexto } from './freno-ip';
+import { estaBloqueada } from './ips-bloqueadas';
 
 export type { Contexto };
 
@@ -299,7 +300,22 @@ export interface ResultadoIntento {
  */
 const NEUTRO: ResultadoIntento = { intentos: 0, restantes: MAX_ATTEMPTS, locked: false };
 
+/**
+ * Una IP echada no puede tocar el contador de nadie.
+ *
+ * Esto cubre el endpoint viejo `/api/auth/lockout`, que desde el 2026-10-06 ya
+ * no lo llama ninguna pantalla pero SIGUE expuesto a internet y sigue pudiendo
+ * escribir. Mientras exista, pasa por acá.
+ */
+async function puertaCerrada(ctx: Contexto): Promise<boolean> {
+  if (!(await estaBloqueada(ctx.ip))) return false;
+  console.warn('[candado] se ignora un intento desde una IP bloqueada:', ctx.ip, '· app:', ctx.app);
+  return true;
+}
+
 export async function recordFailedAttempt(email: string, ctx: Contexto = {}): Promise<ResultadoIntento> {
+  // Neutro, igual que un correo que no existe: la respuesta no delata nada.
+  if (await puertaCerrada(ctx)) return { intentos: 0, restantes: MAX_ATTEMPTS, locked: false };
   const user = await buscarUsuario(email);
   if (!user) return NEUTRO; // Correo desconocido — no se delata si existe o no.
 
@@ -382,6 +398,7 @@ export async function unlockAccount(
  * "olvidé mi contraseña". Ver el aviso de la cabecera.
  */
 export async function recordSuccessfulLogin(email: string, ctx: Contexto = {}): Promise<void> {
+  if (await puertaCerrada(ctx)) return;
   const user = await buscarUsuario(email);
   if (!user) return;
 

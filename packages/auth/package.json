@@ -12,6 +12,7 @@
     "./lockout": "./src/lockout.ts",
     "./login-servidor": "./src/login-servidor.ts",
     "./freno-ip": "./src/freno-ip.ts",
+    "./ips-bloqueadas": "./src/ips-bloqueadas.ts",
     "./v2-apps": "./src/v2-apps.ts"
   },
   "dependencies": {

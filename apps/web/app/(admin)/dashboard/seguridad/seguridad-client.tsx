@@ -4,10 +4,10 @@ import * as React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { Badge, cn } from '@precision/ui';
-import { Clock, RefreshCw, ShieldAlert, ShieldCheck, Unlock } from 'lucide-react';
+import { Ban, Clock, RefreshCw, ShieldAlert, ShieldCheck, Unlock } from 'lucide-react';
 import {
   MEDIDO_EL, MODULOS, PROTECCIONES,
-  type Cuentas, type DatosSeguridad, type Evento, type PorIp,
+  type Cuentas, type DatosSeguridad, type Evento, type IpEchada, type PorIp,
 } from './modelo';
 
 /**
@@ -947,6 +947,7 @@ export function SeguridadClient({ datos, dias, mes, meses }: {
                 quieto={quieto}
                 activa={ip === x.ip}
                 onClick={() => setIp(ip === x.ip ? null : x.ip)}
+                onBloqueada={refrescar}
               />
             ))}
           </div>
@@ -963,6 +964,9 @@ export function SeguridadClient({ datos, dias, mes, meses }: {
           </div>
         </section>
       </div>
+
+      {/* ── IPs echadas ───────────────────────────────────────────────── */}
+      <Echadas lista={datos.bloqueadas} onCambio={refrescar} />
 
       {/* ── Cuentas ───────────────────────────────────────────────────── */}
       <Riesgos cuentas={cuentas} onCambio={refrescar} />
@@ -1000,8 +1004,8 @@ function Marca({ estado }: { estado: boolean | 'parcial' | undefined }): React.R
   return <span title={tr('markOpen')} className="inline-block rounded px-1.5 py-0.5 text-tiny font-bold bg-rose/15 text-rose">✕</span>;
 }
 
-function FilaIp({ x, quieto, activa, onClick }: {
-  x: PorIp; quieto: boolean; activa: boolean; onClick: () => void;
+function FilaIp({ x, quieto, activa, onClick, onBloqueada }: {
+  x: PorIp; quieto: boolean; activa: boolean; onClick: () => void; onBloqueada: () => void;
 }): React.ReactElement {
   const tr = useTranslations('security');
   const idioma = useLocale();
@@ -1010,26 +1014,29 @@ function FilaIp({ x, quieto, activa, onClick }: {
   const total = Math.max(1, x.fallidos + x.exitosos);
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={activa}
+    <div
       className={cn(
-        'w-full border-b border-row-sep py-2.5 text-left transition-colors last:border-0',
-        activa ? 'bg-brand/10' : 'hover:bg-surface/50',
+        'border-b border-row-sep py-2.5 transition-colors last:border-0',
+        activa ? 'bg-brand/10' : '',
       )}
     >
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <span className="flex items-center gap-2 font-mono text-small tabular-nums text-text-1">
+        <button
+          type="button"
+          onClick={onClick}
+          aria-pressed={activa}
+          className="flex items-center gap-2 rounded font-mono text-small tabular-nums text-text-1 transition-colors hover:text-brand-text"
+        >
           {soloFallos
             ? <ShieldAlert className="h-3.5 w-3.5 shrink-0 text-rose" />
             : <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald" />}
           {x.ip}
-        </span>
-        <span className="font-mono text-tiny tabular-nums text-text-3">
+        </button>
+        <span className="flex items-center gap-2 font-mono text-tiny tabular-nums text-text-3">
           {x.fallidos > 0 && <span className="text-rose">{tr('nFailed', { n: x.fallidos })}</span>}
           {x.fallidos > 0 && x.exitosos > 0 && ' · '}
           {x.exitosos > 0 && <span>{tr('nOk', { n: x.exitosos })}</span>}
+          <BotonBloquear x={x} onListo={onBloqueada} />
         </span>
       </div>
 
@@ -1048,7 +1055,176 @@ function FilaIp({ x, quieto, activa, onClick }: {
         {/* Sin ubicación no se inventa nada: se dice que no se sabe. */}
         <span className="font-mono">{donde || tr('locationUnknown')}</span>
       </div>
-    </button>
+    </div>
+  );
+}
+
+/**
+ * Echar una IP.
+ *
+ * ── Por qué pide motivo y plazo, en vez de un clic solo ───────────────────
+ *
+ * Porque dentro de seis meses alguien va a mirar la lista y preguntar "¿y esta
+ * por qué está?". Y porque una IP echada "para siempre" por un incidente de un
+ * martes sigue echada dos años después: nadie limpia la lista. El plazo por
+ * defecto son 7 días y lo permanente hay que elegirlo.
+ *
+ * ── El aviso ──────────────────────────────────────────────────────────────
+ *
+ * Si la dirección tiene ingresos EXITOSOS, es casi seguro la salida a internet
+ * de la clínica —medido el 2026-10-06: `76.8.206.26` tiene 11 buenos y 4
+ * fallidos, compartida por todo el personal— y echarla deja a todos afuera. El
+ * aviso dice cuántos ingresos buenos tiene antes de dejar confirmar.
+ */
+function BotonBloquear({ x, onListo }: { x: PorIp; onListo: () => void }): React.ReactElement {
+  const tr = useTranslations('security');
+  const [abierto, setAbierto] = React.useState(false);
+  const [motivo, setMotivo] = React.useState('');
+  const [dias, setDias] = React.useState('7');
+  const [estado, setEstado] = React.useState<'listo' | 'yendo' | 'error'>('listo');
+
+  const confirmar = async (): Promise<void> => {
+    setEstado('yendo');
+    try {
+      const r = await fetch('/api/seguridad/ips', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          ip: x.ip, motivo, dias: Number(dias), pais: x.pais, ciudad: x.ciudad,
+        }),
+      });
+      if (!r.ok) throw new Error(String(r.status));
+      setAbierto(false);
+      setEstado('listo');
+      onListo();
+    } catch {
+      setEstado('error');
+    }
+  };
+
+  if (!abierto) {
+    return (
+      <button
+        type="button"
+        onClick={() => setAbierto(true)}
+        title={tr('blockTitle')}
+        className="inline-flex items-center gap-1 rounded border border-row-sep px-1.5 py-0.5 text-tiny text-text-3 transition-colors hover:border-rose/40 hover:text-rose"
+      >
+        <Ban className="h-3 w-3" />
+        {tr('blockBtn')}
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-2 w-full rounded-lg border border-rose/30 bg-rose/5 p-3">
+      {x.exitosos > 0 && (
+        <p className="mb-2 text-tiny leading-relaxed text-amber">{tr('blockWarn', { n: x.exitosos })}</p>
+      )}
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          value={motivo}
+          onChange={(e) => setMotivo(e.target.value)}
+          placeholder={tr('blockReason')}
+          maxLength={300}
+          className="min-w-0 flex-1 rounded border border-row-sep bg-bg-1 px-2 py-1 text-tiny text-text-1"
+        />
+        <select
+          value={dias}
+          onChange={(e) => setDias(e.target.value)}
+          aria-label={tr('blockDays')}
+          className="rounded border border-row-sep bg-bg-1 px-2 py-1 text-tiny text-text-1"
+        >
+          <option value="7">{tr('block7')}</option>
+          <option value="30">{tr('block30')}</option>
+          <option value="0">{tr('blockForever')}</option>
+        </select>
+        <button
+          type="button"
+          disabled={estado === 'yendo'}
+          onClick={() => { void confirmar(); }}
+          className="rounded border border-rose/40 bg-rose/10 px-2.5 py-1 text-tiny text-rose transition-colors hover:bg-rose/20 disabled:opacity-50"
+        >
+          {estado === 'yendo' ? tr('blocking') : estado === 'error' ? tr('blockFailed') : tr('blockConfirm')}
+        </button>
+        <button
+          type="button"
+          onClick={() => { setAbierto(false); setEstado('listo'); }}
+          className="rounded px-2 py-1 text-tiny text-text-3 transition-colors hover:text-text-1"
+        >
+          {tr('blockCancel')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Las que están echadas ahora, con el botón para dejarlas volver. */
+function Echadas({ lista, onCambio }: { lista: IpEchada[]; onCambio: () => void }): React.ReactElement {
+  const tr = useTranslations('security');
+
+  return (
+    <section>
+      <h2 className="mb-3 text-tiny font-bold uppercase tracking-widest text-text-muted">
+        {tr('blockedTitle', { n: lista.length })}
+      </h2>
+      <div className="rounded-lg bg-bg-1 px-4 py-1">
+        {lista.length === 0 && <p className="py-4 text-small text-text-3">{tr('blockedNone')}</p>}
+        {lista.map((b) => <FilaEchada key={b.ip} b={b} onCambio={onCambio} />)}
+      </div>
+    </section>
+  );
+}
+
+function FilaEchada({ b, onCambio }: { b: IpEchada; onCambio: () => void }): React.ReactElement {
+  const tr = useTranslations('security');
+  const idioma = useLocale();
+  const [estado, setEstado] = React.useState<'listo' | 'yendo' | 'error'>('listo');
+  const vencida = Boolean(b.hasta) && new Date(b.hasta as string).getTime() <= Date.now();
+
+  const sacar = async (): Promise<void> => {
+    setEstado('yendo');
+    try {
+      const r = await fetch(`/api/seguridad/ips?ip=${encodeURIComponent(b.ip)}`, { method: 'DELETE' });
+      if (!r.ok) throw new Error(String(r.status));
+      onCambio();
+      setEstado('listo');
+    } catch {
+      setEstado('error');
+    }
+  };
+
+  const donde = [b.ciudad, b.pais].filter(Boolean).join(', ');
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-row-sep py-2.5 last:border-0">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <Ban className={cn('h-3.5 w-3.5 shrink-0', vencida ? 'text-text-3' : 'text-rose')} />
+          <span className="font-mono text-small tabular-nums text-text-1">{b.ip}</span>
+          {donde && <span className="font-mono text-tiny text-text-3">{donde}</span>}
+        </div>
+        <div className="mt-0.5 text-tiny text-text-3">
+          {b.motivo || tr('blockedNoReason')}
+          {' · '}
+          {/* Una fila vencida sigue en la lista pero ya no frena nada: decirlo. */}
+          {vencida
+            ? tr('blockedExpired', { cuando: hora(b.hasta as string, idioma) })
+            : b.hasta
+              ? tr('blockedUntil', { cuando: hora(b.hasta, idioma) })
+              : tr('blockedForever')}
+        </div>
+      </div>
+      <button
+        type="button"
+        disabled={estado === 'yendo'}
+        onClick={() => { void sacar(); }}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-row-sep px-2.5 py-1 text-tiny text-text-3 transition-colors hover:bg-surface hover:text-text-1 disabled:opacity-50"
+      >
+        <Unlock className="h-3 w-3" />
+        {estado === 'yendo' ? tr('unblocking') : estado === 'error' ? tr('blockFailed') : tr('unblockBtn')}
+      </button>
+    </div>
   );
 }
 

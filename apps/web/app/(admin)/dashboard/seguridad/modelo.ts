@@ -164,10 +164,28 @@ export interface Cuentas {
   conIntentos: Array<{ id: string; correo: string; intentos: number; hasta: string | null }>;
 }
 
+/** Una IP echada, tal como la muestra la pantalla. */
+export interface IpEchada {
+  ip: string;
+  motivo: string | null;
+  bloqueadaEl: string;
+  /** `null` = hasta que alguien la saque. */
+  hasta: string | null;
+  pais: string | null;
+  ciudad: string | null;
+}
+
 export interface DatosSeguridad {
   eventos: Evento[];
   porIp: PorIp[];
   cuentas: Cuentas;
+  /**
+   * Las direcciones echadas. Van en los datos y no en una consulta aparte de
+   * la pantalla para que el refresco automático las traiga junto con todo lo
+   * demás: una lista de bloqueos que se queda vieja mientras el resto se
+   * actualiza es peor que no tenerla.
+   */
+  bloqueadas: IpEchada[];
   desde: string;
   /**
    * El final de la ventana. Para "últimos N días" es ahora; para un mes

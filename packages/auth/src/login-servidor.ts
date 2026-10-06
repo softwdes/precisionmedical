@@ -1,5 +1,6 @@
 import { createServerClient } from './server';
 import { checkLockout, recordFailedAttempt, recordSuccessfulLogin } from './lockout';
+import { estaBloqueada } from './ips-bloqueadas';
 import type { Contexto } from './freno-ip';
 
 /**
@@ -50,6 +51,24 @@ export async function iniciarSesionEnServidor(
   password: string,
   ctx: Contexto = {},
 ): Promise<ResultadoLogin> {
+  /*
+   * 0. ¿Esta dirección está echada?
+   *
+   * Antes del candado: una IP bloqueada no debería ni poder averiguar si una
+   * cuenta existe o está cerrada.
+   *
+   * Se contesta lo MISMO que una contraseña mala, sin decir "estás
+   * bloqueado": que el atacante no sepa si lo detectaron es la mitad de la
+   * defensa. El costo es que, si alguna vez bloqueamos por error la IP de la
+   * clínica, el personal va a ver "contraseña incorrecta" sin entender nada —
+   * por eso la pantalla que bloquea AVISA cuando la IP tiene ingresos buenos,
+   * y por eso la lista de bloqueadas se ve ahí mismo.
+   */
+  if (await estaBloqueada(ctx.ip)) {
+    console.warn('[login] intento desde una IP bloqueada:', ctx.ip, '· app:', ctx.app);
+    return { ok: false };
+  }
+
   /*
    * 1. El candado, ANTES de tocar la contraseña.
    *

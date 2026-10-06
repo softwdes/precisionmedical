@@ -1,7 +1,7 @@
 import 'server-only';
 import { createAdminClient } from '@precision-medical/auth/server';
 import { listarBloqueadas } from '@precision-medical/auth/ips-bloqueadas';
-import { ACCIONES, type Accion, type ConFactor, type Cuentas, type DatosSeguridad, type Evento, type IpEchada, type PorIp } from './modelo';
+import { ACCIONES, type Accion, type ConFactor, type CuentaBreve, type Cuentas, type DatosSeguridad, type Evento, type IpEchada, type PorIp } from './modelo';
 
 /**
  * La consulta del Centro de Seguridad. Solo servidor.
@@ -82,7 +82,7 @@ export async function leerSeguridad(ventana: Ventana = ultimosDias(DIAS)): Promi
   const hasta = ventana.hasta ?? new Date().toISOString();
   const vacio: DatosSeguridad = {
     eventos: [], porIp: [], bloqueadas: [], desde, hasta,
-    cuentas: { total: 0, sinMfa: 0, adminsSinMfa: 0, pendientesQueEntran: 0, nuncaEntraron: 0, trabadasAhora: 0, conIntentos: [], conMfa: [] },
+    cuentas: { total: 0, sinMfa: 0, adminsSinMfa: 0, pendientesQueEntran: 0, nuncaEntraron: 0, trabadasAhora: 0, conIntentos: [], conMfa: [], todas: [] },
     ok: false,
   };
 
@@ -191,6 +191,14 @@ export async function leerSeguridad(ventana: Ventana = ultimosDias(DIAS)): Promi
         correo: u.email as string,
         esAdmin: esAdmin(u.role),
       })),
+    todas: us
+      .map((u): CuentaBreve => ({
+        id: u.id as string,
+        correo: u.email as string,
+        estado: (u.status as string) ?? 'ACTIVE',
+        esAdmin: esAdmin(u.role),
+      }))
+      .sort((a, b) => a.correo.localeCompare(b.correo)),
   };
 
   const bloqueadas: IpEchada[] = echadas.map((b) => ({

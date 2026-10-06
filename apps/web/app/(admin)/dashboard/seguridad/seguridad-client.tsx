@@ -4,10 +4,11 @@ import * as React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { Badge, cn } from '@precision/ui';
-import { Ban, Clock, KeyRound, RefreshCw, ShieldAlert, ShieldCheck, Unlock } from 'lucide-react';
+import { Ban, Clock, KeyRound, Mail, PowerOff, RefreshCw, ShieldAlert, ShieldCheck, Unlock } from 'lucide-react';
+import { api as trpc } from '@/lib/trpc/client';
 import {
   MEDIDO_EL, MODULOS, PROTECCIONES,
-  type ConFactor, type Cuentas, type DatosSeguridad, type Evento, type IpEchada, type PorIp,
+  type ConFactor, type CuentaBreve, type Cuentas, type DatosSeguridad, type Evento, type IpEchada, type PorIp,
 } from './modelo';
 
 /**
@@ -968,6 +969,9 @@ export function SeguridadClient({ datos, dias, mes, meses }: {
       {/* ── IPs echadas ───────────────────────────────────────────────── */}
       <Echadas lista={datos.bloqueadas} onCambio={refrescar} />
 
+      {/* ── Cortar el acceso ──────────────────────────────────────────── */}
+      <CortarAcceso cuentas={cuentas.todas} onCambio={refrescar} />
+
       {/* ── Doble factor ──────────────────────────────────────────────── */}
       <DobleFactor lista={cuentas.conMfa} total={cuentas.total} onCambio={refrescar} />
 
@@ -1361,6 +1365,127 @@ function Desbloquear({ id, activo, onListo }: {
       <Unlock className="h-3 w-3" />
       {estado === 'yendo' ? tr('unlocking') : estado === 'hecho' ? tr('unlocked') : estado === 'error' ? tr('unlockFailed') : tr('unlock')}
     </button>
+  );
+}
+
+/**
+ * Cortarle el acceso a una cuenta, ya.
+ *
+ * ── Por qué un selector y no un botón por fila ────────────────────────────
+ *
+ * Porque suspender es una acción de incidente: la cuenta comprometida puede ser
+ * cualquiera de las 30, no solo una de las que aparecen en las listas de
+ * arriba. Esas listas muestran a quién le pasó algo; acá se actúa sobre quien
+ * haga falta.
+ *
+ * ── Qué hace, dicho sin adornos ───────────────────────────────────────────
+ *
+ * Bloquea el ingreso Y tumba la sesión que esa persona tenga abierta ahora
+ * mismo. El corte es inmediato porque el middleware le pregunta a Supabase en
+ * cada pedido: en el siguiente ya está afuera.
+ *
+ * Es reversible desde el mismo lugar — comprobado el 2026-10-06 contra una
+ * cuenta sin uso: se bloquea y se desbloquea sin dejar rastro.
+ */
+function CortarAcceso({ cuentas, onCambio }: {
+  cuentas: CuentaBreve[]; onCambio: () => void;
+}): React.ReactElement {
+  const tr = useTranslations('security');
+  const [elegida, setElegida] = React.useState('');
+  const [estado, setEstado] = React.useState<'listo' | 'yendo' | 'error' | 'yo'>('listo');
+
+  /*
+   * El enlace de contraseña NO se arma acá: lo hace `users.sendPasswordReset`,
+   * que ya existe, ya es `superAdminProcedure`, y ya distingue primer acceso
+   * de reseteo. Esta pantalla solo lo pone donde se ve el problema.
+   */
+  const reset = trpc.users.sendPasswordReset.useMutation();
+
+  const cuenta = cuentas.find((c) => c.id === elegida) ?? null;
+  const suspendida = cuenta?.estado === 'SUSPENDED';
+
+  const actuar = async (): Promise<void> => {
+    if (!cuenta) return;
+    setEstado('yendo');
+    try {
+      const r = await fetch(`/api/users/${cuenta.id}/suspender`, {
+        method: suspendida ? 'DELETE' : 'POST',
+      });
+      // 400 = es tu propia cuenta; lo dice la ruta y lo explica la pantalla.
+      if (r.status === 400) { setEstado('yo'); return; }
+      if (!r.ok) throw new Error(String(r.status));
+      setEstado('listo');
+      onCambio();
+    } catch {
+      setEstado('error');
+    }
+  };
+
+  return (
+    <section>
+      <h2 className="mb-3 text-tiny font-bold uppercase tracking-widest text-text-muted">
+        {tr('cutTitle')}
+      </h2>
+      <div className="rounded-lg bg-bg-1 p-4">
+        <p className="mb-3 text-tiny leading-relaxed text-text-3">{tr('cutHint')}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={elegida}
+            onChange={(e) => { setElegida(e.target.value); setEstado('listo'); reset.reset(); }}
+            aria-label={tr('cutPick')}
+            className="min-w-0 flex-1 rounded-lg border border-row-sep bg-bg-1 px-2.5 py-1.5 text-small text-text-1"
+          >
+            <option value="">{tr('cutPick')}</option>
+            {cuentas.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.correo}
+                {c.estado === 'SUSPENDED' ? ' · ' + tr('cutSuspended') : ''}
+                {c.esAdmin ? ' · ' + tr('mfaAdmin') : ''}
+              </option>
+            ))}
+          </select>
+
+          <button
+            type="button"
+            disabled={!cuenta || estado === 'yendo'}
+            onClick={() => { void actuar(); }}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-tiny transition-colors disabled:cursor-not-allowed disabled:opacity-40',
+              suspendida
+                ? 'border-emerald/40 bg-emerald/10 text-emerald hover:bg-emerald/20'
+                : 'border-rose/40 bg-rose/10 text-rose hover:bg-rose/20',
+            )}
+          >
+            {suspendida ? <Unlock className="h-3 w-3" /> : <PowerOff className="h-3 w-3" />}
+            {estado === 'yendo' ? tr('cutGoing')
+              : estado === 'error' ? tr('mfaFailed')
+              : suspendida ? tr('cutRestore') : tr('cutNow')}
+          </button>
+
+          <button
+            type="button"
+            disabled={!cuenta || reset.isPending}
+            onClick={() => { if (cuenta) reset.mutate({ id: cuenta.id }); }}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-row-sep px-3 py-1.5 text-tiny text-text-3 transition-colors hover:bg-surface hover:text-text-1 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Mail className="h-3 w-3" />
+            {reset.isPending ? tr('pwGoing')
+              : reset.isError ? tr('mfaFailed')
+              : reset.isSuccess ? tr('pwSent')
+              : tr('pwSend')}
+          </button>
+        </div>
+
+        {estado === 'yo' && (
+          <p className="mt-2.5 text-tiny text-rose">{tr('cutNotYourself')}</p>
+        )}
+        {cuenta && !suspendida && estado !== 'yo' && (
+          <p className="mt-2.5 text-tiny leading-relaxed text-text-3">
+            {cuenta.esAdmin ? tr('cutWarnAdmin') : tr('cutWarn')}
+          </p>
+        )}
+      </div>
+    </section>
   );
 }
 

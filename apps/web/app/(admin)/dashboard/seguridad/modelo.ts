@@ -161,6 +161,15 @@ export interface ConFactor {
   esAdmin: boolean;
 }
 
+/** Una cuenta cualquiera, para poder actuar sobre ella sin salir de acá. */
+export interface CuentaBreve {
+  id: string;
+  correo: string;
+  /** `ACTIVE`, `SUSPENDED`, `PENDING_VERIFICATION`… tal cual lo guarda la base. */
+  estado: string;
+  esAdmin: boolean;
+}
+
 export interface Cuentas {
   total: number;
   sinMfa: number;
@@ -179,6 +188,14 @@ export interface Cuentas {
    * las dos se separan, esta lista es la que miente.
    */
   conMfa: ConFactor[];
+  /**
+   * Las 30, ordenadas por correo.
+   *
+   * Hacen falta enteras porque suspender es una acción de incidente: la cuenta
+   * comprometida puede ser cualquiera, no solo una de las que aparecen en las
+   * listas de arriba. Son 30 filas de tres campos, así que no cuesta nada.
+   */
+  todas: CuentaBreve[];
 }
 
 /** Una IP echada, tal como la muestra la pantalla. */

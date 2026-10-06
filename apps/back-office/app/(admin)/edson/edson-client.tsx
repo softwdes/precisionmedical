@@ -1087,7 +1087,14 @@ export function EdsonClient({ clinics, providers, providersFiltro, carriers, law
               <DataTable.Th className={COL_LG}>{t('colTime')}</DataTable.Th>
               <DataTable.Th className={COL_LG}>{t('colProvider')}</DataTable.Th>
               <DataTable.Th className={COL_LG}>{t('colLossDate')}</DataTable.Th>
-              <DataTable.Th>{t('colAttorney')}</DataTable.Th>
+              {/*
+                * El rótulo nombra las DOS cosas y en el orden en que se ven:
+                * arriba el bufete, abajo el abogado. Decía solo "Attorney"
+                * mientras la línea principal pasaba a ser la oficina, y una
+                * columna llamada Abogado cuyo valor grande es el bufete es
+                * exactamente la confusión que estamos saliendo de arreglar.
+                */}
+              <DataTable.Th>{t('colFirmAttorney')}</DataTable.Th>
               <DataTable.Th className={COL_MD}>
                 {/*
                   * Rotulo corto: el completo son 23 caracteres y partia el
@@ -1462,75 +1469,74 @@ export function EdsonClient({ clinics, providers, providersFiltro, carriers, law
                               * de camino entre los dos renglones.
                               */}
                             <span className="flex-1 min-w-0">
-                            <Vistazo texto={row.attorneyName ?? row.firmName} titulo={t('colAttorney')}>
                             {/*
-                              * La celda tiene DOS modos, y cuál corre lo decide
-                              * el caso: si ya tiene bufete, se edita el ABOGADO;
-                              * si no, lo primero que falta es el BUFETE.
+                              * LINEA 1 — EL BUFETE, y su propio editor.
                               *
-                              * No es un rodeo, es el modelo: la persona vive
-                              * dentro de un bufete (`parentFirmId`), así que sin
-                              * bufete no hay dónde darla de alta. Y la columna
-                              * ya mostraba las dos cosas —`attorneyName ??
-                              * firmName`—, así que el segundo modo edita lo que
-                              * esa celda venía mostrando y no un dato nuevo.
+                              * Hasta hoy esta línea era `attorneyName ?? firmName`
+                              * y SIEMPRE editaba al abogado: el bufete solo se
+                              * podía tocar cuando el caso no tenía ninguno. Edson
+                              * lo leyó como que estaban dados vuelta ("this has
+                              * been switched out", 2026-10-06) y tenía razón en
+                              * lo que veía: la oficina —que es lo que él lee de
+                              * esta columna desde siempre— había quedado chica y
+                              * gris debajo de una persona.
                               *
-                              * Medido el 2026-10-01 sobre la cola de Edson: 103
-                              * casos con bufete y sin abogado, y 86 sin bufete.
-                              * Con un solo modo, los 86 quedaban afuera.
+                              * Ahora cada renglón edita LO SUYO: clic arriba
+                              * abre el bufete, clic abajo abre al abogado. Es lo
+                              * que la columna aparentaba hacer y no hacía.
                               */}
-                            {row.lawFirmId ? (
+                            <Vistazo texto={row.firmName} titulo={t('fieldFirm')}>
                             <InlineCombo
                               ancho="max-w-full"
-                              value={row.attorneyName ?? row.firmName}
+                              value={row.firmName}
+                              options={catalogoBufetes}
+                              readOnly={archived}
+                              title={t('fieldFirm')}
+                              emptyHint={t('fieldFirmPlaceholder')}
+                              enterCrea
+                              alCrear={archived ? undefined : {
+                                etiqueta: (q: string) => t('firmAddNew', { nombre: q }),
+                                crear: altaBufete,
+                              }}
+                              onSave={next => next.text ? Promise.resolve(false) : saveTo(
+                                `/api/admin/cases/${row.caseId}/update-legal-insurance`,
+                                row.caseId,
+                                {
+                                  lawFirmId: next.id,
+                                  firmName: next.id ? (catalogoBufetes.find(f => f.id === next.id)?.name ?? null) : null,
+                                },
+                                { lawFirmId: next.id },
+                              )}
+                            />
+                            </Vistazo>
+                            {/*
+                              * LINEA 2 — EL ABOGADO, solo si hay uno y no repite
+                              * al bufete.
+                              *
+                              * No se dibuja vacía a propósito. Dibujarla siempre
+                              * costaría un renglón en las ~103 filas de la cola
+                              * que tienen bufete y todavía no tienen abogado, y
+                              * ese alto es justo lo que Edson peleó para ver 22
+                              * filas en vez de 10. Para esas, el camino de alta
+                              * es "+ Add attorney" en el panel, que es por donde
+                              * él entra.
+                              */}
+                            {row.attorneyName && !mismaInfo(row.attorneyName, row.firmName ?? '') && (
+                            <Vistazo texto={row.attorneyName} titulo={t('fieldAttorney')}>
+                            <InlineCombo
+                              ancho="max-w-full"
+                              tono="!text-text-muted"
+                              value={row.attorneyName}
                               options={catalogoAbogados}
                               readOnly={archived}
                               title={t('editAttorney')}
                               emptyHint={t('attorneyFreeText')}
-                              /*
-                                * Dar de alta al abogado SIN salir de la celda.
-                                *
-                                * Es el pedido de Edson tal cual lo dijo: "I
-                                * can't add an attorney". La salida ya existía
-                                * —la ruta `quick-create-member` y su botón—
-                                * pero solo dentro del modal, y encima detrás
-                                * de "ver el caso entero". Edson trabaja en la
-                                * grilla y entra por el badge de encargados,
-                                * así que nunca la vio. La función es la misma;
-                                * lo que cambia es dónde está.
-                                */
-                              alCrear={archived ? undefined : {
-                                /*
-                                  * `null` esconde el boton cuando lo tecleado es
-                                  * un BUFETE. Antes ofrecia, textual,
-                                  * `Add "Brian Hills Law" to Brian Hills Law`:
-                                  * crear una persona con el nombre de la oficina,
-                                  * que es el mismo error que esta celda bloquea
-                                  * en el Enter. Bloquear un camino y ofrecer el
-                                  * otro es peor que no bloquear nada.
-                                  */
+                              alCrear={archived || !row.lawFirmId ? undefined : {
                                 etiqueta: (q: string) => esNombreDeBufete(q)
                                   ? null
                                   : t('attorneyAddToFirm', { nombre: q, bufete: row.firmName ?? '' }),
                                 crear: (q: string) => altaAbogado(q, row.lawFirmId as string),
                               }}
-                              /*
-                                * Escribir el nombre del BUFETE en el campo del
-                                * abogado no guarda nada y avisa.
-                                *
-                                * La celda muestra `attorneyName ?? firmName`,
-                                * así que cuando el texto libre ES el bufete el
-                                * resultado se ve IDÉNTICO a antes de escribirlo:
-                                * ni un cambio, ni un error, ni una pista. Tres
-                                * casos quedaron así —MVA-3282, MVA-3304,
-                                * MVA-3463— y es parte de por qué Edson repitió
-                                * que "no guarda": guardaba, pero guardaba algo
-                                * invisible.
-                                *
-                                * Se devuelve `false` para que el panel quede
-                                * ABIERTO con lo escrito: el camino bueno —elegir
-                                * de la lista, o darlo de alta— está ahí mismo.
-                                */
                               onSave={next => {
                                 if (next.text && esNombreDeBufete(next.text)) {
                                   setError(t('attorneyIsFirm')); return Promise.resolve(false);
@@ -1543,96 +1549,7 @@ export function EdsonClient({ clinics, providers, providersFiltro, carriers, law
                                 );
                               }}
                             />
-                            ) : (
-                            <InlineCombo
-                              ancho="max-w-full"
-                              value={null}
-                              options={catalogoBufetes}
-                              readOnly={archived}
-                              title={t('fieldFirm')}
-                              emptyHint={t('fieldFirmPlaceholder')}
-                              /*
-                                * Enter da de alta la oficina, igual que el boton.
-                                * Acá el texto libre no existe —el bufete es un
-                                * vínculo— y sin esto Enter no hacía NADA: ni
-                                * guardaba ni avisaba. Es lo que Edson reportó
-                                * como "ya no puedo escribir la oficina y Enter".
-                                */
-                              enterCrea
-                              alCrear={archived ? undefined : {
-                                etiqueta: (q: string) => t('firmAddNew', { nombre: q }),
-                                crear: altaBufete,
-                              }}
-                              /*
-                                * Acá NO hay texto libre que valga: el bufete es
-                                * un vínculo (`lawFirmId`) y escribirlo suelto no
-                                * tiene dónde guardarse. Por eso se manda `id` y
-                                * nada más — si Edson escribe un nombre que no
-                                * está, el camino es el botón de alta, que lo
-                                * deja en el catálogo y sirve para los otros
-                                * casos del mismo bufete.
-                                *
-                                * Un `id` nulo limpia el bufete, que es como se
-                                * deshace un error — pero SOLO con el campo
-                                * vacío. Con texto escrito que no coincide, se
-                                * devuelve `false`: el panel queda abierto con
-                                * el botón de alta a la vista. Guardar ahí un
-                                * `lawFirmId: null` habría borrado el bufete
-                                * justo cuando Edson estaba tratando de ponerlo.
-                                */
-                              onSave={next => next.text ? Promise.resolve(false) : saveTo(
-                                `/api/admin/cases/${row.caseId}/update-legal-insurance`,
-                                row.caseId,
-                                {
-                                  lawFirmId: next.id,
-                                  firmName: next.id ? (catalogoBufetes.find(f => f.id === next.id)?.name ?? null) : null,
-                                },
-                                { lawFirmId: next.id },
-                              )}
-                            />
-                            )}
                             </Vistazo>
-                            {/*
-                              * La OFICINA, debajo del abogado.
-                              *
-                              * La columna mostraba `attorneyName ?? firmName`: un
-                              * renglón para dos datos distintos. Al cargar al
-                              * abogado, la oficina desaparecía de la pantalla —y
-                              * como además el texto libre y el del catálogo se
-                              * pisan entre sí, Edson lo leyó como "el sistema me
-                              * deshace lo anterior" (2026-10-05). Los dos datos
-                              * siempre convivieron en la base; lo que faltaba era
-                              * mostrarlos.
-                              *
-                              * Solo cuando hay abogado: sin él, el renglón de
-                              * arriba YA es la oficina y repetirla sería pagar
-                              * alto de fila por nada. Así las 183 filas sin
-                              * abogado no crecen ni un pixel, y las ~66 que lo
-                              * tienen crecen una línea de 7,5px.
-                              */}
-                            {/*
-                              * ...salvo que diga lo MISMO que el renglón de
-                              * arriba. Edson preguntó "why is duplicating the
-                              * information?" el 2026-10-05 y la respuesta honesta
-                              * es que no debería.
-                              *
-                              * Pasa en 6 de 175 filas con abogado y bufete, y no
-                              * todas son un error de datos: hay bufetes que se
-                              * llaman como su único abogado —"Bobby Udall" dentro
-                              * de "Bobby Udall"— y ahí el dato está bien, lo que
-                              * sobra es repetirlo. En las otras 169 la segunda
-                              * línea sí aporta: "Sergio Garcia" sobre
-                              * "Garcia Law".
-                              *
-                              * Se compara normalizado porque la coincidencia
-                              * viene de que alguien tecleó el nombre, no de que
-                              * sean el mismo registro.
-                              */}
-                            {row.attorneyName && row.firmName &&
-                             row.attorneyName.trim().toLowerCase() !== row.firmName.trim().toLowerCase() && (
-                              <span className="block text-text-muted text-[7.5px] truncate" title={row.firmName}>
-                                {row.firmName}
-                              </span>
                             )}
                             </span>
                             <button
@@ -2160,6 +2077,35 @@ function fundir(
   const porId = new Map(delServer.map(o => [o.id, o]));
   for (const o of nuevos) if (!porId.has(o.id)) porId.set(o.id, o);
   return [...porId.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * ¿El abogado y el bufete dicen LO MISMO?
+ *
+ * Edson, 2026-10-06: "there is no need to show the same twice". Tenía razón y
+ * la comparación exacta que había no alcanzaba: "Brian Hills" sobre
+ * "Brian Hills Law" son dos textos distintos y la misma información.
+ *
+ * Tres criterios, y cada uno salió de un caso real de la base:
+ *  · uno CONTIENE al otro ....... "Brian Hills" ⊂ "Brian Hills Law"
+ *  · las dos primeras palabras .. "NO ATTORNEY / AT FAULT" vs "NO ATTORNEY YET"
+ *  · sin iniciales sueltas ...... "Erik Mullins" vs "Erik L. Mullins"
+ *
+ * Medido sobre las 178 filas que tienen los dos datos: oculta 9 pares
+ * distintos, todos repetición, y deja los 20 que aportan de verdad —
+ * "Sergio Garcia" sobre "Garcia Law", "Zeb Q. Weeks" sobre "Flickinger
+ * Boulton Robson Weeks". Ese segundo número es el que importa: una regla
+ * demasiado amplia también habría acertado los 9.
+ */
+function mismaInfo(a: string, b: string): boolean {
+  // Las iniciales sueltas se van: no distinguen a nadie y rompen la comparación.
+  const norm = (s: string) => s.trim().toLowerCase()
+    .replace(/[.,&/]/g, ' ').replace(/\s+/g, ' ')
+    .split(' ').filter(w => w.length > 1).join(' ').trim();
+  const dosPrimeras = (s: string) => norm(s).split(' ').slice(0, 2).join(' ');
+  const A = norm(a), B = norm(b);
+  if (!A || !B) return false;
+  return A === B || A.includes(B) || B.includes(A) || dosPrimeras(a) === dosPrimeras(b);
 }
 
 function Vistazo({ texto, titulo, children }: {

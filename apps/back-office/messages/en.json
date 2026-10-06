@@ -7166,7 +7166,8 @@
       "attorneyAdd": "Add attorney",
       "firmAdd": "Add law firm",
       "attorneyIsFirm": "That is the law firm — it is already saved in its own field, and you can see it under the attorney. This box is for the person.",
-      "attorneyRemove": "Remove this attorney from the case"
+      "attorneyRemove": "Remove this attorney from the case",
+      "colFirmAttorney": "Firm / attorney"
     },
     "online": {
       "badge": "Online visit",

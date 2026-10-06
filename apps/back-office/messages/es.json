@@ -7166,7 +7166,8 @@
       "attorneyAdd": "Agregar abogado",
       "firmAdd": "Agregar bufete",
       "attorneyIsFirm": "Ese es el bufete — ya está guardado en su propio campo y se ve debajo del abogado. Acá va la persona.",
-      "attorneyRemove": "Quitar al abogado de este caso"
+      "attorneyRemove": "Quitar al abogado de este caso",
+      "colFirmAttorney": "Bufete / abogado"
     },
     "online": {
       "badge": "Cita online",

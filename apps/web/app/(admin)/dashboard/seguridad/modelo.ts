@@ -153,6 +153,14 @@ export interface PorIp {
   modulos: string[];
 }
 
+/** Alguien que tiene el segundo factor puesto, y al que se le puede quitar. */
+export interface ConFactor {
+  id: string;
+  correo: string;
+  /** Para que la pantalla avise antes de dejar a un administrador sin su factor. */
+  esAdmin: boolean;
+}
+
 export interface Cuentas {
   total: number;
   sinMfa: number;
@@ -162,6 +170,15 @@ export interface Cuentas {
   trabadasAhora: number;
   /** El `id` es para el botón de desbloquear: `/api/users/[id]/unlock`. */
   conIntentos: Array<{ id: string; correo: string; intentos: number; hasta: string | null }>;
+  /**
+   * Quiénes tienen doble factor hoy.
+   *
+   * Sale de la columna `mfaEnabled` de `users`, que es una COPIA: la verdad
+   * vive en `auth.mfa_factors`. Alcanza para la lista —y la ruta que lo quita
+   * consulta los factores de verdad antes de borrar nada— pero si alguna vez
+   * las dos se separan, esta lista es la que miente.
+   */
+  conMfa: ConFactor[];
 }
 
 /** Una IP echada, tal como la muestra la pantalla. */

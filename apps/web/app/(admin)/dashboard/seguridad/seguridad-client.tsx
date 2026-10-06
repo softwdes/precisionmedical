@@ -4,10 +4,10 @@ import * as React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { Badge, cn } from '@precision/ui';
-import { Ban, Clock, RefreshCw, ShieldAlert, ShieldCheck, Unlock } from 'lucide-react';
+import { Ban, Clock, KeyRound, RefreshCw, ShieldAlert, ShieldCheck, Unlock } from 'lucide-react';
 import {
   MEDIDO_EL, MODULOS, PROTECCIONES,
-  type Cuentas, type DatosSeguridad, type Evento, type IpEchada, type PorIp,
+  type ConFactor, type Cuentas, type DatosSeguridad, type Evento, type IpEchada, type PorIp,
 } from './modelo';
 
 /**
@@ -968,6 +968,9 @@ export function SeguridadClient({ datos, dias, mes, meses }: {
       {/* ── IPs echadas ───────────────────────────────────────────────── */}
       <Echadas lista={datos.bloqueadas} onCambio={refrescar} />
 
+      {/* ── Doble factor ──────────────────────────────────────────────── */}
+      <DobleFactor lista={cuentas.conMfa} total={cuentas.total} onCambio={refrescar} />
+
       {/* ── Cuentas ───────────────────────────────────────────────────── */}
       <Riesgos cuentas={cuentas} onCambio={refrescar} />
 
@@ -1358,6 +1361,112 @@ function Desbloquear({ id, activo, onListo }: {
       <Unlock className="h-3 w-3" />
       {estado === 'yendo' ? tr('unlocking') : estado === 'hecho' ? tr('unlocked') : estado === 'error' ? tr('unlockFailed') : tr('unlock')}
     </button>
+  );
+}
+
+/**
+ * El doble factor: quiénes lo tienen y cómo rescatarlos.
+ *
+ * ── Por qué esta sección existe aunque esté vacía ──────────────────────────
+ *
+ * Hoy la lista tiene cero personas (medido el 2026-10-06: 0 de 30, los 3
+ * administradores incluidos). Una sección vacía igual dice algo que importa:
+ * que la red de rescate ya está puesta, y que por eso ahora SÍ se le puede
+ * pedir a alguien que lo active.
+ *
+ * Antes de esto, cada persona que activaba el doble factor era un bloqueo
+ * permanente esperando: el único botón para quitarlo exigía estar adentro.
+ */
+function DobleFactor({ lista, total, onCambio }: {
+  lista: ConFactor[]; total: number; onCambio: () => void;
+}): React.ReactElement {
+  const tr = useTranslations('security');
+  return (
+    <section>
+      <h2 className="mb-3 text-tiny font-bold uppercase tracking-widest text-text-muted">
+        {tr('mfaTitle', { n: lista.length, total })}
+      </h2>
+      <div className="rounded-lg bg-bg-1 px-4 py-1">
+        {lista.length === 0 && (
+          <p className="py-4 text-small leading-relaxed text-text-3">{tr('mfaNone')}</p>
+        )}
+        {lista.map((c) => <FilaFactor key={c.id} c={c} onCambio={onCambio} />)}
+      </div>
+    </section>
+  );
+}
+
+function FilaFactor({ c, onCambio }: { c: ConFactor; onCambio: () => void }): React.ReactElement {
+  const tr = useTranslations('security');
+  const [confirmando, setConfirmando] = React.useState(false);
+  const [estado, setEstado] = React.useState<'listo' | 'yendo' | 'error'>('listo');
+
+  const quitar = async (): Promise<void> => {
+    setEstado('yendo');
+    try {
+      const r = await fetch(`/api/users/${c.id}/mfa`, { method: 'DELETE' });
+      if (!r.ok) throw new Error(String(r.status));
+      setConfirmando(false);
+      setEstado('listo');
+      onCambio();
+    } catch {
+      setEstado('error');
+    }
+  };
+
+  return (
+    <div className="border-b border-row-sep py-2.5 last:border-0">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="flex items-center gap-2 text-small text-text-1">
+          <KeyRound className="h-3.5 w-3.5 shrink-0 text-emerald" />
+          {c.correo}
+          {c.esAdmin && (
+            <span className="rounded bg-amber/15 px-1.5 text-tiny text-amber">{tr('mfaAdmin')}</span>
+          )}
+        </span>
+        {!confirmando && (
+          <button
+            type="button"
+            onClick={() => setConfirmando(true)}
+            title={tr('mfaRemoveTitle')}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-row-sep px-2.5 py-1 text-tiny text-text-3 transition-colors hover:border-rose/40 hover:text-rose"
+          >
+            {tr('mfaRemove')}
+          </button>
+        )}
+      </div>
+
+      {/*
+        * Pide confirmar porque es lo contrario de las otras acciones de esta
+        * pantalla: todas suben la seguridad y esta la BAJA. Y además tira
+        * todas las sesiones de esa persona, que conviene decirlo antes y no
+        * después.
+        */}
+      {confirmando && (
+        <div className="mt-2 rounded-lg border border-rose/30 bg-rose/5 p-3">
+          <p className="text-tiny leading-relaxed text-text-2">
+            {c.esAdmin ? tr('mfaConfirmAdmin') : tr('mfaConfirm')}
+          </p>
+          <div className="mt-2.5 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={estado === 'yendo'}
+              onClick={() => { void quitar(); }}
+              className="rounded border border-rose/40 bg-rose/10 px-2.5 py-1 text-tiny text-rose transition-colors hover:bg-rose/20 disabled:opacity-50"
+            >
+              {estado === 'yendo' ? tr('mfaRemoving') : estado === 'error' ? tr('mfaFailed') : tr('mfaRemoveConfirm')}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setConfirmando(false); setEstado('listo'); }}
+              className="rounded px-2 py-1 text-tiny text-text-3 transition-colors hover:text-text-1"
+            >
+              {tr('blockCancel')}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

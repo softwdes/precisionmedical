@@ -2324,6 +2324,16 @@
     }
   },
   "security": {
+    "mfaTitle": "Two-factor · {n} of {total} accounts",
+    "mfaNone": "Nobody has it turned on yet. Now it can be asked for: if someone loses their phone, you remove it from here and they get back in with their password. Before this, they were locked out for good.",
+    "mfaAdmin": "administrator",
+    "mfaRemove": "Remove factor",
+    "mfaRemoveTitle": "For when someone lost their phone and cannot get in",
+    "mfaRemoveConfirm": "Yes, remove it",
+    "mfaRemoving": "Removing…",
+    "mfaFailed": "Failed",
+    "mfaConfirm": "This person will get back in with just their password, and all their open sessions are closed. Only do this if you know who is asking: a request by email or chat can be faked.",
+    "mfaConfirmAdmin": "⚠ This is an administrator account. They will get back in with just their password and all sessions are closed. Confirm by phone or in person first: it is the account with the most access in the system.",
     "blockBtn": "Block",
     "blockTitle": "Ban this address: it will not be able to try again",
     "blockWarn": "{n, plural, one {⚠ This address has # SUCCESSFUL sign-in} other {⚠ This address has # SUCCESSFUL sign-ins}}. It is almost certainly the clinic's own internet connection, shared by all staff: blocking it locks everyone out.",

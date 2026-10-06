@@ -2324,6 +2324,16 @@
     }
   },
   "security": {
+    "mfaTitle": "Doble factor · {n} de {total} cuentas",
+    "mfaNone": "Todavía nadie lo tiene activado. Ahora sí se puede pedir: si alguien pierde el teléfono, desde acá se le quita y vuelve a entrar con su contraseña. Antes quedaba afuera para siempre.",
+    "mfaAdmin": "administrador",
+    "mfaRemove": "Quitar el factor",
+    "mfaRemoveTitle": "Para cuando alguien perdió el teléfono y no puede entrar",
+    "mfaRemoveConfirm": "Sí, quitarlo",
+    "mfaRemoving": "Quitando…",
+    "mfaFailed": "Falló",
+    "mfaConfirm": "Esta persona va a volver a entrar solo con su contraseña, y se le cierran todas las sesiones abiertas. Hacelo únicamente si te consta quién es: un pedido por correo o por chat se falsifica.",
+    "mfaConfirmAdmin": "⚠ Es una cuenta de administrador. Va a volver a entrar solo con su contraseña y se le cierran todas las sesiones. Confirmá por teléfono o en persona antes de hacerlo: es la cuenta con más permisos del sistema.",
     "blockBtn": "Bloquear",
     "blockTitle": "Echar esta dirección: no va a poder volver a intentar entrar",
     "blockWarn": "{n, plural, one {⚠ Esta dirección tiene # ingreso EXITOSO} other {⚠ Esta dirección tiene # ingresos EXITOSOS}}. Casi seguro es la salida a internet de la clínica, compartida por todo el personal: bloquearla deja a todos afuera.",

@@ -6450,7 +6450,9 @@
         "alertDownloadS3": "La descarga estará disponible cuando se configure el almacenamiento S3.",
         "alertDownloadError": "Error al generar enlace de descarga",
         "alertBulkS3": "La descarga masiva estará disponible cuando se configure el almacenamiento S3.",
-        "placeholderFolder": "Nombre de la carpeta"
+        "placeholderFolder": "Nombre de la carpeta",
+        "confirmDeleteManyTitle": "Enviar a la papelera",
+        "confirmDeleteMany": "Se enviarán {n} elementos a la papelera."
       }
     },
     "settings": {

@@ -707,6 +707,8 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin', onVer
   const [deleting, setDeleting]             = useState<string | null>(null);
   /** El item esperando confirmación de borrado, o `null`. */
   const [porBorrar, setPorBorrar]           = useState<DocItem | null>(null);
+  /** Lo seleccionado que se va a la papelera, cuando son varios. */
+  const [porBorrarVarios, setPorBorrarVarios] = useState<DocItem[]>([]);
   /** El documento o la carpeta cuyo nombre se está cambiando. */
   const [porRenombrar, setPorRenombrar]     = useState<DocItem | null>(null);
   const [renombrando, setRenombrando]       = useState(false);
@@ -859,6 +861,19 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin', onVer
   const allIds     = items.map(i => i.id);
   const allSelected = allIds.length > 0 && allIds.every(id => selected.has(id));
   const someSelected = selected.size > 0;
+
+  /**
+   * De lo seleccionado, qué se puede mandar a la papelera.
+   *
+   * Se descartan dos cosas, por las mismas razones que el botón de la fila:
+   * la carpeta VIRTUAL del intake —no existe como fila, no hay nada que
+   * borrar— y las carpetas CON contenido, que ahí se avisa y se corta. Acá se
+   * sacan antes de ofrecer, para no prometer un borrado que después no pasa.
+   */
+  const seleccionBorrable = items.filter(i =>
+    selected.has(i.id)
+    && i.id !== CARPETA_INTAKE_ID
+    && !(i.isFolder && i._count.children > 0));
 
   function toggleAll() {
     setSelected(allSelected ? new Set() : new Set(allIds));
@@ -1158,6 +1173,39 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin', onVer
     }
   }
 
+  /**
+   * A la papelera, lo seleccionado.
+   *
+   * De a uno contra la misma ruta que usa el botón de la fila: no hay endpoint
+   * de borrado múltiple y no hace falta inventarlo —son unos pocos archivos por
+   * vez, y así cada borrado queda auditado igual que si lo hubieran hecho a
+   * mano, uno por uno.
+   *
+   * Si alguno falla, los demás siguen: cortar en el primer error dejaría la
+   * selección a medio borrar sin decir cuál quedó. Al final se avisa de los que
+   * no pudieron, con su nombre.
+   */
+  async function confirmarBorradoVarios() {
+    const items = porBorrarVarios;
+    setPorBorrarVarios([]);
+    if (!items.length) return;
+
+    const fallaron: string[] = [];
+    for (const item of items) {
+      setDeleting(item.id);
+      try {
+        const res = await fetch(`/api/admin/cases/${caseId}/documents/${item.id}`, { method: 'DELETE' });
+        if (!res.ok) fallaron.push(item.name);
+      } catch {
+        fallaron.push(item.name);
+      }
+    }
+    setDeleting(null);
+    setSelected(new Set());
+    load(currentParentId, verPapelera);
+    if (fallaron.length) alert(`${t('alertDeleteError')}\n\n${fallaron.join('\n')}`);
+  }
+
   /** Traerlo de vuelta de la papelera. Lo puede hacer cualquiera que vea esto. */
   async function handleRestore(item: DocItem) {
     setDeleting(item.id);
@@ -1441,6 +1489,27 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin', onVer
             >
               <Download className="w-3.5 h-3.5" /> {t('bulkDownload')}
             </button>
+            {/*
+              Enviar a la papelera lo seleccionado.
+
+              Faltaba, y era el camino que la gente toma: marcar la casilla y
+              buscar qué hacer con lo marcado. La barra ofrecía mover y bajar, y
+              **no borrar** — así que parecía que un archivo subido no se podía
+              borrar (Erick, 2026-10-06). El botón por fila sí existe, pero vive
+              detrás del hover: con mouse la fila se ve limpia hasta que el
+              puntero pasa por encima, y nadie lo encuentra si no lo sabe.
+
+              No borra de verdad: `deletedAt`, con quién y cuándo, y se restaura
+              desde la papelera — lo mismo que el botón de la fila.
+            */}
+            {!readOnly && !verPapelera && seleccionBorrable.length > 0 && (
+              <button
+                onClick={() => setPorBorrarVarios(seleccionBorrable)}
+                className="flex items-center gap-1.5 text-text-2 hover:text-rose transition-colors text-xs"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> {tc('delete')}
+              </button>
+            )}
             <button onClick={() => setSelected(new Set())} className="ml-auto text-text-muted hover:text-text-1 transition-colors">
               <X className="w-3.5 h-3.5" />
             </button>
@@ -1939,6 +2008,20 @@ export function DocumentsTab({ caseId, readOnly = false, portal = 'admin', onVer
           confirmLabel={tc('delete')}
           onConfirm={() => void confirmarBorrado()}
           onCancel={() => setPorBorrar(null)}
+        />
+      )}
+
+      {/* La misma confirmación, para varios. Dice CUÁNTOS y recuerda que se
+          puede deshacer: es la diferencia entre "papelera" y "borrar". */}
+      {porBorrarVarios.length > 0 && (
+        <ConfirmDialog
+          open
+          variant="danger"
+          title={t('confirmDeleteManyTitle')}
+          description={`${t('confirmDeleteMany', { n: porBorrarVarios.length })} ${t('confirmDeleteRecoverable')}`}
+          confirmLabel={tc('delete')}
+          onConfirm={() => void confirmarBorradoVarios()}
+          onCancel={() => setPorBorrarVarios([])}
         />
       )}
     </>

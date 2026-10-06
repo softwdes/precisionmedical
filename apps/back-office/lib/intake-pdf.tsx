@@ -295,9 +295,30 @@ function v(val: string | null | undefined) {
  */
 const LOCALE_PDF = 'en-US';
 
+/**
+ * Una fecha de CALENDARIO en el papel. Fuerza UTC, y eso no es un detalle.
+ *
+ * `lossDate` y `accidentDate` son `timestamp without time zone` y están
+ * guardadas como medianoche local, o sea que llegan como `05:00:00Z`.
+ * Formatearlas en la zona de la clínica las corre **al día anterior**:
+ *
+ *     2025-08-26T05:00:00Z   en UTC            → 08/26/2025  ✓
+ *                            en America/Denver → 08/25/2025  ✗
+ *
+ * Sin el `timeZone` fijo, el resultado depende de la zona del PROCESO: hoy sale
+ * bien porque el server corre en UTC, y saldría mal generando el PDF desde una
+ * máquina en Utah. En un intake firmado, la fecha del accidente corrida un día
+ * es un dato legal equivocado.
+ *
+ * Es el mismo motivo por el que `lib/fechas.ts` fuerza UTC en
+ * `fechaCalendario` — y ahí está escrito: *"NO le agregues
+ * `timeZone: ZONA_CLINICA`. Vuelve el bug."*
+ */
 function fmtDate(d: Date | string | null | undefined) {
   if (!d) return null;
-  return new Date(d).toLocaleDateString(LOCALE_PDF, { year: 'numeric', month: '2-digit', day: '2-digit' });
+  return new Date(d).toLocaleDateString(LOCALE_PDF, {
+    year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'UTC',
+  });
 }
 /**
  * Nacimiento: fecha de CALENDARIO, sin zona. Este PDF sale de la clínica, así

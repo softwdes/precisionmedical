@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
 import { Clock, Mail, Lock, Eye, EyeOff, ShieldCheck, AlertCircle, Smartphone } from 'lucide-react';
 import { useT } from '@/lib/i18n';
 import { InstallPWABanner } from '@/components/InstallPWABanner';
@@ -121,42 +120,60 @@ export default function LoginPage({ expired }: { expired?: boolean }) {
     setLoading(true);
     setError('');
     await new Promise(r => setTimeout(r, 0));
-    // 1 — ¿la cuenta está cerrada? Se pregunta ANTES de mandar la contraseña.
-    //
-    // Si la consulta falla, el módulo del candado responde "abierta" y lo deja
-    // pasar: un hipo del Admin no puede dejar al personal sin fichar. La falla
-    // queda en los logs del servidor con el prefijo [candado].
+    /*
+     * UNA sola llamada, y la contraseña se verifica en el SERVIDOR.
+     *
+     * Antes esta pantalla le hablaba directo a Supabase y después le avisaba a
+     * nuestra API si había fallado. Todo el candado colgaba de esa confesión:
+     * quien ataca podía no avisar —y probar contraseñas sin gastar intentos— o
+     * avisar de más y trabar cuentas ajenas.
+     *
+     * Si la llamada se cae por red NO se deja pasar —acá la sesión la abre el
+     * servidor, así que sin respuesta no hay sesión— pero tampoco se dice que
+     * la contraseña está mal.
+     *
+     * Decía `invalidCredentials`, y Erick lo vio el 2026-10-06 contra un servidor
+     * de desarrollo apagado: la pantalla le dijo que su contraseña era
+     * incorrecta cuando lo que pasaba era que nadie contestaba. Eso hace que la
+     * persona dude de sí misma, reintente, y tape una caída del servicio.
+     */
+    let r: {
+      ok?: boolean; locked?: boolean; restantes?: number;
+      mfaRequerido?: boolean; factorId?: string;
+    } = {};
+    let demasiados = false;
     try {
-      const res  = await fetch(`/api/auth/lockout?email=${encodeURIComponent(email)}`);
-      const dato = await res.json() as { locked?: boolean };
-      if (dato.locked) {
-        setError(t.accountLocked);
-        setLoading(false);
-        return;
-      }
-    } catch { /* ver arriba: se deja pasar */ }
+      const resp = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      demasiados = resp.status === 429;
+      r = await resp.json().catch(() => ({}));
+    } catch {
+      setError('Could not reach the server. Check your connection and try again.');
+      setLoading(false);
+      return;
+    }
 
-    const supabase = createClient();
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    if (demasiados) {
+      setError('Too many attempts from this network. Try again in a few minutes.');
+      setLoading(false);
+      return;
+    }
 
-    // 2 — Queda registrado el intento
-    // Se ESPERA el registro del intento, en vez de dispararlo y olvidarlo: la
-    // respuesta dice cuántos quedan, y sin eso la pantalla no puede avisar. Es
-    // un viaje de más solo cuando la contraseña estuvo mal.
-    const marca = fetch('/api/auth/lockout', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ email, success: !authError }),
-    });
-    if (!authError) { void marca; }
-
-    if (authError) {
-      const r = await marca.then(x => x.json()).catch(() => ({})) as
-        { restantes?: number; locked?: boolean };
+    if (!r.ok) {
       setError(r.locked ? t.accountLocked : r.restantes === 1 ? t.lastAttempt : t.invalidCredentials);
       setLoading(false);
       return;
     }
+
+    /*
+     * El Time Clock todavía no tiene paso de segundo factor: hoy nadie lo tiene
+     * activado (0 de 30, medido el 2026-10-06), así que `mfaRequerido` no puede
+     * llegar en true. Cuando se agregue, el desafío va ACÁ, con la sesión que
+     * el servidor acaba de abrir.
+     */
     // Reset el contador de los 12h del SessionGuard. Sin esto, un timestamp
     // viejo de una sesion expulsada externamente (cookie/JWT vencido) causa
     // que el SessionGuard expire la nueva sesion al instante — el usuario

@@ -196,12 +196,50 @@ export interface Contexto extends Ubicacion {
   app?: string;
 }
 
+/**
+ * Qué módulo es, según el HOST por el que entraron.
+ *
+ * ── Por qué no alcanza una constante del build ─────────────────────────────
+ *
+ * Porque `apps/back-office` sirve TRES hosts desde un solo despliegue:
+ * clinic, provider y attorney. Su ruta declaraba `MODULO = 'clinica'`, así que
+ * todo el que entraba por el portal del médico o el del abogado quedaba
+ * anotado como clínica.
+ *
+ * Medido el 2026-10-06 contra el proyecto Admin: `providers` y `attorneys`
+ * tenían **cero** intentos en toda la historia. Leí eso como "nadie usa esos
+ * portales" y era falso — estaban todos amontonados bajo `clinica`. El filtro
+ * por módulo del Centro de Seguridad, que es lo que Erick pidió para controlar
+ * las cinco puertas por separado, mostraba dos columnas vacías que no lo
+ * estaban.
+ *
+ * El host sí distingue, porque es lo que la persona escribió en el navegador.
+ */
+const MODULO_POR_HOST: Array<[RegExp, string]> = [
+  [/^clinic./i,   'clinica'],
+  [/^provider./i, 'providers'],
+  [/^attorney./i, 'attorneys'],
+  [/^pmtc./i,     'timeclock'],
+  [/^admin./i,    'admin'],
+];
+
+export function moduloDe(h: Headers, porDefecto: string): string {
+  // En Vercel el host público viaja en `x-forwarded-host`; `host` es el
+  // interno. Se miran los dos, en ese orden.
+  const host = (h.get('x-forwarded-host') ?? h.get('host') ?? '').trim();
+  for (const [patron, modulo] of MODULO_POR_HOST) if (patron.test(host)) return modulo;
+  // En local (localhost:3002) y en las URLs de previsualización de Vercel no
+  // hay nada que reconocer: vale lo que declara la app.
+  return porDefecto;
+}
+
 export function contextoDe(h: Headers, app: string): Contexto {
   const ip = ipDe(h);
   return {
     ip: ip === 'local' ? undefined : ip,
     ...ubicacionDe(h),
     navegador: h.get('user-agent')?.slice(0, 300) ?? undefined,
-    app,
+    // `app` es el valor POR DEFECTO, no el final: manda el host — ver arriba.
+    app: moduloDe(h, app),
   };
 }

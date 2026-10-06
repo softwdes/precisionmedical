@@ -146,47 +146,43 @@ export default function LoginPage(): React.ReactElement {
 
     let navigating = false;
     try {
-      // 1 — Check lockout before hitting Supabase
-      const lockRes = await fetch(`/api/auth/lockout?email=${encodeURIComponent(email)}`);
-      const lockData = await lockRes.json() as { locked: boolean; lockedUntil?: string };
-      if (lockData.locked && lockData.lockedUntil) {
-        setLockedUntil(new Date(lockData.lockedUntil));
+      /*
+       * UNA sola llamada, y la contraseña se verifica en el SERVIDOR.
+       *
+       * Antes esta pantalla le hablaba directo a Supabase y después le avisaba
+       * a nuestra API si había fallado. Todo el candado colgaba de esa
+       * confesión: quien ataca podía no avisar —y probar contraseñas sin gastar
+       * intentos— o avisar de más y trabar cuentas ajenas.
+       *
+       * Ahora el servidor intenta la contraseña él mismo y cuenta lo que vio.
+       * La sesión queda abierta en las mismas cookies de siempre, así que el
+       * segundo factor sigue resolviéndose acá abajo sin cambiar nada.
+       */
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const r = await res.json().catch(() => ({})) as {
+        ok?: boolean; locked?: boolean; lockedUntil?: string;
+        restantes?: number; mfaRequerido?: boolean; factorId?: string;
+      };
+
+      if (res.status === 429) {
+        setError('Too many attempts from this network. Try again in a few minutes.');
         return;
       }
 
-      // 2 — Supabase auth
-      const supabase = createClient();
-      const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
-
-      // 3 — Queda registrado el intento
-      // Se ESPERA el registro del intento, en vez de dispararlo y olvidarlo: la
-      // respuesta dice cuántos quedan, y sin eso la pantalla no puede avisar. Es
-      // un viaje de más solo cuando la contraseña estuvo mal.
-      const marca = fetch('/api/auth/lockout', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email, success: !authError }),
-      });
-      if (!authError) { void marca; }
-
-      if (authError) {
-        const r = await marca.then(x => x.json()).catch(() => ({})) as
-          { restantes?: number; locked?: boolean; lockedUntil?: string };
+      if (!r.ok) {
         if (r.locked && r.lockedUntil) { setLockedUntil(new Date(r.lockedUntil)); return; }
         setError(r.restantes === 1 ? tm('loginLastAttempt') : 'Incorrect email or password.');
         return;
       }
 
-      // 4 — Check if MFA is required
-      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-      if (aal?.nextLevel === 'aal2' && aal.currentLevel !== 'aal2') {
-        const { data: factors } = await supabase.auth.mfa.listFactors();
-        const totp = factors?.totp?.[0];
-        if (totp) {
-          setMfaFactorId(totp.id);
-          setMfaStep(true);
-          return;
-        }
+      if (r.mfaRequerido && r.factorId) {
+        setMfaFactorId(r.factorId);
+        setMfaStep(true);
+        return;
       }
 
       navigating = true;

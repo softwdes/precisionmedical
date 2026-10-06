@@ -4,7 +4,7 @@ import { localeApp } from '@/lib/fechas';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Phone, PhoneCall, FileText, Mail, Send, ChevronRight, Plus, Calendar, Building2, FileCheck, Zap, CalendarCheck, Search, X, ArrowUpDown } from 'lucide-react';
+import { PhoneCall, FileText, Mail, Send, ChevronRight, Plus, Calendar, Building2, FileCheck, Zap, CalendarCheck, Search, X, ArrowUpDown } from 'lucide-react';
 import { Button } from '@precision/ui';
 import {
   PageHeader,
@@ -230,17 +230,20 @@ export function FrontOfficeClient({ cases, stats, kpis, userName, specialties, c
       {/* Toast de llamada entrante (DEV · simula Weave Phase 2) */}
       <IncomingCallToast onAnswer={handleAnswerIncoming} />
 
-      {/* Phone-style call indicator — específico de Front Office */}
-      <div className="rounded-lg border border-emerald/30 bg-emerald/5 px-4 py-2.5 flex items-center gap-3">
-        <div className="w-7 h-7 rounded-full bg-emerald/15 flex items-center justify-center shrink-0">
-          <Phone className="w-3.5 h-3.5 text-emerald" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-emerald text-[10px] font-semibold uppercase tracking-wider">{t('lineAvailable')}</div>
-          <div className="text-text-muted text-[11px] truncate">{t('lineSubtitle')}</div>
-        </div>
-        <span className="text-text-muted text-[10px] font-mono shrink-0">{t('callReady')}</span>
-      </div>
+      {/* Acá vivía un cartel verde: "Línea principal disponible · (801) 375-2207
+         · Weave routing activo · CALL READY". Era texto fijo de la maqueta: no
+         medía nada y afirmaba dos cosas falsas.
+
+         · "Weave routing activo" — la clínica NUNCA usó Weave. Todo es Twilio
+           (Erick, 2026-10-06). Weave aparece en el proyecto solo como
+           referencia de DISEÑO, porque Reagan pidió una vista de mensajes
+           parecida a la suya.
+         · "Línea disponible / CALL READY" — un estado en vivo que nada
+           verificaba. Siempre decía disponible, incluso si todo estaba caído.
+
+         Un indicador que no mide nada no es neutro: se le cree. Este me hizo
+         diagnosticar mal el historial de llamadas, y a quien lo leyera le
+         prometía un enrutamiento que no existe. */}
 
       {/* KPIs — mockup B.1: amber / neutral / brand / rose */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

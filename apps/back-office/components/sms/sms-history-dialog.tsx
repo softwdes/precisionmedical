@@ -13,12 +13,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@precision/ui';
-import { ChevronLeft, ChevronRight, Mail, MessageSquare, RefreshCw, MessageSquareOff, SlidersHorizontal, Search, CornerUpLeft, Settings, ArrowLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Mail, MessageSquare, RefreshCw, MessageSquareOff, SlidersHorizontal, Search, CornerUpLeft, Settings, ArrowLeft, PenSquare } from 'lucide-react';
 import { EmptyState, FilterPill, PersonAvatar, StatusPill, TableFooter, Skeleton } from '@/components/ui-phoenix';
 import { formatUsPhone } from '@/lib/phone';
 import { PatientThreadDialog, type PacienteDelHilo } from './patient-thread-dialog';
 import { SmsTemplatesEditor } from './sms-templates-editor';
 import { ConversacionesPendientes } from './conversaciones-pendientes';
+import { NuevoSmsDialog } from './nuevo-sms-dialog';
 
 const CLINIC_TZ = 'America/Denver';
 const PAGE_SIZE = 10;
@@ -147,6 +148,8 @@ export function SmsHistoryPanel({ onTitulo }: {
   /** El editor de plantillas reemplaza la lista DENTRO del mismo dialogo.
       Un tercer modal encima robaria el foco — ya paso con el buscador de cargos. */
   const [editando, setEditando] = useState(false);
+  /** El buscador de "a quien le escribo". Solo ELIGE; no manda nada. */
+  const [eligiendo, setEligiendo] = useState(false);
   /**
    * Arranca en `pendientes`, que ademas va PRIMERA (Erick, 2026-10-01).
    *
@@ -250,8 +253,18 @@ export function SmsHistoryPanel({ onTitulo }: {
 
   return (
     <>
-      {/* Solo el engranaje. El TITULO lo pone quien monta este panel. */}
-      <div className="flex items-center justify-end px-4 sm:px-6 pt-3 shrink-0">
+      {/* Nuevo SMS + el engranaje. El TITULO lo pone quien monta este panel. */}
+      <div className="flex items-center justify-end gap-2 px-4 sm:px-6 pt-3 shrink-0">
+        {/* Fuera del editor de plantillas: ahi no hay a quien escribirle. */}
+        {!editando && (
+          <button
+            type="button"
+            onClick={() => setEligiendo(true)}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-brand/15 text-brand-text text-[11px] font-medium hover:bg-brand/25 transition-colors"
+          >
+            <PenSquare className="w-3 h-3" />{t('newSms')}
+          </button>
+        )}
         <button
           type="button"
           onClick={() => { const v = !editando; setEditando(v); onTitulo?.(v); }}
@@ -509,6 +522,14 @@ export function SmsHistoryPanel({ onTitulo }: {
         patient={hilo}
         onOpenChange={(o) => { if (!o) setHilo(null); }}
         onEnviado={refrescar}
+      />
+
+      {/* Elige a quien escribirle y se lo entrega al dialogo de arriba. No
+          manda nada: la caja de texto, el contador y el envio ya viven alla. */}
+      <NuevoSmsDialog
+        abierto={eligiendo}
+        onOpenChange={setEligiendo}
+        onElegir={(p) => setHilo(p)}
       />
     </>
   );

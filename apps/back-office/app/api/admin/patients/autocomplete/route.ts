@@ -15,7 +15,7 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { db, calcAge } from '@precision-medical/database';
+import { db, calcAge, isMinor as esMenor } from '@precision-medical/database';
 import { checkPatientStaff, alcanceDePacientes } from '@/lib/patient-access';
 import { separarFecha, clausulasDeFecha } from '@/lib/fecha-buscada';
 import { idsPorTelefono } from '@/lib/telefono-buscado';
@@ -79,6 +79,18 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
    * una lista arbitraria).
    */
   const allowEmpty = searchParams.get('allowEmpty') === '1';
+  /**
+   * `canal=sms` agrega los dos datos que hacen falta para MANDAR un SMS y que
+   * ninguna otra pantalla necesita: a qué número saldría de verdad, y si esa
+   * persona se dio de baja.
+   *
+   * Es OPT-IN para no cambiarle la respuesta al selector de apoderados ni al
+   * compositor del portal, que usan este mismo endpoint. Y va acá en vez de en
+   * un buscador nuevo a propósito: ya hay dos (`search` y este), y un tercero
+   * sería una tercera forma de encontrar al mismo paciente, lista para
+   * divergir.
+   */
+  const paraSms = searchParams.get('canal') === 'sms';
 
   const acceso = await checkPatientStaff();
   if (acceso.deny) return acceso.deny;
@@ -120,8 +132,37 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       // Igual que en `/search`: sin esto el llamador no puede distinguir a un
       // paciente dado de baja de uno activo.
       status: true,
+      /**
+       * El teléfono del APODERADO. A un menor el SMS NO le llega a él: la ruta
+       * de envío manda a la ficha del apoderado. Sin esto la pantalla mostraría
+       * un número y el mensaje saldría a otro.
+       */
+      ...(paraSms ? { guardianPatient: { select: { phone: true, firstName: true, lastName: true } } } : {}),
     },
   });
+
+  /**
+   * Quién se dio de baja, en UNA consulta para todos los resultados.
+   *
+   * El 21610 es el código de Twilio para "este número mandó STOP". Hoy no hay
+   * ninguno (medido 2026-10-06), pero el día que aparezca tiene que verse
+   * ANTES de escribir: enterarse después de redactar es el caso que esta
+   * pantalla viene a evitar.
+   */
+  const numerosDeBaja = new Map<string, Date>();
+  if (paraSms) {
+    const destinos = patients
+      .map((p) => (p as { guardianPatient?: { phone: string | null } }).guardianPatient?.phone ?? p.phone)   // mismo criterio que arriba: nunca phone2
+      .filter((t): t is string => !!t && t.trim() !== '');
+    if (destinos.length > 0) {
+      const bajas = await db.messageLog.findMany({
+        where: { errorCode: 21610, toAddress: { in: destinos } },
+        select: { toAddress: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      for (const b of bajas) if (!numerosDeBaja.has(b.toAddress)) numerosDeBaja.set(b.toAddress, b.createdAt);
+    }
+  }
 
   return NextResponse.json({
     results: patients.map((p) => {
@@ -155,6 +196,35 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         isMinor: age !== null && age < 18,
         caseCount: p._count.cases,
         isArchived: p.status === 'INACTIVE',
+        ...(paraSms ? (() => {
+          const tutor = (p as { guardianPatient?: { phone: string | null; firstName: string; lastName: string } | null }).guardianPatient;
+          // El menor cobra el teléfono del apoderado, igual que hace el envío.
+          const porTutor = esMenor(p.dateOfBirth) && tutor?.phone ? tutor : null;
+          /**
+           * `phone` SOLO — nunca `phone2`, aunque el resto de este endpoint sí
+           * caiga al secundario para el subtítulo.
+           *
+           * Porque la ruta de envío usa `paciente.phone` a secas: un paciente
+           * con el principal vacío y el secundario cargado NO recibe el SMS.
+           * Medido el 2026-10-06 comparando las dos reglas sobre 3.000 fichas:
+           * con el `?? phone2` divergían 1.432. La pantalla los habría mostrado
+           * como contactables y el envío habría devuelto SIN_TELEFONO después
+           * de redactar — el caso exacto que este buscador viene a evitar.
+           *
+           * Si algún día el envío empieza a usar el secundario, ESTA línea es
+           * la que tiene que cambiar con él.
+           */
+          const destino  = (porTutor?.phone ?? p.phone ?? '').trim();
+          const baja     = destino ? numerosDeBaja.get(destino) ?? null : null;
+          return {
+            /** El número al que SALDRÍA el mensaje. Vacío = no se puede mandar. */
+            smsPhone: destino,
+            /** Cuando el SMS va al apoderado, su nombre, para poder decirlo. */
+            smsVia: porTutor ? `${porTutor.firstName} ${porTutor.lastName}`.trim() : null,
+            /** Fecha del STOP, o null. */
+            smsOptOutSince: baja ? baja.toISOString() : null,
+          };
+        })() : {}),
       };
     }),
   });

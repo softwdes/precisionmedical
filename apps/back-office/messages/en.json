@@ -7165,7 +7165,7 @@
       "firmAddNew": "Add law firm “{nombre}”",
       "attorneyAdd": "Add attorney",
       "firmAdd": "Add law firm",
-      "attorneyIsFirm": "That is the law firm — it is already saved in its own field, and you can see it under the attorney. This box is for the person.",
+      "attorneyIsFirm": "That is the law firm, not a person. The firm goes in the column; this box is for the attorney.",
       "attorneyRemove": "Remove this attorney from the case"
     },
     "online": {

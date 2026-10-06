@@ -1869,6 +1869,7 @@ export function EdsonClient({ clinics, providers, providersFiltro, carriers, law
         <TrackingDialog
           row={editing}
           carriers={carriers}
+          bufetes={catalogoBufetes}
           focus={editingFocus}
           onCountsChanged={() => void load()}
           onClose={() => { setEditing(null); setEditingFocus(null); }}
@@ -1992,6 +1993,35 @@ const CABE_SIN_CORTAR = 46;
  * entrar dos veces si Edson lo escribe en dos filas distintas. Dos opciones con
  * la misma key rompen la lista del combo.
  */
+/**
+ * ¿Lo que se escribió en el campo del ABOGADO es el nombre de una OFICINA?
+ *
+ * Existe porque el catálogo de externos guarda bufetes y personas en la misma
+ * tabla, y nada impide crear una "persona" llamada igual que su bufete. Pasó
+ * dos veces en un día: `Claggett` + `& Sykes` y `Brian` + `Hills Law`, las dos
+ * nacidas del botón que ofrecía, textual, `Add "Brian Hills Law" to Brian
+ * Hills Law`. Una persona así ensucia un catálogo que comparten facturación,
+ * el portal legal y los reportes.
+ *
+ * Mira el bufete del propio caso Y el catálogo entero: escribir el nombre de
+ * OTRO bufete en ese campo está igual de mal, y es lo que hacía Edson cuando
+ * la columna no distinguía una cosa de la otra.
+ *
+ * Va a nivel de módulo a propósito. Vivió como función local dentro de la fila
+ * mientras la celda editaba abogados, y el modal —que es la otra puerta al
+ * mismo campo— quedó sin ella. El agujero duró dos días y lo usó Edson.
+ */
+function esNombreDeBufete(
+  q: string,
+  catalogo: { name: string }[],
+  propio?: string | null,
+): boolean {
+  const t = q.trim().toLowerCase();
+  if (!t) return false;
+  return t === propio?.trim().toLowerCase()
+    || catalogo.some(f => f.name.trim().toLowerCase() === t);
+}
+
 function fundir(
   delServer: { id: string; name: string }[],
   nuevos: { id: string; name: string }[],
@@ -2286,10 +2316,12 @@ function NoteEntry({
 // ─── Modal de edición ────────────────────────────────────────────────────────
 
 function TrackingDialog({
-  row, carriers, focus, onClose, onSaved, onCountsChanged,
+  row, carriers, bufetes, focus, onClose, onSaved, onCountsChanged,
 }: {
   row: Row;
   carriers: { id: string; name: string }[];
+  /** Catalogo de bufetes, para avisar si alguien escribe uno en el campo del abogado. */
+  bufetes: { id: string; name: string }[];
   /** Seccion a la que saltar al abrir, cuando se llega desde un popover. */
   focus?: 'managers' | 'adjusters' | 'legal' | null;
   onClose: () => void;
@@ -2665,7 +2697,26 @@ function TrackingDialog({
                       * `messages/*.json` tiene trabajo sin declarar de otras dos
                       * sesiones mezclado adentro, y tocarlo arrastraria lo ajeno.
                       */
-                    renderEmpty={(q, close) => q.length < 2 ? null : (
+                    renderEmpty={(q, close) => {
+                      if (q.length < 2) return null;
+                      /*
+                        * Si lo tecleado es una OFICINA, no se ofrece ni crearla
+                        * como persona ni guardarla como texto: se avisa.
+                        *
+                        * Esta guarda existía en la celda desde el 04-oct y NO acá,
+                        * y por esta puerta entraron las dos personas falsas del
+                        * 05-oct. Desde que la columna dejó de editar abogados,
+                        * este campo es el ÚNICO camino para cargarlo — así que el
+                        * agujero pasó de incómodo a obligatorio de cerrar.
+                        */
+                      if (esNombreDeBufete(q, bufetes, lawFirm.label)) {
+                        return (
+                          <p className="px-3 py-2 text-[11.5px] text-amber">
+                            {t('attorneyIsFirm')}
+                          </p>
+                        );
+                      }
+                      return (
                       <div>
                         {/* PRIMERO sumarlo al bufete: es lo que sirve para el
                             proximo caso. El texto libre queda debajo, como
@@ -2686,7 +2737,8 @@ function TrackingDialog({
                           {t('attorneyFreeText')} — <span className="font-semibold">{q}</span>
                         </button>
                       </div>
-                    )}
+                      );
+                    }}
                   />
                   {/* Lo escrito a mano se VE y se puede sacar: sin esto queda
                       guardado en el caso sin nada en pantalla que lo diga. */}

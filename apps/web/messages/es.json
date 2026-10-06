@@ -253,6 +253,9 @@
     "appointments": "Citas",
     "commissions": "Comisiones",
     "aiAgents": "Agentes IA",
+    "disclosure": "Divulgación",
+    "security": "Centro de Seguridad",
+    "securitySection": "Security",
     "settings": "Configuración",
     "users": "Usuarios",
     "reports": "Reportes",
@@ -261,9 +264,7 @@
     "inteligencia": "Inteligencia",
     "system": "Sistema",
     "messages": "Mensajes",
-    "rewards": "Premios",
-    "security": "Security Center",
-    "securitySection": "Security"
+    "rewards": "Premios"
   },
   "dashboard": {
     "clinicStatsSoon": "Estadísticas de clínicas — próximamente",
@@ -2489,6 +2490,36 @@
         "nombre": "Cabeceras de seguridad",
         "detalle": "HSTS, anti-clickjacking, anti-sniffing"
       }
+    }
+  },
+  "disclosure": {
+    "title": "Registro de divulgación",
+    "subtitle": "Quién de nuestro personal miró la ficha, la foto, la cobranza o la bandeja de otra persona. Sale de la base clínica, no del Centro de Seguridad: eso responde quién intenta entrar, y esto responde quién ya estaba adentro.",
+    "phiWarning": "Esta pantalla muestra nombres de pacientes junto a quién los miró. Un registro de divulgación sin decir de quién no sirve para nada, así que no se puede anonimizar. Abrirla es, en sí mismo, acceder a información de salud protegida.",
+    "errRead": "No se pudo leer el registro de la clínica. Las filas de abajo no son cero: son desconocidas.",
+    "win": "{n, plural, one {# día} other {# días}}",
+    "refresh": "Actualizar",
+    "all": "Todo",
+    "patient": "paciente",
+    "statEvents": "accesos registrados",
+    "statStaff": "personas que miraron",
+    "statPatients": "pacientes alcanzados",
+    "empty": "Nadie miró nada ajeno en esta ventana.",
+    "truncated": "Se muestran los 500 más recientes. Para ver más, acortá la ventana.",
+    "colWhen": "Cuándo",
+    "colWho": "Quién miró",
+    "colWhat": "Qué hizo",
+    "colAbout": "Sobre quién",
+    "colIp": "IP",
+    "act": {
+      "PATIENTS_VIEWED_OTHER_CHART": "Abrió una ficha ajena",
+      "VIEW_PATIENT_PHOTO": "Vio la foto de identidad",
+      "VIEW_PATIENT_COLLECTIONS": "Vio el estado de cobranza",
+      "DOCTOR_VIEW_AS": "Entró como un médico",
+      "ATTORNEY_VIEW_AS": "Entró como un abogado",
+      "MESSAGING_VIEWED_OTHER_INBOX": "Abrió la bandeja de otro",
+      "VIEW_LAB_RESULT": "Abrió un resultado de laboratorio",
+      "VIEW_MESSAGE_ATTACHMENT": "Abrió un adjunto de un mensaje"
     }
   }
 }

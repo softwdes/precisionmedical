@@ -15,6 +15,7 @@ import {
   BarChart3,
   Bot,
   Settings,
+  FileSearch,
   ShieldAlert,
   ChevronLeft,
   Lock,
@@ -80,6 +81,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps): React.ReactElement {
    */
   const NAV_SECURITY: NavItem[] = [
     { key: 'seguridad', href: '/dashboard/seguridad', icon: ShieldAlert, label: t('nav.security'), module: 'seguridad' },
+    { key: 'divulgacion', href: '/dashboard/seguridad/divulgacion', icon: FileSearch, label: t('nav.disclosure'), module: 'seguridad' },
   ];
 
   const NAV_SYSTEM: NavItem[] = [

@@ -253,6 +253,9 @@
     "appointments": "Appointments",
     "commissions": "Commissions",
     "aiAgents": "AI Agents",
+    "disclosure": "Disclosure log",
+    "security": "Security Center",
+    "securitySection": "Security",
     "settings": "Settings",
     "users": "Users",
     "reports": "Reports",
@@ -261,9 +264,7 @@
     "inteligencia": "Intelligence",
     "system": "System",
     "messages": "Messages",
-    "rewards": "Rewards",
-    "security": "Security Center",
-    "securitySection": "Security"
+    "rewards": "Rewards"
   },
   "dashboard": {
     "clinicStatsSoon": "Clinic statistics — coming soon",
@@ -2489,6 +2490,36 @@
         "nombre": "Security headers",
         "detalle": "HSTS, anti-clickjacking, anti-sniffing"
       }
+    }
+  },
+  "disclosure": {
+    "title": "Disclosure log",
+    "subtitle": "Which of our staff opened someone else’s chart, photo, collections or inbox. It comes from the clinical database, not the Security Center: that one answers who is trying to get in, this one answers who was already inside.",
+    "phiWarning": "This screen shows patient names next to who looked at them. A disclosure log that does not say whose record it was is useless, so it cannot be anonymised. Opening it is itself access to protected health information.",
+    "errRead": "Could not read the clinic log. The rows below are not zero — they are unknown.",
+    "win": "{n, plural, one {# day} other {# days}}",
+    "refresh": "Refresh",
+    "all": "All",
+    "patient": "patient",
+    "statEvents": "accesses recorded",
+    "statStaff": "people who looked",
+    "statPatients": "patients involved",
+    "empty": "Nobody looked at anything of someone else’s in this window.",
+    "truncated": "Showing the 500 most recent. Narrow the window to see more.",
+    "colWhen": "When",
+    "colWho": "Who looked",
+    "colWhat": "What they did",
+    "colAbout": "About whom",
+    "colIp": "IP",
+    "act": {
+      "PATIENTS_VIEWED_OTHER_CHART": "Opened someone else’s chart",
+      "VIEW_PATIENT_PHOTO": "Viewed the ID photo",
+      "VIEW_PATIENT_COLLECTIONS": "Viewed the collections status",
+      "DOCTOR_VIEW_AS": "Signed in as a provider",
+      "ATTORNEY_VIEW_AS": "Signed in as an attorney",
+      "MESSAGING_VIEWED_OTHER_INBOX": "Opened someone else’s inbox",
+      "VIEW_LAB_RESULT": "Opened a lab result",
+      "VIEW_MESSAGE_ATTACHMENT": "Opened a message attachment"
     }
   }
 }

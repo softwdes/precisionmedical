@@ -20,6 +20,33 @@ import { ACCIONES, type Accion, type Cuentas, type DatosSeguridad, type Evento, 
 /** Ventana por defecto: dos días. Es lo que cabe en una pantalla sin filtrar. */
 const DIAS = 2;
 
+/**
+ * Le devuelve la `Z` a las fechas que vienen de Postgres.
+ *
+ * ── Por qué hace falta ─────────────────────────────────────────────────────
+ *
+ * El candado escribe `createdAt: new Date().toISOString()` — o sea UTC, con la
+ * `Z`. Pero la columna es `timestamp` **sin** zona, así que PostgREST la
+ * devuelve pelada: `2026-10-06T17:56:29.88`.
+ *
+ * Y una cadena sin zona, para JavaScript, es hora **local del navegador**. No
+ * UTC. Así que la misma fila se dibujaba distinto en cada máquina, corrida
+ * tantas horas como el huso de quien mirara.
+ *
+ * Medido el 2026-10-06 con el primer ingreso de Erick al Admin: ocurrió a las
+ * 11:56 de Utah y la pantalla lo mostraba a las 16:56 — **279 minutos en el
+ * futuro**, mientras el reloj de la barra marcaba 13:15. Él lo vio antes que yo.
+ *
+ * Se arregla acá, en el servidor, y no en la pantalla: así lo que viaja al
+ * navegador ya es una fecha sin ambigüedad, y las cuentas que hace la pantalla
+ * —los cubos de las chispas, la cercanía del radar, "hace cuánto"— salen bien
+ * sin que cada una tenga que acordarse.
+ */
+const utc = (v: string | null | undefined): string | null => {
+  if (!v) return null;
+  return /[Zz]$|[+-]\d{2}:?\d{2}$/.test(v) ? v : `${v}Z`;
+};
+
 export async function leerSeguridad(dias = DIAS): Promise<DatosSeguridad> {
   const admin = createAdminClient();
   const desde = new Date(Date.now() - dias * 86_400_000).toISOString();
@@ -53,7 +80,7 @@ export async function leerSeguridad(dias = DIAS): Promise<DatosSeguridad> {
     const m = (r.metadata ?? {}) as Record<string, unknown>;
     return {
       accion:  r.action as Accion,
-      cuando:  r.createdAt as string,
+      cuando:  utc(r.createdAt as string)!,
       ip:      (r.ipAddress as string | null) ?? null,
       correo:  correoDe.get(r.actorUserId as string) ?? null,
       modulo:  (m.app as string) ?? null,
@@ -103,14 +130,17 @@ export async function leerSeguridad(dias = DIAS): Promise<DatosSeguridad> {
      */
     pendientesQueEntran: us.filter((u) => u.status === 'PENDING_VERIFICATION').length,
     nuncaEntraron: us.filter((u) => !u.lastLoginAt).length,
-    trabadasAhora: us.filter((u) => u.lockedUntil && new Date(u.lockedUntil as string).getTime() > ahora).length,
+    trabadasAhora: us.filter((u) => {
+      const hasta = utc(u.lockedUntil as string | null);
+      return hasta !== null && new Date(hasta).getTime() > ahora;
+    }).length,
     conIntentos: us
       .filter((u) => (u.failedLoginAttempts as number) > 0 || u.lockedUntil)
       .map((u) => ({
         id: u.id as string,
         correo: u.email as string,
         intentos: (u.failedLoginAttempts as number) ?? 0,
-        hasta: (u.lockedUntil as string | null) ?? null,
+        hasta: utc(u.lockedUntil as string | null),
       })),
   };
 

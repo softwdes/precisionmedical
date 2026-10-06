@@ -4,7 +4,7 @@ import * as React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { Badge, cn } from '@precision/ui';
-import { Ban, Clock, KeyRound, Mail, PowerOff, RefreshCw, ShieldAlert, ShieldCheck, Unlock } from 'lucide-react';
+import { Ban, Clock, KeyRound, Mail, PowerOff, Printer, RefreshCw, ShieldAlert, ShieldCheck, Unlock } from 'lucide-react';
 import { api as trpc } from '@/lib/trpc/client';
 import {
   MEDIDO_EL, MODULOS, PROTECCIONES,
@@ -734,6 +734,21 @@ export function SeguridadClient({ datos, dias, mes, meses }: {
             <RefreshCw className={cn('h-3 w-3', pendiente && !quieto && 'animate-spin')} />
             {tr('refresh')}
           </button>
+
+          {/*
+            * El reporte imprimible. Enlace y no botón: se abre en otra pestaña
+            * y lleva la MISMA ventana que se está mirando, para que lo que se
+            * manda sea lo que se vio.
+            */}
+          <a
+            href={mes ? `/print/seguridad?mes=${mes}` : `/print/seguridad?dias=${dias}`}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-row-sep px-3 py-1 text-tiny text-text-3 transition-colors hover:bg-bg-1 hover:text-text-1"
+          >
+            <Printer className='h-3 w-3' />
+            {tr('printLink')}
+          </a>
         </div>
       </div>
 

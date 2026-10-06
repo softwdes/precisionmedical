@@ -1,4 +1,4 @@
-import { edad } from '@/lib/fechas';
+import { edad, ZONA_CLINICA } from '@/lib/fechas';
 /**
  * El formulario de intake del caso, como PDF. Diseño fiel al V2: fondo blanco,
  * 3 páginas, textos legales completos.
@@ -318,6 +318,27 @@ function fmtDate(d: Date | string | null | undefined) {
   if (!d) return null;
   return new Date(d).toLocaleDateString(LOCALE_PDF, {
     year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'UTC',
+  });
+}
+
+/**
+ * Una fecha que es un INSTANTE real, no una de calendario.
+ *
+ * `intakeFormCompletedAt` y el "Entry date" son momentos en el tiempo: cuándo se
+ * completó el formulario, cuándo se imprimió esta hoja. Para esos, la zona
+ * correcta es la de la CLÍNICA y no UTC — un intake generado a las 19:00 de
+ * Utah son las 01:00 UTC del día siguiente, y en UTC el papel diría mañana.
+ *
+ * Es la cara opuesta de `fmtDate`, y por eso son dos funciones y no un flag:
+ * con el flag hay que acordarse de pasarlo, y el que se olvida hereda el bug
+ * del otro tipo de fecha. Lo señaló Main Push revisando mi propio arreglo del
+ * 2026-10-06, que al forzar UTC para todo corrigió las de calendario y rompió
+ * estas dos.
+ */
+function fmtInstante(d: Date | string | null | undefined) {
+  if (!d) return null;
+  return new Date(d).toLocaleDateString(LOCALE_PDF, {
+    year: 'numeric', month: '2-digit', day: '2-digit', timeZone: ZONA_CLINICA,
   });
 }
 /**
@@ -694,7 +715,8 @@ async function buildPDF(data: {
     OTHER:         'Other',
   };
 
-  const completedDate = fmtDate(caseData.intakeFormCompletedAt);
+  /* INSTANTES, no fechas de calendario: ver fmtInstante. */
+  const completedDate = fmtInstante(caseData.intakeFormCompletedAt);
 
   const doc = (
     <Document
@@ -995,7 +1017,7 @@ async function buildPDF(data: {
         {/* Case Information */}
         <View style={s.sectionHeader}><Text style={s.sectionTitle}>Case Information</Text></View>
         <View style={s.sectionBody}>
-          <TableRow2 l1="Case type:" v1={caseData.caseType} l2="Entry date:" v2={completedDate ?? fmtDate(new Date())} last />
+          <TableRow2 l1="Case type:" v1={caseData.caseType} l2="Entry date:" v2={completedDate ?? fmtInstante(new Date())} last />
         </View>
 
         <View style={s.footer} fixed>

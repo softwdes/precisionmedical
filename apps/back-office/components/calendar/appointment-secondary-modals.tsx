@@ -214,7 +214,10 @@ function LawyerModal({ appt, onClose }: { appt: CalendarAppointment; onClose: ()
       <DataRow label={t('rowEmail')}    value={lawyer.email} />
       {appt.case?.accidentDate && (
         <DataRow label={t('rowDol')}
-          value={new Date(appt.case.accidentDate).toLocaleDateString(localeApp(), { dateStyle: 'medium' })}
+          /* `fechaCalendario` y no `toLocaleDateString`: la fecha del accidente es
+                 de CALENDARIO y la columna no trae zona, asi que formatearla en la
+                 del navegador la corre al dia anterior en Utah. */
+              value={fechaCalendario(appt.case.accidentDate)}
           highlight />
       )}
       <div className="pt-1 flex items-center gap-1.5 text-[11px] text-emerald">

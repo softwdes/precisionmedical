@@ -119,7 +119,13 @@ export function PatientDetailClient({ patient: initial }: { patient: Patient }):
             </div>
             <div>
               <p className="text-tiny text-text-3 mb-0.5">{t('patients.accidentDate')}</p>
-              <p className="text-text-1">{patient.accidentDate ? new Date(patient.accidentDate as string).toLocaleDateString() : '—'}</p>
+              <p className="text-text-1">{/* `timeZone: 'UTC'`: la fecha del accidente es de CALENDARIO y la
+                    columna no trae zona, asi que formatearla en la del navegador la
+                    corre al dia anterior para cualquiera en Utah. Es el mismo bug
+                    que el del intake impreso, medido el 2026-10-06: 516 de 574. */}
+                {patient.accidentDate
+                  ? new Date(patient.accidentDate as string).toLocaleDateString(undefined, { timeZone: 'UTC' })
+                  : '—'}</p>
             </div>
             <div>
               <p className="text-tiny text-text-3 mb-0.5">{t('patients.accidentType')}</p>

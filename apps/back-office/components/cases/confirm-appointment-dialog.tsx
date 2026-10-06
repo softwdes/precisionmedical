@@ -1,5 +1,5 @@
 'use client';
-import { localeApp } from '@/lib/fechas';
+import { localeApp, fechaCalendarioNum } from '@/lib/fechas';
 import { useServerError, type ServerErrorBody } from '@/lib/server-error';
 import { useTranslations } from 'next-intl';
 
@@ -166,7 +166,7 @@ export function ConfirmAppointmentDialog({ open, onOpenChange, caseInfo }: Confi
             <div className="space-y-1 text-xs text-text-2">
               <div><strong className="text-text-1">{t('fieldCase')}</strong> <code className="font-mono">{caseInfo.caseCode}</code></div>
               {caseInfo.accidentDate && (
-                <div><strong className="text-text-1">{t('fieldDol')}</strong> {new Date(caseInfo.accidentDate).toLocaleDateString(localeApp(), { month: '2-digit', day: '2-digit', year: 'numeric' })}</div>
+                <div><strong className="text-text-1">{t('fieldDol')}</strong> {fechaCalendarioNum(caseInfo.accidentDate)}</div>
               )}
               {caseInfo.accidentLocation && (
                 <div><strong className="text-text-1">{t('fieldPlace')}</strong> {caseInfo.accidentLocation}</div>

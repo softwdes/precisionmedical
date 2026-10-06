@@ -5541,7 +5541,10 @@
       "linkContactEmailNoCoincidence": "An email inbox belongs to one person, so there is no third option. If they really are unrelated, fix the email before creating the record — otherwise this patient will receive the other one’s messages.",
       "photoPdfError": "The PDF could not be generated.",
       "phZip": "e.g. 90210",
-      "phEmployer": "e.g. Acme Corp"
+      "phEmployer": "e.g. Acme Corp",
+      "segurosReplaceAutoTitle": "Replace the auto insurance?",
+      "segurosReplaceAuto": "This case keeps one auto insurance. Saving «{nuevo}» will replace «{actual}», and its policy, claim and adjuster will no longer be on the case.",
+      "segurosReplaceAutoConfirm": "Replace"
     },
     "messaging": {
       "tooltipPatientMessages": "Patient messages",

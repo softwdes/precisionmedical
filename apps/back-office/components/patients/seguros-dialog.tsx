@@ -28,6 +28,7 @@ import { useTranslations } from 'next-intl';
 import { Plus, Pencil, Trash2, Shield, RefreshCw } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
 import { TagPill } from '@/components/ui-phoenix';
+import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { localeApp } from '@/lib/fechas';
 import { fmtPhone } from '@/lib/telefono-formato';
 
@@ -357,6 +358,8 @@ export function SegurosDialog({ caso, titular, onClose }: {
   const [saving, setSaving]         = useState(false);
   const [loading, setLoading]       = useState(!!caso);
   const [error, setError]           = useState('');
+  /** El auto nuevo que está por pisar al que ya hay — espera confirmación. */
+  const [porReemplazar, setPorReemplazar] = useState<InsuranceEntry | null>(null);
 
   const caseId = caso?.id ?? null;
 
@@ -439,7 +442,32 @@ export function SegurosDialog({ caso, titular, onClose }: {
 
   const insTypeLabel = { MEDICAL: t('segurosTypeMedical'), AUTO: t('segurosTypeAuto') };
 
+  /**
+   * ¿Esto va a PISAR el seguro de auto que ya está cargado?
+   *
+   * La tabla es 1:1 con el caso, así que un segundo auto reemplaza al primero.
+   * Eso estaba decidido, pero **ocurría en silencio**: recepción cargaba el
+   * seguro del tercero, guardaba, y el del paciente desaparecía sin un aviso
+   * (reportado el 2026-10-06).
+   *
+   * Es reemplazo sólo cuando se está cargando uno NUEVO —`id` propio— habiendo
+   * ya otro. Editar el que existe entra con `AUTO_ENTRY_ID` y no avisa nada:
+   * ahí no se pierde nada.
+   */
+  function pisaElAutoExistente(entry: InsuranceEntry): boolean {
+    return entry.insType === 'AUTO'
+      && entry.id !== AUTO_ENTRY_ID
+      && insurances.some(i => i.insType === 'AUTO');
+  }
+
   async function handleUpsert(entry: InsuranceEntry) {
+    if (!caseId) return;
+    // Con uno ya cargado, no se guarda hasta que la persona diga que sí.
+    if (pisaElAutoExistente(entry)) { setPorReemplazar(entry); return; }
+    await guardarEntrada(entry);
+  }
+
+  async function guardarEntrada(entry: InsuranceEntry) {
     if (!caseId) return;
     setSaving(true); setError('');
     try {
@@ -588,6 +616,32 @@ export function SegurosDialog({ caso, titular, onClose }: {
           onClose={() => setFormTarget(null)}
           onSave={handleUpsert}
           initialEntry={formTarget === 'new' ? undefined : formTarget}
+        />
+      )}
+
+      {/*
+        El aviso que faltaba. Un caso guarda UN seguro de auto, así que cargar
+        otro reemplaza al que está — y antes eso pasaba sin decir nada.
+
+        El cartel nombra al que se va a perder: "esto va a reemplazar a X" se
+        entiende; "ya existe un seguro de auto" obliga a ir a mirar cuál era.
+      */}
+      {porReemplazar && (
+        <ConfirmDialog
+          open
+          variant="danger"
+          title={t('segurosReplaceAutoTitle')}
+          description={t('segurosReplaceAuto', {
+            actual: insurances.find(i => i.insType === 'AUTO')?.carrier?.trim() || t('segurosTypeAuto'),
+            nuevo:  porReemplazar.carrier?.trim() || t('segurosTypeAuto'),
+          })}
+          confirmLabel={t('segurosReplaceAutoConfirm')}
+          onConfirm={() => {
+            const entry = porReemplazar;
+            setPorReemplazar(null);
+            void guardarEntrada(entry);
+          }}
+          onCancel={() => setPorReemplazar(null)}
         />
       )}
     </>

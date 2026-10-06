@@ -8,12 +8,13 @@ import {
   User, Phone, Mail, AlertTriangle, Heart, Pill, Scissors, Users,
   MessageSquare, Activity, Brain, Shield, ClipboardList, Stethoscope,
   ChevronDown, ChevronUp, Edit2, Plus, Calendar, X, Search,
-  Cigarette, Wine, FlaskConical, Briefcase, Check,
+  Cigarette, Wine, FlaskConical, Briefcase, Check, Pencil,
 } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@precision/ui';
 import { PersonAvatar, TagPill, useToast, FloatingPanel } from '@/components/ui-phoenix';
+import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { LARGO_CORTO, LARGO_LARGO } from '@/lib/medical-history-schema';
 import { estadoAlergias, estadoMedicinas } from '@/lib/revision-historial';
 import { RevisionHistorial, type RevisionGuardada } from '@/components/visit/revision-historial';
@@ -1626,6 +1627,154 @@ function AddSurgeryDialog({
   );
 }
 
+// ── Edit surgery dialog ────────────────────────────────────────────────────
+
+/**
+ * Corregir una cirugía ya cargada, o borrarla.
+ *
+ * El alta es de TANDA —se cargan varias seguidas sin cerrar, ver `useTanda`— y
+ * por eso no servía para esto: editar es de a una y termina al guardar. Lo pidió
+ * la clínica el 2026-10-06; hasta entonces un procedimiento mal escrito se
+ * quedaba así, porque la fila era texto plano sin ninguna acción.
+ *
+ * Borrar vive acá y no en la fila por lo mismo que en el resto del sistema: una
+ * papelera suelta al lado de cada renglón se toca sin querer, y esto no tiene
+ * deshacer — el historial médico se guarda pisando el array entero.
+ */
+function EditSurgeryDialog({
+  patientId, surgery, existing, onClose, onSaved,
+}: {
+  patientId: string;
+  /** La que se está editando — `null` cierra el diálogo. */
+  surgery:   NonNullable<MedicalHistoryData['surgeries']>[number] | null;
+  existing:  MedicalHistoryData['surgeries'];
+  onClose:   () => void;
+  onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
+}) {
+  const t  = useTranslations('phoenix.patients');
+  const tc = useTranslations('phoenix.common');
+  const toast = useToast();
+  const [isPending, startTransition] = useTransition();
+  const [procedure, setProcedure] = useState('');
+  const [year,      setYear]      = useState('');
+  const [notes,     setNotes]     = useState('');
+  const [porBorrar, setPorBorrar] = useState(false);
+
+  /* Al abrir con OTRA cirugía hay que recargar los campos: el diálogo se monta
+     una sola vez y sin esto la segunda que se abre muestra la primera. */
+  useEffect(() => {
+    setProcedure(surgery?.procedure ?? '');
+    setYear(surgery?.date ?? '');
+    setNotes(surgery?.notes ?? '');
+    setPorBorrar(false);
+  }, [surgery]);
+
+  if (!surgery) return null;
+
+  function guardar(lista: NonNullable<MedicalHistoryData['surgeries']>) {
+    startTransition(async () => {
+      if (!await guardarSeccion(patientId, { surgeries: lista }, toast.error, t)) return;
+      onSaved?.({ surgeries: lista });
+      onClose();
+    });
+  }
+
+  function handleSave() {
+    if (!procedure.trim() || !surgery) return;
+    guardar((existing ?? []).map(s => s.id === surgery.id ? {
+      ...s,
+      procedure: procedure.trim(),
+      date:      year.trim() || undefined,
+      notes:     notes.trim() || undefined,
+    } : s));
+  }
+
+  return (
+    <>
+      <Dialog open onOpenChange={v => { if (!v) onClose(); }}>
+        <DialogContent className="max-w-md p-0 overflow-hidden">
+          <DialogHeader className="px-6 py-4 border-b border-border">
+            <DialogTitle className="text-base font-semibold text-text-1">
+              {t('mh.sub.editSurgeryTitle')}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-text-muted">
+              {t('mh.sub.editSurgeryDesc')}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="px-6 py-5 space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-sm text-text-2">{t('mh.sub.procedureNameLabel')}</label>
+              <input maxLength={LARGO_CORTO}
+                autoFocus
+                value={procedure}
+                onChange={e => setProcedure(e.target.value)}
+                placeholder={t('mh.sub.procedureNamePlaceholder')}
+                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-sm text-text-2">{t('mh.sub.yearLabel')}</label>
+              {/* Mismo filtro que el alta: sólo dígitos, cuatro. Si acá se
+                  dejara texto libre, el servidor rechazaría lo que el alta ya
+                  impide escribir. */}
+              <input
+                inputMode="numeric"
+                maxLength={4}
+                value={year}
+                onChange={e => setYear(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                placeholder={t('mh.sub.yearPlaceholder')}
+                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-sm text-text-2">{t('mh.sub.comments')}</label>
+              <textarea maxLength={LARGO_LARGO}
+                rows={3}
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                placeholder={t('mh.sub.surgeryNotes')}
+                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-y"
+              />
+            </div>
+          </div>
+
+          <div className="px-6 pb-5 flex flex-col sm:flex-row gap-2">
+            <button onClick={() => setPorBorrar(true)} disabled={isPending}
+              className="w-full sm:w-auto px-4 py-2 rounded-md border border-rose/30 text-sm text-rose hover:bg-rose/10 disabled:opacity-50 transition-colors">
+              {tc('delete')}
+            </button>
+            <div className="sm:ml-auto flex flex-col sm:flex-row gap-2">
+              <button onClick={onClose} disabled={isPending}
+                className="w-full sm:w-auto px-4 py-2 rounded-md border border-border text-sm text-text-2 hover:bg-white/5 disabled:opacity-50 transition-colors">
+                {tc('cancel')}
+              </button>
+              <button onClick={handleSave} disabled={isPending || !procedure.trim()}
+                className="w-full sm:w-auto px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-50 transition-colors">
+                {isPending ? tc('saving') : tc('save')}
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {porBorrar && (
+        <ConfirmDialog
+          open
+          variant="danger"
+          title={t('mh.sub.deleteSurgeryTitle')}
+          description={t('mh.sub.deleteSurgery', { name: surgery.procedure })}
+          confirmLabel={tc('delete')}
+          onConfirm={() => guardar((existing ?? []).filter(s => s.id !== surgery.id))}
+          onCancel={() => setPorBorrar(false)}
+        />
+      )}
+    </>
+  );
+}
+
 // ── Add provider history dialog ────────────────────────────────────────────
 
 function AddProviderDialog({
@@ -2698,6 +2847,8 @@ export function MedicalHistoryContent({ patient, onChanged }: MedicalHistoryCont
   const [addHistory,      setAddHistory]      = useState(false);
   const [addMedication,   setAddMedication]   = useState(false);
   const [addSurgery,       setAddSurgery]       = useState(false);
+  /** La cirugía que se está editando — null, ninguna. */
+  const [editSurgery,      setEditSurgery]      = useState<NonNullable<MedicalHistoryData['surgeries']>[number] | null>(null);
   const [addFamilyHistory, setAddFamilyHistory] = useState(false);
   const [addProvider,      setAddProvider]      = useState(false);
   const [editAllergies,    setEditAllergies]    = useState(false);
@@ -3107,7 +3258,22 @@ export function MedicalHistoryContent({ patient, onChanged }: MedicalHistoryCont
                 {(mh.surgeries?.length ?? 0) === 0
                   ? <EmptyState text={t('mh.noSurgeries')} />
                   : mh.surgeries!.map(s => (
-                      <div key={s.id} className="text-[11px] text-text-2 border-b border-row-sep py-1.5 last:border-0">{s.procedure}</div>
+                      /* La fila entera abre la edición, no un lápiz chiquito:
+                         recepción usa iPad y un icono de 14px es un blanco
+                         difícil. El lápiz se muestra igual, como señal de que
+                         la fila se puede tocar. */
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => setEditSurgery(s)}
+                        className="w-full text-left text-[11px] text-text-2 border-b border-row-sep py-1.5 last:border-0 flex items-center gap-2 group hover:text-brand-text transition-colors"
+                      >
+                        <span className="flex-1 min-w-0">
+                          {s.procedure}
+                          {s.date && <span className="text-text-muted ml-1.5">({s.date})</span>}
+                        </span>
+                        <Pencil className="w-3 h-3 shrink-0 text-text-muted group-hover:text-brand-text transition-colors" />
+                      </button>
                     ))}
               </SectionCard>
 
@@ -3385,6 +3551,13 @@ export function MedicalHistoryContent({ patient, onChanged }: MedicalHistoryCont
         onSaved={onSaved}
       />
     )}
+    <EditSurgeryDialog
+      patientId={patient.id}
+      surgery={editSurgery}
+      existing={mh.surgeries}
+      onClose={() => setEditSurgery(null)}
+      onSaved={onSaved}
+    />
     {addMedication && (
       <AddMedicationDialog
         patientId={patient.id}

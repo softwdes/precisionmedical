@@ -5462,7 +5462,11 @@
             "halfSibling": "Half sibling",
             "adoptiveParent": "Adoptive parent",
             "other": "Other"
-          }
+          },
+          "editSurgeryTitle": "Edit surgery or procedure",
+          "editSurgeryDesc": "Correct what was recorded, or remove it from the history.",
+          "deleteSurgeryTitle": "Remove this procedure?",
+          "deleteSurgery": "«{name}» will no longer appear in the patient's history."
         },
         "allergiesPlaceholder": "Penicillin = hives\nVancomycin = liver failure",
         "allergiesHint": "One per line. Add the reaction after an \"=\" when it is known."

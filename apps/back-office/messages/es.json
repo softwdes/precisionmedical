@@ -5462,7 +5462,11 @@
             "halfSibling": "Medio hermano(a)",
             "adoptiveParent": "Padre/Madre adoptivo(a)",
             "other": "Otro"
-          }
+          },
+          "editSurgeryTitle": "Editar cirugía o procedimiento",
+          "editSurgeryDesc": "Corregí lo que se cargó, o sacalo del historial.",
+          "deleteSurgeryTitle": "¿Sacar este procedimiento?",
+          "deleteSurgery": "«{name}» deja de figurar en el historial del paciente."
         },
         "allergiesPlaceholder": "Penicilina = urticaria\nVancomicina = falla hepática",
         "allergiesHint": "Una por línea. Después del «=» va la reacción, si se conoce."

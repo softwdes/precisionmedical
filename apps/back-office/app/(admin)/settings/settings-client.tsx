@@ -17,6 +17,7 @@ import {
   DialogTitle, DialogFooter, Label,
 } from '@precision/ui';
 import { PageHeader, IconAction, EmptyState } from '@/components/ui-phoenix';
+import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { US_STATES, CITIES_BY_STATE, CITY_ZIP } from '@/lib/us-locations';
 import { SpecialtiesClient } from '@/app/(admin)/admin/specialties/specialties-client';
 import { LawyersClient }     from '@/app/(admin)/admin/lawyers/lawyers-client';
@@ -34,7 +35,7 @@ import { seesSettingsTab } from '@/lib/settings-tabs-modules';
 interface Clinic {
   id: string; name: string; address: string; phone: string; cellPhone: string;
   email: string; zipCode: string; state: string; city: string; color: string;
-  appointmentCount: number;
+  appointmentCount: number; isActive: boolean;
 }
 
 // Nota: el tab 'plantillas' se retiró — las plantillas clínicas se gestionan
@@ -222,7 +223,7 @@ export function SettingsClient({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(serverError(data as ServerErrorBody));
-      setClinics((prev) => [...prev, { ...data.clinic, appointmentCount: 0 }].sort((a, b) => a.name.localeCompare(b.name)));
+      setClinics((prev) => [...prev, { ...data.clinic, appointmentCount: 0, isActive: true }].sort((a, b) => a.name.localeCompare(b.name)));
       setCreateOpen(false);
     } catch (e) { setError(e instanceof Error ? e.message : t('errorCreate')); }
     finally { setSaving(false); }
@@ -244,6 +245,47 @@ export function SettingsClient({
       setEditing(null);
     } catch (e) { setError(e instanceof Error ? e.message : t('errorSave')); }
     finally { setSaving(false); }
+  }
+
+  /**
+   * Habilitar / deshabilitar. Deshabilitar con citas futuras: el servidor
+   * contesta 409 con el conteo y se pide confirmar (no cancela nada).
+   */
+  const [disablePending, setDisablePending] = useState<{ clinic: Clinic; count: number } | null>(null);
+  const [toggling, setToggling] = useState<string | null>(null);
+
+  async function setClinicActive(c: Clinic, isActive: boolean, confirmFuture = false) {
+    setToggling(c.id);
+    try {
+      const res = await fetch(`/api/admin/clinics/${c.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive, confirmFuture }),
+      });
+      const data = await res.json();
+      if (res.status === 409 && data?.error === 'HAS_FUTURE_APPOINTMENTS') {
+        setDisablePending({ clinic: c, count: data.params?.count ?? 0 });
+        return;
+      }
+      if (!res.ok) throw new Error(serverError(data as ServerErrorBody));
+      setClinics((prev) => prev.map((x) => x.id === c.id ? { ...x, isActive } : x));
+      setDisablePending(null);
+    } catch (e) { alert(e instanceof Error ? e.message : t('errorToggle')); }
+    finally { setToggling(null); }
+  }
+
+  function ClinicSwitch({ c }: { c: Clinic }) {
+    return (
+      <button
+        type="button" role="switch" aria-checked={c.isActive}
+        aria-label={c.isActive ? t('actionDisable') : t('actionEnable')}
+        title={c.isActive ? t('actionDisable') : t('actionEnable')}
+        disabled={toggling === c.id}
+        onClick={() => setClinicActive(c, !c.isActive)}
+        className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${c.isActive ? 'bg-emerald' : 'bg-bg-3'}`}
+      >
+        <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${c.isActive ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
+      </button>
+    );
   }
 
   async function handleDelete() {
@@ -286,7 +328,9 @@ export function SettingsClient({
         <div className="px-4 sm:px-6 pb-6 space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
-              <p className="text-text-1 font-semibold text-sm">{t('clinicsCount', { count: clinics.length })}</p>
+              <p className="text-text-1 font-semibold text-sm">{clinics.some((c) => !c.isActive)
+                  ? t('clinicsActiveCount', { active: clinics.filter((c) => c.isActive).length, inactive: clinics.filter((c) => !c.isActive).length })
+                  : t('clinicsCount', { count: clinics.length })}</p>
               <p className="text-text-muted text-[11px]">{t('clinicsHint')}</p>
             </div>
             <Button size="sm" onClick={openCreate} className="flex items-center gap-1.5">
@@ -301,7 +345,7 @@ export function SettingsClient({
               {/* Mobile: cards */}
               <div className="sm:hidden space-y-2">
                 {clinics.map((c) => (
-                  <div key={c.id} className="rounded-lg border border-border bg-bg-1 p-3 flex items-start justify-between gap-3">
+                  <div key={c.id} className={`rounded-lg border border-border bg-bg-1 p-3 flex items-start justify-between gap-3 ${c.isActive ? '' : 'opacity-50'}`}>
                     <div className="flex items-start gap-2.5 min-w-0">
                       <div className="w-3 h-3 rounded-full mt-0.5 shrink-0" style={{ backgroundColor: c.color || '#6366F1' }} />
                       <div className="min-w-0">
@@ -311,7 +355,8 @@ export function SettingsClient({
                         {c.email && <p className="text-text-muted text-[11px] truncate">{c.email}</p>}
                       </div>
                     </div>
-                    <div className="flex gap-1 shrink-0">
+                    <div className="flex gap-1 items-center shrink-0">
+                      <ClinicSwitch c={c} />
                       <IconAction icon={Pencil} label={t('actionEdit')} onClick={() => openEdit(c)} />
                       <IconAction icon={Trash2} label={t('actionDelete')} variant="danger" onClick={() => setDeleting(c)} />
                     </div>
@@ -324,14 +369,14 @@ export function SettingsClient({
                 <table className="w-full text-sm min-w-[800px]">
                   <thead>
                     <tr className="border-b border-border bg-bg-2/40">
-                      {[t('fieldColor'), t('fieldName'), t('fieldPhone'), t('fieldMobile'), t('fieldEmail'), t('fieldState'), t('fieldCity'), t('fieldZip'), t('colActions')].map((h) => (
+                      {[t('fieldColor'), t('fieldName'), t('fieldPhone'), t('fieldMobile'), t('fieldEmail'), t('fieldState'), t('fieldCity'), t('fieldZip'), t('fieldStatus'), t('colActions')].map((h) => (
                         <th key={h} className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {clinics.map((c) => (
-                      <tr key={c.id} className="border-b border-border/30 hover:bg-white/[0.02]">
+                      <tr key={c.id} className={`border-b border-border/30 hover:bg-white/[0.02] ${c.isActive ? '' : 'opacity-50'}`}>
                         <td className="px-3 py-3">
                           <div className="w-4 h-4 rounded-full" style={{ backgroundColor: c.color || '#6366F1' }} />
                         </td>
@@ -342,6 +387,12 @@ export function SettingsClient({
                         <td className="px-3 py-3 text-text-2 text-[12px]">{c.state || <span className="text-text-muted italic">—</span>}</td>
                         <td className="px-3 py-3 text-text-2 text-[12px]">{c.city || <span className="text-text-muted italic">—</span>}</td>
                         <td className="px-3 py-3 text-text-muted text-[12px] font-mono">{c.zipCode || <span className="italic">—</span>}</td>
+                        <td className="px-3 py-3">
+                          <div className="flex items-center gap-2">
+                            <ClinicSwitch c={c} />
+                            <span className="text-[11px] text-text-muted">{c.isActive ? t('statusActive') : t('statusInactive')}</span>
+                          </div>
+                        </td>
                         <td className="px-3 py-3">
                           <div className="flex items-center gap-1">
                             <IconAction icon={Pencil} label={t('actionEdit')} onClick={() => openEdit(c)} />
@@ -372,6 +423,15 @@ export function SettingsClient({
       {activeTab === 'escritorios'    && isAdmin && <MessageDesksClient />}
       {activeTab === 'auditlog'       && <AuditLogsClient kpis={auditKpis} initialLogs={initialAuditLogs} />}
       {activeTab === 'releases'       && <ReleasesClient />}
+
+      <ConfirmDialog
+        open={!!disablePending}
+        title={t('disableTitle', { name: disablePending?.clinic.name ?? '' })}
+        description={t('disableFutureBody', { count: disablePending?.count ?? 0 })}
+        confirmLabel={t('disableConfirm')}
+        onCancel={() => setDisablePending(null)}
+        onConfirm={() => { if (disablePending) setClinicActive(disablePending.clinic, false, true); }}
+      />
 
       {/* ── Clinic form dialog (shared for create + edit) ── */}
       {[

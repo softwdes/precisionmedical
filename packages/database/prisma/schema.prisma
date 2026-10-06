@@ -1052,6 +1052,12 @@ model Clinic {
   /// funcionaría hasta la primera vez que se mude o se renombre.
   isMainOffice  Boolean  @default(false)
 
+  /// Habilitada para recibir citas nuevas. Deshabilitar NO borra ni toca las
+  /// citas existentes: la clínica solo deja de ofrecerse en los selectores
+  /// (agenda, alta de paciente, lobby, tarjeta del bufete). Las pantallas que
+  /// leen historia siguen resolviéndola por nombre.
+  isActive      Boolean  @default(true)
+
   // ScriptSure / DAW (D4 — prescripción electrónica)
   scriptsurePracticeId String?
 

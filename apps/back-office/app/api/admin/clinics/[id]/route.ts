@@ -15,6 +15,9 @@ const UpdateSchema = z.object({
   state:     z.string().max(2).nullable().optional(),
   city:      z.string().max(100).nullable().optional(),
   color:     z.string().regex(/^#[0-9A-Fa-f]{6}$/).nullable().optional(),
+  isActive:  z.boolean().optional(),
+  /** Confirma deshabilitar aunque la clínica tenga citas futuras (no las cancela). */
+  confirmFuture: z.boolean().optional(),
 });
 
 export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
@@ -24,19 +27,41 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   try { parsed = UpdateSchema.parse(await req.json()); }
   catch { return NextResponse.json({ error: 'INVALID_PAYLOAD' }, { status: 400 }); }
 
-  const clinic = await db.clinic.findUnique({ where: { id }, select: { id: true } });
+  const clinic = await db.clinic.findUnique({ where: { id }, select: { id: true, name: true, isActive: true } });
   if (!clinic) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
+  const { confirmFuture, ...data } = parsed;
+
+  // Deshabilitar con citas futuras vivas: se avisa con el conteo y hace falta
+  // confirmar. Nunca se cancela nada por el camino — esas citas siguen en pie.
+  if (data.isActive === false && clinic.isActive && !confirmFuture) {
+    const future = await db.appointment.count({
+      where: {
+        clinicId: id, deletedAt: null,
+        scheduledFor: { gte: new Date() },
+        status: { in: ['SCHEDULED', 'CONFIRMED', 'PENDING'] },
+      },
+    });
+    if (future > 0) {
+      return NextResponse.json({
+        error: 'HAS_FUTURE_APPOINTMENTS',
+        params: { name: clinic.name, count: future },
+      }, { status: 409 });
+    }
+  }
 
   if (parsed.name) {
     const dup = await db.clinic.findFirst({ where: { name: parsed.name, NOT: { id } }, select: { id: true } });
     if (dup) return NextResponse.json({ error: 'DUPLICATE_NAME', params: { name: parsed.name } }, { status: 409 });
   }
 
-  const updated = await db.clinic.update({ where: { id }, data: parsed });
+  const updated = await db.clinic.update({ where: { id }, data });
 
   await writeAuditLog(db, {
     actorType: actor.actorType, actorUserId: actor.actorUserId, actorRole: actor.actorRole,
-    action: 'UPDATE_CLINIC', entityType: 'clinics', entityId: id,
+    action: data.isActive !== undefined && data.isActive !== clinic.isActive
+      ? (data.isActive ? 'ENABLE_CLINIC' : 'DISABLE_CLINIC')
+      : 'UPDATE_CLINIC',
+    entityType: 'clinics', entityId: id,
     ipAddress: actor.ipAddress, userAgent: actor.userAgent,
     after: updated,
   });

@@ -31,6 +31,7 @@ const CATALOG_TO_SPECIALTY_ENUM: Record<string, string[]> = {
 export async function GET(): Promise<NextResponse> {
   const [clinics, providers, specialties] = await Promise.all([
     db.clinic.findMany({
+      where: { isActive: true },
       orderBy: { name: 'asc' },
       select: { id: true, name: true, address: true, phone: true },
     }),

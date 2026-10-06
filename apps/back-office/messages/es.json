@@ -6527,7 +6527,17 @@
       "dlgDeleteBody": "¿Eliminar <b>{nombre}</b>? Esta acción no se puede deshacer.",
       "dlgDeleteHasAppointments": "⚠ Esta clínica tiene {count, plural, one {# cita} other {# citas}} — no se podrá eliminar.",
       "customColor": "Color personalizado",
-      "labsLoadError": "No se pudo cargar el catálogo de precios. Recargá la página."
+      "labsLoadError": "No se pudo cargar el catálogo de precios. Recargá la página.",
+      "clinicsActiveCount": "{active} activas · {inactive} inactivas",
+      "fieldStatus": "Estado",
+      "statusActive": "Activa",
+      "statusInactive": "Inactiva",
+      "actionEnable": "Habilitar clínica",
+      "actionDisable": "Deshabilitar clínica",
+      "disableTitle": "¿Deshabilitar {name}?",
+      "disableFutureBody": "{count, plural, one {Tiene 1 cita próxima} other {Tiene # citas próximas}}. NO se cancelan y siguen en el calendario, pero la clínica deja de ofrecerse al agendar citas nuevas.",
+      "disableConfirm": "Deshabilitar",
+      "errorToggle": "No se pudo cambiar el estado de la clínica"
     },
     "providers": {
       "errorDelete": "No se pudo eliminar el Provider.",

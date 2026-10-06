@@ -37,7 +37,7 @@ export default async function SettingsPage() {
       orderBy: { name: 'asc' },
       select: {
         id: true, name: true, address: true, phone: true, cellPhone: true,
-        email: true, zipCode: true, state: true, city: true, color: true,
+        email: true, zipCode: true, state: true, city: true, color: true, isActive: true,
         _count: { select: { appointments: true } },
       },
     }),
@@ -190,7 +190,7 @@ export default async function SettingsPage() {
       initialClinics={clinics.map((c) => ({
         id: c.id, name: c.name, address: c.address ?? '', phone: c.phone ?? '',
         cellPhone: c.cellPhone ?? '', email: c.email ?? '', zipCode: c.zipCode ?? '',
-        state: c.state ?? '', city: c.city ?? '', color: c.color ?? '#6366F1',
+        state: c.state ?? '', city: c.city ?? '', color: c.color ?? '#6366F1', isActive: c.isActive,
         appointmentCount: c._count.appointments,
       }))}
       initialSpecialties={specialties.map((s) => ({

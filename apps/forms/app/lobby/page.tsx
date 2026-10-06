@@ -29,6 +29,7 @@ export default async function LobbyIndexPage({ searchParams }: Props) {
   const clinicsWithAppts = await db.clinic.findMany({
     where: {
       appointments: { some: {} },
+      isActive: true,
     },
     orderBy: { name: 'asc' },
     select: {

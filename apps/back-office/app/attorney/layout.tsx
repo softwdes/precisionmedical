@@ -171,6 +171,7 @@ export default async function AttorneyLayout({ children }: { children: ReactNode
   // Tarjeta de oficina (F7). Son las 5 sedes que v2 muestra en el portal legal:
   // las que tienen foto, horarios y web cargados.
   const clinicRows = await db.clinic.findMany({
+    where: { isActive: true },
     orderBy: { name: 'asc' },
     select: {
       id: true, name: true, address: true, city: true, state: true, zipCode: true,

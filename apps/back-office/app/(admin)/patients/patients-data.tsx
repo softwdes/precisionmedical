@@ -156,6 +156,7 @@ export async function PatientsData({
       select: { id: true, name: true, color: true },
     }),
     db.clinic.findMany({
+      where: { isActive: true },
       orderBy: { name: 'asc' },
       select: { id: true, name: true, address: true },
     }),

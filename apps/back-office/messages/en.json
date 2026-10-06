@@ -6527,7 +6527,17 @@
       "dlgDeleteBody": "Delete <b>{nombre}</b>? This cannot be undone.",
       "dlgDeleteHasAppointments": "⚠ This clinic has {count, plural, one {# appointment} other {# appointments}} — it cannot be deleted.",
       "customColor": "Custom color",
-      "labsLoadError": "Could not load the price catalog. Reload the page."
+      "labsLoadError": "Could not load the price catalog. Reload the page.",
+      "clinicsActiveCount": "{active} active · {inactive} inactive",
+      "fieldStatus": "Status",
+      "statusActive": "Active",
+      "statusInactive": "Inactive",
+      "actionEnable": "Enable clinic",
+      "actionDisable": "Disable clinic",
+      "disableTitle": "Disable {name}?",
+      "disableFutureBody": "{count, plural, one {It has 1 upcoming appointment} other {It has # upcoming appointments}}. They are NOT cancelled and stay on the calendar, but the clinic will stop being offered when scheduling new ones.",
+      "disableConfirm": "Disable",
+      "errorToggle": "Could not change the clinic status"
     },
     "providers": {
       "errorDelete": "The Provider could not be deleted.",

@@ -6,7 +6,7 @@ import { SEDE_WHERE } from '@/lib/clinic-sede';
 
 const CLINIC_SELECT = {
   id: true, name: true, address: true, phone: true, cellPhone: true,
-  email: true, zipCode: true, state: true, city: true, color: true,
+  email: true, zipCode: true, state: true, city: true, color: true, isActive: true,
   _count: { select: { appointments: true } },
 } as const;
 
@@ -17,9 +17,12 @@ const CLINIC_SELECT = {
  * que justamente va a editar.
  */
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  const soloSedes = new URL(req.url).searchParams.get('soloSedes') === '1';
+  const params = new URL(req.url).searchParams;
+  const soloSedes = params.get('soloSedes') === '1';
+  // `?soloActivas=1`: para selectores. Settings no lo manda: administra todas.
+  const soloActivas = params.get('soloActivas') === '1';
   const clinics = await db.clinic.findMany({
-    where:   soloSedes ? SEDE_WHERE : undefined,
+    where:   { ...(soloSedes ? SEDE_WHERE : {}), ...(soloActivas ? { isActive: true } : {}) },
     orderBy: { name: 'asc' },
     select:  CLINIC_SELECT,
   });

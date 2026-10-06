@@ -42,6 +42,7 @@ export default async function DoctorCalendarPage({
    */
   const [clinics, providers] = await Promise.all([
     db.clinic.findMany({
+      where: { isActive: true },
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
     }),

@@ -27,9 +27,7 @@ import { db, VIGENTES } from '@precision-medical/database';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
 import { safeHtml, hasText } from '@/lib/safe-html';
 import { getSectionLabelOverrides, sectionLabelFrom } from '@/lib/section-labels';
-import { getOwnSessionProvider, canViewAsDoctor } from '@/lib/get-session-provider';
-import { canAuditNotesFor } from '@/lib/notes-audit-access';
-import { getSessionUser } from '@/lib/session';
+import { checkAppointmentAccess } from '@/lib/appointment-access';
 import { nombreProvider } from '@/lib/provider-name';
 
 type Props = { params: Promise<{ appointmentId: string }> };
@@ -95,32 +93,34 @@ export default async function VisitNotePrintPage({ params }: Props): Promise<Rea
   const tSpec = await getTranslations('providers.specialties');
   const locale = await getLocale();
 
-  // Quién puede imprimir la nota de OTRO doctor: el staff sí (soporte, admin, el
-  // detalle del caso), el doctor común no. `canViewAsDoctor` es la misma señal
-  // que usa el middleware, así que ruteo y página dejan de contradecirse — antes
-  // el middleware te dejaba entrar y la página te devolvía 404.
-  //
-  // El perfil se lee con `getOwnSessionProvider`: el propio, sin la cookie de
-  // "ver como otro". Esa cookie vale solo dentro de /doctor — si acá se colara,
-  // un admin que revisó el portal del Dr. X no podría imprimir nada de nadie más.
-  //
-  // Vale CUALQUIERA de las dos capacidades. Quien supervisa las notas
-  // (`/notes`) puede no tener el Portal Médico —son cosas distintas: una es
-  // suplantar a un médico, la otra es auditar lo que escribió— y sin esto veía
-  // la lista completa y no podía abrir una sola nota. Un callejón, no un
-  // permiso.
-  const user = await getSessionUser();
-  const esStaff = user?.email
-    ? (await canViewAsDoctor(user.email)) || (await canAuditNotesFor(user.email))
-    : false;
-  const propio = esStaff ? null : await getOwnSessionProvider();
-  // Ni staff ni ficha de doctor: no hay nada que pueda imprimir. Sin esto el
-  // `propio` en null abriría la consulta a cualquier cita — el caso vacío no
-  // puede caer del lado permisivo.
-  if (!esStaff && !propio) notFound();
+  /**
+   * IMPRIMIR es tan ancho como LEER. Decisión de Erick, 2026-10-06.
+   *
+   * Esta página tenía su propio guard —`canViewAsDoctor || canAuditNotesFor`, o
+   * ser el provider dueño— y era MÁS ESTRECHO que el permiso de abrir la nota en
+   * pantalla. Resultado: recepción leía la nota entera, veía el botón "Print the
+   * note" (que se muestra con mirar sólo si está firmada) y recibía "Document
+   * not available". Medido: **17 cuentas EMPLOYEE** quedaban de ese lado, que son
+   * justo quienes imprimen para el bufete y el seguro.
+   *
+   * Y no protegía nada: quien ya tiene la nota a la vista no gana acceso a nada
+   * nuevo al imprimirla.
+   *
+   * Ahora usa `checkAppointmentAccess`, **el mismo resolvedor que la API que
+   * sirve la nota** (`/api/admin/visit-notes/[id]`), con sus cuatro ramas: el
+   * doctor de la cita, los admins, quien audita notas y el staff del
+   * back-office. Un solo lugar decide quién puede ver una nota, y la impresión
+   * deja de ser una regla aparte que se desincroniza.
+   *
+   * El propio comentario de `appointment-access.ts` ya avisaba que este callejón
+   * —ver la lista y no poder abrir— había habido que destaparlo antes "en la
+   * vista de impresión y en el modal de caso". Esta es la tercera vez.
+   */
+  const { deny } = await checkAppointmentAccess(appointmentId);
+  if (deny) notFound();
 
   const a = await db.appointment.findFirst({
-    where: { ...VIGENTES, ...(propio ? { id: appointmentId, providerId: propio.id } : { id: appointmentId }) },
+    where: { ...VIGENTES, id: appointmentId },
     select: {
       id: true,
       scheduledFor: true,

@@ -8,6 +8,10 @@
     {
       "path": "/api/cron/auditoria",
       "schedule": "30 13,14 * * *"
+    },
+    {
+      "path": "/api/cron/seguridad",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

@@ -4,4 +4,7 @@ export type { SentryHealth, SentryProjectHealth, SentryIssue } from './routers/o
 export type { EmployeeActivityRow, EmployeeHeadline, ActionFamily, DoctorActivityRow, DoctorConsultation, ConsultationDetail } from './routers/metrics';
 export { createCallerFactory, router, publicProcedure, protectedProcedure, adminProcedure, superAdminProcedure } from './trpc';
 export type { Context } from './trpc';
-export { sendPasswordResetEmail, sendWelcomeEmail, sendLowBalanceEmail, sendAuditAlertEmail } from './email';
+export {
+  sendPasswordResetEmail, sendWelcomeEmail, sendLowBalanceEmail,
+  sendAuditAlertEmail, sendSecurityAlertEmail,
+} from './email';

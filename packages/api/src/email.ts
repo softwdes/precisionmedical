@@ -194,6 +194,57 @@ export async function sendAuditAlertEmail({
   if (error) throw new Error(`Resend [${error.name}]: ${error.message}`);
 }
 
+/**
+ * El aviso de seguridad.
+ *
+ * Es el único correo del sistema que puede llegar de madrugada, así que dice
+ * en el asunto QUÉ pasó y CUÁNTAS veces: quien lo recibe a las 3 de la mañana
+ * tiene que poder decidir si se levanta sin abrir nada.
+ *
+ * No lleva botón de "bloquear" ni ninguna acción con un solo clic desde el
+ * correo: un enlace que ejecuta algo es exactamente lo que un atacante quiere
+ * que exista. El botón lleva a la pantalla, donde hay que estar con sesión.
+ */
+export async function sendSecurityAlertEmail({
+  to,
+  titulo,
+  lineas,
+}: {
+  to: string;
+  titulo: string;
+  lineas: string[];
+}): Promise<void> {
+  const filas = lineas
+    .map(l => `
+      <div style="background:#0A0A0F;border:1px solid rgba(244,63,94,0.25);border-left:3px solid #F43F5E;border-radius:8px;padding:12px 16px;margin-bottom:8px;">
+        <p style="margin:0;color:#E2E2EE;font-size:13px;line-height:1.5;">${l}</p>
+      </div>
+    `)
+    .join('');
+
+  const html = baseTemplate(`
+    <div style="text-align:center;margin-bottom:20px;">
+      <div style="display:inline-flex;align-items:center;justify-content:center;background:rgba(244,63,94,0.12);border:1px solid rgba(244,63,94,0.3);border-radius:50%;width:52px;height:52px;">
+        <span style="font-size:24px;">🛡️</span>
+      </div>
+    </div>
+    <h2 style="color:#E2E2EE;font-size:18px;font-weight:700;margin:0 0 8px;text-align:center;">${titulo}</h2>
+    <p style="color:#8888AA;font-size:13px;margin:0 0 20px;line-height:1.6;text-align:center;">
+      Centro de Seguridad · Precision Medical
+    </p>
+    ${filas}
+    <div style="text-align:center;margin-top:20px;">
+      <a href="${process.env.NEXT_PUBLIC_APP_URL ?? 'https://admin.lienmaster.net'}/dashboard/seguridad"
+         style="display:inline-block;background:linear-gradient(135deg,#6366F1 0%,#8B5CF6 100%);color:white;font-weight:700;font-size:14px;padding:12px 28px;border-radius:10px;text-decoration:none;">
+        Abrir el Centro de Seguridad →
+      </a>
+    </div>
+  `);
+
+  const { error } = await resend.emails.send({ from: FROM, to, subject: `🛡️ ${titulo}`, html });
+  if (error) throw new Error(`Resend [${error.name}]: ${error.message}`);
+}
+
 export async function sendLowBalanceEmail({
   to,
   boxName,

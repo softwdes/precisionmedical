@@ -5992,7 +5992,8 @@
       "newSmsNoPhone": "No phone on file — cannot be texted",
       "newSmsOptOut": "Opted out on {fecha} — cannot be texted",
       "newSmsVia": "goes to {nombre}, their guardian",
-      "newSmsArchived": "archived"
+      "newSmsArchived": "archived",
+      "statusEmailSentUnknown": "Sent · unconfirmed"
     },
     "calls": {
       "payModalTitle": "Case payment",

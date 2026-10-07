@@ -5992,7 +5992,8 @@
       "newSmsNoPhone": "Sin teléfono — no se le puede escribir",
       "newSmsOptOut": "Se dio de baja el {fecha} — no se le puede escribir",
       "newSmsVia": "va al teléfono de {nombre}, su apoderado",
-      "newSmsArchived": "archivado"
+      "newSmsArchived": "archivado",
+      "statusEmailSentUnknown": "Enviado · sin confirmar"
     },
     "calls": {
       "payModalTitle": "Pago del caso",

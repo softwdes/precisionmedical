@@ -241,7 +241,27 @@ export function SmsHistoryPanel({ onTitulo }: {
     return `${d.toLocaleDateString(locale, { day: 'numeric', month: 'short', timeZone: CLINIC_TZ })} ${time}`;
   };
 
-  const statusLabel = (s: Status) => {
+  /**
+   * El CANAL cambia lo que significa "QUEUED".
+   *
+   * En un SMS es de verdad "en cola": Twilio lo aceptó y el acuse llega
+   * minutos después, y llega — 421 de 486 salientes lo tienen.
+   *
+   * En un CORREO no. Ahí la Email API devuelve 202 "aceptado" y ese es el
+   * final del camino: el acuse vendría del Event Webhook de SendGrid, que
+   * nunca estuvo enchufado. Medido el 2026-10-07: **240 correos y CERO**
+   * acuses, desde el 14 de septiembre.
+   *
+   * O sea que decir "En cola" en un correo es afirmar algo falso: no está
+   * esperando salir, ya salió. Lo que no sabemos es si llegó. Eso hacía que
+   * el mostrador leyera la pantalla como un sistema atascado, cuando el
+   * problema real es que no tenemos noticias.
+   *
+   * El día que el webhook se conecte, estos correos empiezan a moverse a
+   * Entregado o No llegó solos, y esta etiqueta deja de aparecer.
+   */
+  const statusLabel = (s: Status, canal: Channel) => {
+    if (canal === 'EMAIL' && s === 'QUEUED') return t('statusEmailSentUnknown');
     switch (s) {
       case 'DELIVERED':   return t('statusDelivered');
       case 'UNDELIVERED': return t('statusUndelivered');
@@ -426,7 +446,7 @@ export function SmsHistoryPanel({ onTitulo }: {
                             )}
                           </td>
                           <td className="px-4 py-2">
-                            <StatusPill state={statusState(r.status)} label={statusLabel(r.status)} />
+                            <StatusPill state={statusState(r.status)} label={statusLabel(r.status, r.channel)} />
                             {/* El código de Twilio es lo que permite diagnosticar:
                                 30007 = filtrado por el operador · 21610 = se dio de baja */}
                             {r.errorCode != null && (
@@ -476,7 +496,7 @@ export function SmsHistoryPanel({ onTitulo }: {
                   <li key={r.id} className="rounded-lg border border-border bg-bg-1 p-3 space-y-2">
                     <Recipient row={r} unknownLabel={t('unregistered')} mostrarCanal={channel === 'ALL'} />
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <StatusPill state={statusState(r.status)} label={statusLabel(r.status)} />
+                      <StatusPill state={statusState(r.status)} label={statusLabel(r.status, r.channel)} />
                       {r.errorCode != null && <span className="font-mono text-[9.5px] text-rose">#{r.errorCode}</span>}
                       <span className="text-[11px] text-text-muted ml-auto">{whenLabel(r.createdAt)}</span>
                     </div>

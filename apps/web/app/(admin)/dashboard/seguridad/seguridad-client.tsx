@@ -582,6 +582,16 @@ const COLOR: Record<string, string> = {
 
 const VENTANAS = [1, 2, 7] as const;
 
+/**
+ * Las cuatro pestañas, una por PREGUNTA y no por widget.
+ *
+ * El orden es el de urgencia: primero qué está pasando, después desde dónde
+ * entran, después quién puede entrar, y al final qué nos cubre —que es lo
+ * único que no cambia solo y se mira una vez por mes.
+ */
+const PESTANAS = ['resumen', 'accesos', 'cuentas', 'protecciones'] as const;
+type Pestana = (typeof PESTANAS)[number];
+
 export function SeguridadClient({ datos, dias, mes, meses }: {
   datos: DatosSeguridad; dias: number; mes: string | null; meses: string[];
 }): React.ReactElement {
@@ -594,6 +604,7 @@ export function SeguridadClient({ datos, dias, mes, meses }: {
 
   const [modulo, setModulo] = React.useState<string | null>(null);
   const [ip, setIp] = React.useState<string | null>(null);
+  const [pestana, setPestana] = React.useState<Pestana>('resumen');
 
   /* ── el refresco ──────────────────────────────────────────────────────── */
   const [pendiente, empezar] = React.useTransition();
@@ -725,6 +736,34 @@ export function SeguridadClient({ datos, dias, mes, meses }: {
             ))}
           </select>
 
+          {/*
+            * El módulo, acá arriba y no abajo.
+            *
+            * Vivía en las cinco tarjetas del medio de la página, que decían
+            * "elegí uno para filtrar todo lo de abajo" y filtraban también
+            * todo lo de ARRIBA: el chip "filtrado: Clinic" salía antes que el
+            * control que lo ponía. Un filtro global va con los otros filtros
+            * globales, y se ve desde cualquier pestaña.
+            *
+            * El mismo estado hace dos cosas según dónde estés: filtra en
+            * Resumen y Accesos, y resalta la columna en Protecciones. Es un
+            * solo lugar donde tocar.
+            */}
+          <select
+            value={modulo ?? ''}
+            onChange={(e) => { setModulo(e.target.value === '' ? null : e.target.value); setIp(null); }}
+            aria-label={tr('byModule')}
+            className={cn(
+              'rounded-lg border px-2.5 py-1 text-tiny transition-colors',
+              modulo ? 'border-brand bg-brand/20 text-brand-text' : 'border-row-sep bg-transparent text-text-3 hover:text-text-1',
+            )}
+          >
+            <option value="">{tr('moduleAll')}</option>
+            {MODULOS.map((m) => (
+              <option key={m.id} value={m.id}>{m.nombre}</option>
+            ))}
+          </select>
+
           <button
             type="button"
             onClick={refrescar}
@@ -750,6 +789,35 @@ export function SeguridadClient({ datos, dias, mes, meses }: {
             {tr('printLink')}
           </a>
         </div>
+      </div>
+
+      {/*
+        * Las pestañas.
+        *
+        * `role="tablist"` de verdad y no una fila de botones: con flechas se
+        * recorren, y un lector de pantalla anuncia "pestaña 2 de 4". Lo que
+        * no se muestra se DESMONTA —no se esconde con CSS— porque los lienzos
+        * del radar y del medidor se repintan por animación y seguirían
+        * corriendo invisibles.
+        */}
+      <div role="tablist" aria-label={tr('title')} className="flex gap-1 overflow-x-auto border-b border-row-sep">
+        {PESTANAS.map((p) => (
+          <button
+            key={p}
+            type="button"
+            role="tab"
+            aria-selected={pestana === p}
+            onClick={() => setPestana(p)}
+            className={cn(
+              '-mb-px shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-small font-medium transition-colors',
+              pestana === p
+                ? 'border-brand text-text-1'
+                : 'border-transparent text-text-3 hover:text-text-1',
+            )}
+          >
+            {tr(`tab.${p}`)}
+          </button>
+        ))}
       </div>
 
       {!ok && (
@@ -788,6 +856,7 @@ export function SeguridadClient({ datos, dias, mes, meses }: {
         </div>
       )}
 
+      {pestana === 'resumen' && (<>
       {/* ── El medidor y el radar ─────────────────────────────────────── */}
       <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-[minmax(0,300px)_1fr]">
         <Medidor key={exposicionGeneral()} valor={exposicionGeneral()} quieto={quieto} />
@@ -830,7 +899,9 @@ export function SeguridadClient({ datos, dias, mes, meses }: {
 
       {/* ── Quién entró y desde dónde ─────────────────────────────────── */}
       <QuienEntro eventos={eventos} ahora={ahora} idioma={idioma} />
+      </>)}
 
+      {pestana === 'protecciones' && (<>
       {/* ── Por módulo: acá se filtra todo ────────────────────────────── */}
       <section>
         <h2 className="mb-3 flex flex-wrap items-center gap-2 text-tiny font-bold uppercase tracking-widest text-text-muted">
@@ -901,6 +972,10 @@ export function SeguridadClient({ datos, dias, mes, meses }: {
             <Clock className="h-3 w-3" /> {tr('codeChecked', { fecha: MEDIDO_EL })}
           </span>
         </h2>
+
+        {/* Tres de las cinco columnas son la misma app. Decirlo, para que
+            nadie lea "repetido" donde dice "es el mismo código". */}
+        <p className="mb-3 text-tiny leading-relaxed text-text-3">{tr('sameApp')}</p>
         <div className="overflow-x-auto rounded-lg bg-bg-1">
           <table className="w-full min-w-[640px] text-small">
             <thead>
@@ -942,6 +1017,9 @@ export function SeguridadClient({ datos, dias, mes, meses }: {
         </div>
       </section>
 
+      </>)}
+
+      {pestana === 'accesos' && (<>
       {/* ── IPs y eventos ─────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <section className="min-w-0">
@@ -986,7 +1064,9 @@ export function SeguridadClient({ datos, dias, mes, meses }: {
 
       {/* ── IPs echadas ───────────────────────────────────────────────── */}
       <Echadas lista={datos.bloqueadas} onCambio={refrescar} />
+      </>)}
 
+      {pestana === 'cuentas' && (<>
       {/* ── Cortar el acceso ──────────────────────────────────────────── */}
       <CortarAcceso cuentas={cuentas.todas} onCambio={refrescar} />
 
@@ -995,6 +1075,7 @@ export function SeguridadClient({ datos, dias, mes, meses }: {
 
       {/* ── Cuentas ───────────────────────────────────────────────────── */}
       <Riesgos cuentas={cuentas} onCambio={refrescar} />
+      </>)}
 
       <p className="border-t border-row-sep pt-4 text-tiny leading-relaxed text-text-3">
         {tr.rich('footer', { b: (c) => <b className="text-text-2">{c}</b> })}

@@ -111,3 +111,7 @@ scripts/migration/companies-duplicados.json
 scripts/migration/bufetes-fuera-del-catalogo.json
 scripts/migration/documentos-progreso.json
 scripts/migration/documentos-fallidos.json
+
+# Auditoria de duplicados y pruebas (2026-10-05): respaldos y reportes con datos de pacientes (PHI). Nunca al repo.
+/respaldos-limpieza-2026-10-05/
+/reportes-duplicados/

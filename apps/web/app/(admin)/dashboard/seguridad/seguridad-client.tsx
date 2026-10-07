@@ -4,7 +4,11 @@ import * as React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { Badge, cn } from '@precision/ui';
-import { Ban, Clock, KeyRound, Mail, PowerOff, Printer, RefreshCw, ShieldAlert, ShieldCheck, Unlock } from 'lucide-react';
+import {
+  Ban, Building2, Clock, Gavel, KeyRound, Mail, PowerOff, Printer, RefreshCw,
+  ShieldAlert, ShieldCheck, Stethoscope, Unlock,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { api as trpc } from '@/lib/trpc/client';
 import {
   MEDIDO_EL, MODULOS, PROTECCIONES,
@@ -72,6 +76,39 @@ const C = {
   gris:   'rgba(148,163,184,0.22)',
   grisTenue: 'rgba(148,163,184,0.10)',
 };
+
+/**
+ * Qué es cada módulo, de un vistazo.
+ *
+ * Erick, 2026-10-07: cinco tarjetas con el mismo número y la misma barra se
+ * leen como una sola repetida. El ícono es el que las separa; el color es
+ * refuerzo.
+ *
+ * ⚠️ **Ninguna identidad es verde, ámbar ni roja, y es deliberado.** Esos
+ * tres ya significan ESTADO acá —la barra, los cuadritos, los puntos del
+ * radar, "3 fallidos"— y gastarlos también como identidad deja al ojo sin
+ * saber si un color dice qué módulo es o qué tan mal está.
+ *
+ * Por el mismo motivo el color aparece en DOS lugares y nada más: la ficha
+ * del ícono y el barrido de su radar. Sin barra lateral ni borde teñido —
+ * el borde ya significa "seleccionado".
+ *
+ * Va acá y no en `modelo.ts` porque un componente de React no entra en un
+ * módulo de datos puros que también lee el servidor.
+ */
+const IDENTIDAD: Record<string, { Icono: LucideIcon; color: string }> = {
+  clinica:   { Icono: Building2,   color: '#22D3EE' },
+  providers: { Icono: Stethoscope, color: '#8B5CF6' },
+  attorneys: { Icono: Gavel,       color: '#6366F1' },
+  timeclock: { Icono: Clock,       color: '#2DD4BF' },
+  admin:     { Icono: KeyRound,    color: '#EC4899' },
+};
+
+/** `#22D3EE` → `rgba(34,211,238,.22)`. El lienzo no entiende clases. */
+function conAlfa(hex: string, a: number): string {
+  const n = Number.parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
 
 const hora = (iso: string, idioma: string): string =>
   new Intl.DateTimeFormat(idioma, {
@@ -517,6 +554,113 @@ function serieIps(eventos: Evento[], desde: string, hasta: string, n = 14): numb
 }
 
 /** Una barra que crece hasta su ancho. */
+/**
+ * El radar de UN módulo, del tamaño de una moneda.
+ *
+ * ── Por qué un punto por INTENTO y no por IP ───────────────────────────
+ *
+ * El radar grande agrupa por dirección, porque ahí la pregunta es "de dónde
+ * vienen". Acá la pregunta es otra —"¿qué le está pasando a este módulo?"—
+ * y para eso un intento es un evento: tres fallos seguidos de la misma IP
+ * tienen que verse como tres golpes, no como un punto.
+ *
+ * ── Por qué sigue girando cuando no hay nada ───────────────────────────
+ *
+ * Porque esa es la mitad del mensaje. Un radar quieto se lee como "esto no
+ * anda"; girando sobre un círculo vacío dice "se está mirando y no pasó
+ * nada", que es exactamente lo que uno quiere ver en un módulo tranquilo.
+ */
+function RadarMini({ eventos, semilla, color, quieto, desde, hasta }: {
+  eventos: Evento[]; semilla: string; color: string;
+  quieto: boolean; desde: string; hasta: string;
+}): React.ReactElement {
+  const t0 = new Date(desde).getTime();
+  const t1 = new Date(hasta).getTime();
+  /* Cinco barridos en fase se leen como un adorno; desfasados, como cinco
+     cosas que pasan a la vez. El desfase sale del nombre del módulo, así que
+     es estable entre renders. */
+  const fase = rumbo(semilla);
+
+  const ref = useLienzo((p, tt) => {
+    const { ctx, w, h } = p;
+    const cx = w / 2;
+    const cy = h / 2;
+    const R = Math.min(w, h) / 2 - 2;
+    if (R < 8) return;
+
+    for (let i = 1; i <= 2; i += 1) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, (R * i) / 2, 0, Math.PI * 2);
+      ctx.strokeStyle = i === 2 ? C.gris : C.grisTenue;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.moveTo(cx - R, cy); ctx.lineTo(cx + R, cy);
+    ctx.moveTo(cx, cy - R); ctx.lineTo(cx, cy + R);
+    ctx.strokeStyle = C.grisTenue;
+    ctx.stroke();
+
+    const barrido = quieto ? -Math.PI / 2 : fase + ((tt / 3600) % 1) * Math.PI * 2;
+    if (!quieto) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, R, barrido - 0.7, barrido);
+      ctx.closePath();
+      const rad = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
+      rad.addColorStop(0, conAlfa(color, 0));
+      rad.addColorStop(1, conAlfa(color, 0.22));
+      ctx.fillStyle = rad;
+      ctx.fill();
+      ctx.restore();
+
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(barrido) * R, cy + Math.sin(barrido) * R);
+      ctx.strokeStyle = conAlfa(color, 0.55);
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    /* Los 24 más recientes. Sin tope, un módulo con cientos de intentos se
+       vuelve una mancha y deja de decir nada. */
+    for (const e of eventos.slice(0, 24)) {
+      const a = rumbo((e.ip ?? e.correo ?? '?') + e.cuando.slice(11, 19));
+      const edad = Math.min(1, Math.max(0,
+        (t1 - new Date(e.cuando).getTime()) / Math.max(1, t1 - t0)));
+      const r = R * (0.18 + edad * 0.76);
+      const px = cx + Math.cos(a) * r;
+      const py = cy + Math.sin(a) * r;
+      const falla = e.accion === 'LOGIN_FAILED';
+      const trabada = e.accion === 'ACCOUNT_LOCKED';
+      const col = trabada ? C.aviso : falla ? C.mal : C.ok;
+
+      let brillo = 0.5;
+      if (!quieto) {
+        let d = barrido - a;
+        while (d < 0) d += Math.PI * 2;
+        while (d > Math.PI * 2) d -= Math.PI * 2;
+        brillo = 0.5 + 0.5 * Math.max(0, 1 - d / 1.2);
+      }
+
+      ctx.globalAlpha = brillo;
+      ctx.beginPath();
+      ctx.arc(px, py, falla || trabada ? 2.4 : 1.8, 0, Math.PI * 2);
+      ctx.fillStyle = col;
+      ctx.shadowColor = col;
+      ctx.shadowBlur = falla ? 9 : 5;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+    }
+  }, !quieto);
+
+  /* `aria-hidden`: lo que dibuja ya está escrito debajo de la tarjeta
+     ("38 intentos · 3 fallidos"). Anunciarlo dos veces es ruido. */
+  return <canvas ref={ref} className="block aspect-square w-full" aria-hidden="true" />;
+}
+
 function Barra({ pct, clase, quieto, demora = 0 }: {
   pct: number; clase: string; quieto: boolean; demora?: number;
 }): React.ReactElement {
@@ -1077,6 +1221,7 @@ export function SeguridadClient({ datos, dias, mes, meses }: {
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
           {MODULOS.map((m, i) => {
             const p = puntaje(m.id);
+            const ident = IDENTIDAD[m.id] ?? { Icono: ShieldCheck, color: '#6366F1' };
             const vistos = datos.eventos.filter((e) => e.modulo === m.id).length;
             const malos  = datos.eventos.filter((e) => e.modulo === m.id && e.accion === 'LOGIN_FAILED').length;
             const activo = modulo === m.id;
@@ -1093,8 +1238,37 @@ export function SeguridadClient({ datos, dias, mes, meses }: {
                   modulo && !activo && 'opacity-50',
                 )}
               >
-                <div className="font-semibold text-text-1">{m.nombre}</div>
-                <div className="mt-0.5 truncate font-mono text-tiny text-text-3">{m.host}</div>
+                <div className="flex items-start gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      {/* La ficha del ícono: lo único, junto al barrido del
+                          radar, que lleva el color del módulo. */}
+                      <span
+                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border"
+                        style={{
+                          backgroundColor: conAlfa(ident.color, 0.13),
+                          borderColor: conAlfa(ident.color, 0.3),
+                        }}
+                      >
+                        <ident.Icono className="h-3.5 w-3.5" style={{ color: ident.color }} />
+                      </span>
+                      <span className="truncate font-semibold text-text-1">{m.nombre}</span>
+                    </div>
+                    <div className="mt-0.5 truncate font-mono text-tiny text-text-3">{m.host}</div>
+                  </div>
+                  {/* El radar de este módulo. Gira siempre; los puntos son
+                      SUS intentos: verde entró, rojo falló, ámbar se trabó. */}
+                  <div className="w-16 shrink-0">
+                    <RadarMini
+                      eventos={datos.eventos.filter((e) => e.modulo === m.id)}
+                      semilla={m.id}
+                      color={ident.color}
+                      quieto={quieto}
+                      desde={desde}
+                      hasta={hasta}
+                    />
+                  </div>
+                </div>
                 <div className="mt-3 flex items-baseline gap-1.5">
                   <span className={cn('text-xl font-bold tabular-nums', tono(p.exposicion))}>{p.activas}</span>
                   <span className="text-tiny text-text-3">{tr('ofExposure', { total: p.total, exp: p.exposicion })}</span>

@@ -154,6 +154,18 @@ const DOCTOR_REWARDS_ITEM: NavItem = {
   href: '/doctor/mis-premios', icon: Trophy, labelKey: 'rewards',
 };
 
+/**
+ * Mis pendientes de corrección (2026-10-07): lo que la persona creó y hoy conviene
+ * arreglar. Lo ve todo el staff y el portal médico —no el legal—, y no depende de
+ * ningún módulo porque la respuesta es SOLO lo suyo. Plan: docs/plan-mis-pendientes.html.
+ */
+const PENDIENTES_ITEM: NavItem = {
+  href: '/mis-pendientes', icon: ClipboardCheck, labelKey: 'pendientes',
+};
+const DOCTOR_PENDIENTES_ITEM: NavItem = {
+  href: '/doctor/mis-pendientes', icon: ClipboardCheck, labelKey: 'pendientes',
+};
+
 // Portal médico — identidad violet (Regla #5 · B.17–B.18)
 const DOCTOR_SECTIONS: NavSection[] = [
   {
@@ -286,10 +298,11 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
   // Uno por portal, y no se cruzan: Notas clínicas es del médico administrador y
   // vive en el PORTAL; la puerta al portal es del staff y vive en el back-office.
   const extras = isDoctor
-    ? [...(canSeeRewards ? [DOCTOR_REWARDS_ITEM] : []), ...(canAuditNotes ? [NOTES_AUDIT_ITEM] : [])]
+    ? [DOCTOR_PENDIENTES_ITEM, ...(canSeeRewards ? [DOCTOR_REWARDS_ITEM] : []), ...(canAuditNotes ? [NOTES_AUDIT_ITEM] : [])]
     : isAttorney
       ? []
       : [
+          PENDIENTES_ITEM,
           ...(canSeeRewards ? [REWARDS_ITEM] : []),
           ...(canSeeFirmRequests ? [FIRM_REQUESTS_ITEM] : []),
           ...(canViewAsDoctor ? [DOCTOR_PORTAL_ITEM] : []),

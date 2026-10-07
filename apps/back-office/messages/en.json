@@ -717,7 +717,8 @@
       "messages": "Messages",
       "firmRequests": "Firm requests",
       "rewards": "My rewards",
-      "smsHistory": "SMS"
+      "smsHistory": "SMS",
+      "pendientes": "My items to fix"
     },
     "pageTitles": {
       "collections": "Finances",
@@ -741,7 +742,8 @@
       "clinicalNote": "Clinical note",
       "labOrder": "Lab order",
       "settlementReceipt": "Settlement",
-      "rewards": "My rewards"
+      "rewards": "My rewards",
+      "pendientes": "My items to fix"
     },
     "notFound": {
       "title": "We couldn't find this page",
@@ -2373,7 +2375,9 @@
       "pushLater": "Later",
       "pushBlockedTitle": "Alerts are blocked",
       "pushBlockedBody": "This browser blocks alerts for the site, and only its settings can change that: tap the lock in the address bar, open the site permissions, and allow notifications. Then turn it on again from here.",
-      "twoFactor": "Two-factor"
+      "twoFactor": "Two-factor",
+      "pendientes": "My items to fix",
+      "pendientesCount": "{n, plural, one {# item to fix} other {# items to fix}}"
     },
     "common": {
       "errorSave": "The changes could not be saved",
@@ -7444,6 +7448,49 @@
       "texto": "It takes two minutes and you need your phone. If you lose it, an administrator removes it and you get back in with your password.",
       "activar": "Turn it on",
       "ahoraNo": "Not now"
+    },
+    "pendientes": {
+      "title": "My items to fix",
+      "subtitle": "Things you created that are worth fixing today. Only you see them.",
+      "refresh": "Refresh",
+      "kpiOpen": "Open",
+      "kpiDup": "Duplicate appointments",
+      "kpiMsg": "Failed messages",
+      "kpiCierre": "Appointments not closed",
+      "filterAll": "All",
+      "filterDup": "Duplicate appointments",
+      "filterMsg": "Messages",
+      "filterCierre": "Not closed",
+      "tipo": {
+        "CITA_DUPLICADA": "Duplicate appointment",
+        "SMS_FALLIDO": "SMS not delivered",
+        "CORREO_FALLIDO": "Email rejected",
+        "CITA_SIN_CERRAR": "Appointment not closed"
+      },
+      "motivo": {
+        "MISMA_HORA": "There is another appointment for this patient at the same time (it comes from the migration). Keep the right one and delete the repeated one with the reason “Duplicate”.",
+        "MISMA_HORA_POR": "{otra} had already created another appointment for this patient at the same time. Keep the right one and delete the repeated one with the reason “Duplicate”.",
+        "NUMERO_INVALIDO": "The carrier rejected the number: it is not valid. Check the digits on the patient record.",
+        "TELEFONO_FIJO": "The number is a landline and does not receive SMS. Ask the patient for a cell phone and fix it on their record.",
+        "NUMERO_INEXISTENTE": "The number does not exist or is switched off. Confirm it with the patient.",
+        "SMS_OTRO": "The carrier did not deliver the message. Check the patient's number and send it again.",
+        "CORREO_RECHAZADO": "The email could not be sent. Check the address on the patient record and send it again.",
+        "PASADA_SIN_ESTADO": "The appointment is past and still “{estado}”. Open it and mark it attended, no-show or cancelled."
+      },
+      "estadoCita": {
+        "SCHEDULED": "Scheduled",
+        "CONFIRMED": "Confirmed"
+      },
+      "openAppt": "Open the appointment",
+      "openPatient": "Open the record",
+      "emptyTitle": "You have no items",
+      "emptySub": "Everything you created is in order. Nice work.",
+      "emptyFilterTitle": "Nothing in this category",
+      "errorTitle": "Your items could not be loaded",
+      "errorSub": "Try again in a moment.",
+      "retry": "Retry",
+      "footer": "They resolve by themselves once the problem is fixed. It looks at recent days: appointments of 14 days, messages of 30 and unclosed appointments of 60.",
+      "hiddenTests": "{n, plural, one {# test case was hidden.} other {# test cases were hidden.}}"
     }
   },
   "caseWizard": {

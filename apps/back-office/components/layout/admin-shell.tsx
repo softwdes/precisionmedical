@@ -152,6 +152,12 @@ export function AdminShell({
                 : variant === 'admin' && canAskCifo ? '/dashboard'
                 : null
               }
+              /* Mis pendientes de corrección: todo el staff y el portal médico, no el legal. */
+              pendientes={
+                variant === 'doctor' ? '/doctor/mis-pendientes'
+                : variant === 'admin' ? '/mis-pendientes'
+                : null
+              }
             />
             {/* Aire al pie en móvil: la barra inferior mide 64px (pb-20), y en el
                 portal legal encima de ella flota el botón de referir (56px +

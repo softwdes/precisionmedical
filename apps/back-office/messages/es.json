@@ -717,7 +717,8 @@
       "messages": "Mensajes",
       "firmRequests": "Pedidos de bufetes",
       "rewards": "Mis premios",
-      "smsHistory": "SMS"
+      "smsHistory": "SMS",
+      "pendientes": "Mis pendientes"
     },
     "pageTitles": {
       "collections": "Finanzas",
@@ -741,7 +742,8 @@
       "clinicalNote": "Nota clínica",
       "labOrder": "Orden de laboratorio",
       "settlementReceipt": "Settlement",
-      "rewards": "Mis premios"
+      "rewards": "Mis premios",
+      "pendientes": "Mis pendientes"
     },
     "notFound": {
       "title": "No encontramos esta página",
@@ -2373,7 +2375,9 @@
       "pushLater": "Más tarde",
       "pushBlockedTitle": "Los avisos están bloqueados",
       "pushBlockedBody": "Este navegador tiene los avisos bloqueados para el sitio, y eso solo se cambia desde sus ajustes: tocá el candado en la barra de direcciones, entrá a los permisos del sitio y permití las notificaciones. Después volvé a activarlo desde acá.",
-      "twoFactor": "Doble factor"
+      "twoFactor": "Doble factor",
+      "pendientes": "Mis pendientes",
+      "pendientesCount": "{n, plural, one {# pendiente por corregir} other {# pendientes por corregir}}"
     },
     "common": {
       "errorSave": "Error al guardar",
@@ -7444,6 +7448,49 @@
       "texto": "Son dos minutos y hace falta tu teléfono. Si lo perdés, un administrador te lo quita y volvés a entrar con tu contraseña.",
       "activar": "Activarlo",
       "ahoraNo": "Ahora no"
+    },
+    "pendientes": {
+      "title": "Mis pendientes de corrección",
+      "subtitle": "Cosas que creaste y hoy conviene arreglar. Solo vos las ves.",
+      "refresh": "Actualizar",
+      "kpiOpen": "Abiertos",
+      "kpiDup": "Citas duplicadas",
+      "kpiMsg": "Mensajes fallidos",
+      "kpiCierre": "Citas sin cerrar",
+      "filterAll": "Todos",
+      "filterDup": "Citas duplicadas",
+      "filterMsg": "Mensajes",
+      "filterCierre": "Sin cerrar",
+      "tipo": {
+        "CITA_DUPLICADA": "Cita duplicada",
+        "SMS_FALLIDO": "SMS no entregado",
+        "CORREO_FALLIDO": "Correo rechazado",
+        "CITA_SIN_CERRAR": "Cita sin cerrar"
+      },
+      "motivo": {
+        "MISMA_HORA": "Hay otra cita de este paciente a la misma hora (viene de la migración). Dejá la correcta y eliminá la repetida con el motivo «Duplicate».",
+        "MISMA_HORA_POR": "{otra} ya había creado otra cita de este paciente a la misma hora. Dejá la correcta y eliminá la repetida con el motivo «Duplicate».",
+        "NUMERO_INVALIDO": "El operador rechazó el número: no es válido. Revisá los dígitos en la ficha del paciente.",
+        "TELEFONO_FIJO": "El número es un teléfono fijo y no recibe SMS. Pedile un celular al paciente y corregilo en su ficha.",
+        "NUMERO_INEXISTENTE": "El número no existe o está apagado. Confirmalo con el paciente.",
+        "SMS_OTRO": "El operador no entregó el mensaje. Revisá el número del paciente y volvé a enviarlo.",
+        "CORREO_RECHAZADO": "El correo no se pudo enviar. Revisá la dirección en la ficha del paciente y volvé a enviarlo.",
+        "PASADA_SIN_ESTADO": "La cita ya pasó y sigue «{estado}». Abrila y marcala como atendida, no-show o cancelada."
+      },
+      "estadoCita": {
+        "SCHEDULED": "Agendada",
+        "CONFIRMED": "Confirmada"
+      },
+      "openAppt": "Abrir la cita",
+      "openPatient": "Abrir la ficha",
+      "emptyTitle": "No tenés pendientes",
+      "emptySub": "Todo lo que creaste está en orden. Buen trabajo.",
+      "emptyFilterTitle": "Nada en esta categoría",
+      "errorTitle": "No se pudieron cargar tus pendientes",
+      "errorSub": "Probá de nuevo en un momento.",
+      "retry": "Reintentar",
+      "footer": "Se resuelven solos cuando se corrige el problema. Se revisan los últimos días: citas de 14 días, mensajes de 30 y citas sin cerrar de 60.",
+      "hiddenTests": "{n, plural, one {Se ocultó # caso de prueba.} other {Se ocultaron # casos de prueba.}}"
     }
   },
   "caseWizard": {

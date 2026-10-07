@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { ZONA_CLINICA } from '@/lib/fechas';
-import { Search, Menu, User, KeyRound, ShieldCheck, LogOut, Eye, EyeOff, Copy, Zap, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Search, Menu, User, KeyRound, ShieldCheck, LogOut, Eye, EyeOff, Copy, Zap, PanelLeftClose, PanelLeftOpen, ClipboardCheck } from 'lucide-react';
 import { CommandPalette } from './command-palette';
 import { useTransitionProgress } from './navigation-progress';
 import { ThemeSwitch } from './theme-switch';
@@ -41,6 +41,12 @@ interface TopbarProps {
    * `null` si no lo tiene. Lo decide el shell — ver `admin-shell.tsx`.
    */
   cifo?: string | null;
+  /**
+   * Dónde vive "Mis pendientes de corrección" en este portal (`/mis-pendientes` o
+   * `/doctor/mis-pendientes`), o `null` si no lo tiene (el portal legal). Lo decide
+   * el shell, igual que `cifo`. Plan: docs/plan-mis-pendientes.html.
+   */
+  pendientes?: string | null;
 }
 
 function generateSecurePassword(): string {
@@ -73,6 +79,7 @@ export function Topbar({
   onToggleSidebar,
   portal = 'clinic',
   cifo = null,
+  pendientes = null,
 }: TopbarProps): React.ReactElement {
   const tm = useTranslations('phoenix.misc');
   const router        = useRouter();
@@ -88,6 +95,27 @@ export function Topbar({
   const [pwOpen,      setPwOpen]      = useState(false);
   const [pendingLocale, setPendingLocale] = useState<'en' | 'es' | null>(null);
   const [isPending,   startTransition] = useTransition();
+
+  // Cuántos pendientes de corrección tiene la persona: el número sobre el avatar.
+  // Un ítem escondido en un menú casi no se mira; el contador sí. Si falla, no se
+  // muestra nada — un número en 0 por un error diría "todo en orden" sin saberlo.
+  const [nPendientes, setNPendientes] = useState<number | null>(null);
+  useEffect(() => {
+    if (!pendientes) return;
+    let vivo = true;
+    const pedir = async () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const res = await fetch('/api/pendientes/mios?solo=conteo', { cache: 'no-store' });
+        if (!res.ok) return;
+        const j = (await res.json()) as { counts?: { total?: number } };
+        if (vivo && typeof j.counts?.total === 'number') setNPendientes(j.counts.total);
+      } catch { /* sin red: se queda el último número */ }
+    };
+    void pedir();
+    const id = setInterval(() => void pedir(), 180_000);
+    return () => { vivo = false; clearInterval(id); };
+  }, [pendientes]);
 
   // Cambiar contraseña state
   const [newPw,     setNewPw]     = useState('');
@@ -441,6 +469,14 @@ export function Topbar({
               >
                 {userInitials}
                 <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald border-2 border-bg-0" />
+                {nPendientes !== null && nPendientes > 0 && (
+                  <span
+                    className="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-rose text-white text-[10px] font-bold leading-[18px] text-center border-2 border-bg-0"
+                    aria-label={t('pendientesCount', { n: nPendientes })}
+                  >
+                    {nPendientes > 99 ? '99+' : nPendientes}
+                  </span>
+                )}
               </div>
             </button>
 
@@ -461,6 +497,19 @@ export function Topbar({
                     <User className="w-3.5 h-3.5 shrink-0" style={{ color: AMBER }} />
                     {t('viewProfile')}
                   </button>
+                  {pendientes && (
+                    <a
+                      href={pendientes}
+                      onClick={() => setMenuOpen(false)}
+                      className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-text-2 hover:bg-surface hover:text-text-1 transition-colors text-left"
+                    >
+                      <ClipboardCheck className="w-3.5 h-3.5 shrink-0" style={{ color: AMBER }} />
+                      <span className="flex-1">{t('pendientes')}</span>
+                      {nPendientes !== null && nPendientes > 0 && (
+                        <span className="rounded-full bg-rose px-1.5 text-[10px] font-bold text-white">{nPendientes > 99 ? '99+' : nPendientes}</span>
+                      )}
+                    </a>
+                  )}
                   <button
                     type="button"
                     className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-text-2 hover:bg-surface hover:text-text-1 transition-colors text-left"

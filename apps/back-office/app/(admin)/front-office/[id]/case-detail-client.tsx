@@ -1048,18 +1048,44 @@ export function CaseDetailClient({ caseInfo, auditEvents, variant = 'admin', inM
           ? <DocumentsLocked onSign={onRequestSign} />
           : <DocumentsTab
               caseId={caseInfo.id}
-              readOnly={isReadOnly}
+              /* `isAttorney`, NO `isReadOnly` — y la diferencia es el punto.
+                 `isReadOnly` es `isDoctor || isAttorney`, que mete al personal
+                 de la clínica en la misma bolsa que un bufete. Para los
+                 documentos del caso no son lo mismo: el provider es de la casa
+                 y arma el expediente; el bufete es un tercero que lo lee.
+
+                 Erick, 2026-10-07: *"documentos sí"* — el provider hace acá lo
+                 mismo que back office, subir, crear carpetas y borrar. Reversa
+                 su decisión del 16-sep; la vuelta completa está en la memoria
+                 `regla-doctor-edita-documentos-solo-en-consulta`.
+
+                 El resto de los `isReadOnly` de esta pantalla NO se tocaron:
+                 seguro, bufete, notas, pagos y finanzas le siguen cerrados. */
+              readOnly={isAttorney}
               portal={isAttorney ? 'attorney' : 'admin'}
               /* El mismo diálogo que abre el avatar. Se pasa la función en vez
                  de montar un segundo: son el mismo, y duplicarlo dejaría dos
-                 estados que se desincronizan al subir una foto. */
+                 estados que se desincronizan al subir una foto.
+
+                 Sigue con `isReadOnly` a propósito: son los archivos de la
+                 PERSONA, no del caso — misma razón que `patientId` acá abajo. */
               onVerArchivosDelPaciente={isReadOnly ? undefined : () => setArchivosOpen(true)}
               /* Con el paciente, el tab agrega la carpeta "Identificación" con
                  su foto, su licencia y su tarjeta del seguro. Va solo acá —no
                  en la consulta ni en Day Admission— porque esta es la pantalla
                  donde se administran los papeles (Erick, 21-sep-2026). Y NUNCA
                  al bufete: esos archivos no son del caso, y el portal legal
-                 sirve por caso. Ver `CARPETA_IDENTIDAD_ID`. */
+                 sirve por caso. Ver `CARPETA_IDENTIDAD_ID`.
+
+                 ⚠️ **Queda con `isReadOnly`, así que el provider NO la ve.** Es
+                 decisión de Erick del 2026-10-07 —*"identificación no"*— tomada
+                 en la misma frase que abrió los documentos: son dos cosas
+                 distintas. Los del caso son el expediente clínico; la licencia y
+                 la tarjeta del seguro son documentos de identidad de la persona,
+                 y se administran en el mostrador.
+
+                 Por eso esta línea dice `isReadOnly` y la de `readOnly` dice
+                 `isAttorney`. No es un descuido: es el límite. */
               patientId={isAttorney || isReadOnly ? undefined : caseInfo.patient?.id}
             />
       )}

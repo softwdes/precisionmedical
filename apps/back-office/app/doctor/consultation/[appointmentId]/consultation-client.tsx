@@ -792,17 +792,20 @@ export function ConsultationClient({
               dice el motivo en vez de mostrar un explorador vacío. */}
           {tab === 'documentos' && (
             a.caseId ? (
-              /* SOLO LECTURA (Erick, 2026-09-16: "el provider no, solo back
-                 office"). Acá se montaba sin la bandera y el provider podía
-                 subir, renombrar y borrar documentos — mientras que entrando
-                 por el modal del caso era solo lectura. La misma persona y los
-                 mismos archivos con
-                 permisos opuestos según por qué puerta entró.
+              /* EDITABLE desde 2026-10-07 (Erick: *"documentos sí, borrar sí"*).
+                 El provider sube, renombra, mueve y borra, igual que back office.
 
-                 Cerrarlo no le saca nada a nadie: medido el 2026-09-16, los
-                 12.521 documentos vigentes los subieron EMPLOYEE (213) o
-                 procesos de migración e intake; ningún provider subió uno. */
-              <DocumentsTab caseId={a.caseId} readOnly />
+                 Acá hubo `readOnly` entre el 16-sep y hoy. El motivo de aquel
+                 cierre era la incoherencia —editable por esta puerta, solo
+                 lectura entrando por el modal del caso— y se resolvió cerrando
+                 las dos. Ahora se resuelve al revés: las dos abiertas. Lo que no
+                 puede volver es que difieran, que es lo que confunde al usuario.
+                 La vuelta completa está en la memoria
+                 `regla-doctor-edita-documentos-solo-en-consulta`.
+
+                 Sin `patientId`: la carpeta "Identificación" no se dibuja acá, ni
+                 se dibujaba antes — es de la ficha, no de la visita. */
+              <DocumentsTab caseId={a.caseId} />
             ) : (
               <EmptyState.Rich icon={FolderOpen} title={t('docsNoCaseTitle')} subtitle={t('docsNoCaseHint')} />
             )

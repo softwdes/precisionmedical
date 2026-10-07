@@ -583,13 +583,148 @@ const COLOR: Record<string, string> = {
 const VENTANAS = [1, 2, 7] as const;
 
 /**
+ * Quién usa cada dirección, y si hay algo que no cierra.
+ *
+ * ── Por qué sale de los eventos y no de una consulta nueva ──────────────
+ *
+ * Porque ya está todo acá: cada evento trae `ip` y `correo`. Pedirle al
+ * servidor "¿quién usa esta IP?" sería preguntar por algo que la pantalla
+ * tiene en la mano.
+ *
+ * ── El cuidado con "país nuevo" ─────────────────────────────────────────
+ *
+ * Esta marca ya nos mintió una vez. El 2026-10-05 el cron de alertas tiró 33
+ * avisos de "país nuevo" sobre 69 eventos, porque el país se empezó a
+ * registrar ESE DÍA: sin historia, todo país es nuevo. Así que acá la
+ * referencia son los países desde donde alguien ENTRÓ de verdad, y si no hay
+ * ninguno la marca no se usa. Una señal sin línea de base no es una señal.
+ *
+ * Y se calcula sobre los eventos SIN filtrar, no sobre los que se están
+ * mirando: con el filtro de módulo puesto, la referencia se encogería y un
+ * país de todos los días pasaría por nuevo.
+ */
+/**
+ * Qué hizo cada protección en la ventana que se está mirando.
+ *
+ * Erick, 2026-10-07: *"en protecciones solo pone un check (...) algo que
+ * pueda hacer realmente, como que la protección está operativa"*. Tiene razón
+ * y el tilde es la mitad de la respuesta: dice que la protección EXISTE. Lo
+ * que nadie podía ver es si corrió.
+ *
+ * Un cero acá es buena noticia, no una falla —"ninguna cuenta se trabó"— y
+ * por eso cada caso tiene su frase en vez de un número suelto.
+ *
+ * Dos de las siete no tienen nada que medir: `origen` (el endpoint viejo ya
+ * no existe) y `cabeceras`. Devuelven `null` y la fila se queda con su tilde
+ * y la fecha de revisión del código, que es lo honesto — inventarles un
+ * número sería exactamente la clase de tranquilidad falsa que esta pantalla
+ * existe para no dar.
+ */
+/** La clave i18n y sus números: el texto lo arma quien dibuja. */
+interface Prueba { clave: string; valores: Record<string, number>; tono: string }
+
+function pruebasDe(
+  eventos: Evento[],
+  cuentas: Cuentas,
+  echadas: number,
+): Record<string, Prueba | null> {
+  const trabadas = eventos.filter((e) => e.accion === 'ACCOUNT_LOCKED').length;
+  // El aviso sale en el SEGUNDO fallo, que es cuando queda un intento.
+  const avisos = eventos.filter(
+    (e) => e.accion === 'LOGIN_FAILED' && e.intentos !== null && e.intentos >= 2,
+  ).length;
+  const conOrigen = eventos.filter((e) => e.ip !== null && e.ip !== '' && e.pais !== null).length;
+  const conMfa = cuentas.conMfa.length;
+
+  return {
+    // Trabar una cuenta es la protección haciendo su trabajo, pero también
+    // alguien que no pudo entrar: ámbar, no verde.
+    candado: trabadas > 0
+      ? { clave: 'proofLockYes', valores: { n: trabadas }, tono: 'text-amber' }
+      : { clave: 'proofLockNo', valores: {}, tono: 'text-emerald' },
+    aviso: avisos > 0
+      ? { clave: 'proofWarnYes', valores: { n: avisos }, tono: 'text-emerald' }
+      : { clave: 'proofWarnNo', valores: {}, tono: 'text-text-3' },
+    registro: {
+      clave: 'proofLog',
+      valores: { ok: conOrigen, total: eventos.length },
+      tono: eventos.length > 0 && conOrigen === eventos.length ? 'text-emerald' : 'text-amber',
+    },
+    freno: echadas > 0
+      ? { clave: 'proofBlockYes', valores: { n: echadas }, tono: 'text-emerald' }
+      : { clave: 'proofBlockNo', valores: {}, tono: 'text-text-3' },
+    mfa: {
+      clave: 'proofMfa',
+      valores: { n: conMfa, total: cuentas.total },
+      tono: conMfa === 0 ? 'text-rose' : 'text-emerald',
+    },
+    // Sin nada que medir en vivo: el tilde y la fecha de revisión del código
+    // son toda la respuesta honesta que hay.
+    origen: null,
+    cabeceras: null,
+  };
+}
+
+interface Senas {
+  /** Quiénes ENTRARON desde acá, por el nombre antes del arroba. */
+  quienes: string[];
+  /** Cuentas que se probaron y no entraron. */
+  probados: string[];
+  /** Al menos un ingreso bueno: la dirección es de alguien. */
+  conocida: boolean;
+  /** Su país no aparece en ningún ingreso bueno de la ventana. */
+  paisNuevo: boolean;
+}
+
+const nombreDeCorreo = (c: string): string => (c.split("@")[0] ?? c).toLowerCase();
+
+function senasPorIp(eventos: Evento[]): Map<string, Senas> {
+  const paisesConocidos = new Set(
+    eventos
+      .filter((e) => e.accion === 'LOGIN_SUCCESS' && e.pais !== null && e.pais !== '')
+      .map((e) => e.pais as string),
+  );
+
+  const porIp = new Map<string, { ok: Set<string>; mal: Set<string>; pais: string | null }>();
+  for (const e of eventos) {
+    if (e.ip === null || e.ip === '') continue;
+    const fila = porIp.get(e.ip) ?? { ok: new Set<string>(), mal: new Set<string>(), pais: e.pais };
+    if (e.correo !== null && e.correo !== '') {
+      (e.accion === 'LOGIN_SUCCESS' ? fila.ok : fila.mal).add(nombreDeCorreo(e.correo));
+    }
+    if (fila.pais === null) fila.pais = e.pais;
+    porIp.set(e.ip, fila);
+  }
+
+  const salida = new Map<string, Senas>();
+  for (const [ip, f] of porIp) {
+    const conocida = f.ok.size > 0;
+    salida.set(ip, {
+      quienes: [...f.ok].sort(),
+      // Quien entró alguna vez no cuenta como "probada y rechazada": casi
+      // siempre es la misma persona que se equivocó antes de acertar.
+      probados: [...f.mal].filter((n) => !f.ok.has(n)).sort(),
+      conocida,
+      paisNuevo:
+        !conocida
+        && paisesConocidos.size > 0
+        && f.pais !== null && f.pais !== ''
+        && !paisesConocidos.has(f.pais),
+    });
+  }
+  return salida;
+}
+
+/**
  * Las cuatro pestañas, una por PREGUNTA y no por widget.
  *
- * El orden es el de urgencia: primero qué está pasando, después desde dónde
- * entran, después quién puede entrar, y al final qué nos cubre —que es lo
- * único que no cambia solo y se mira una vez por mes.
+ * Protecciones va PRIMERO. Erick, 2026-10-07: "son nuestras protecciones
+ * activas". Y tiene razón sobre el orden: lo primero que uno quiere saber al
+ * abrir un centro de seguridad no es cuántos entraron hoy, es si lo que nos
+ * cubre sigue en pie. Las otras tres contestan, en ese orden, qué está
+ * pasando, desde dónde entran y quién puede entrar.
  */
-const PESTANAS = ['resumen', 'accesos', 'cuentas', 'protecciones'] as const;
+const PESTANAS = ['protecciones', 'resumen', 'accesos', 'cuentas'] as const;
 type Pestana = (typeof PESTANAS)[number];
 
 export function SeguridadClient({ datos, dias, mes, meses }: {
@@ -604,7 +739,14 @@ export function SeguridadClient({ datos, dias, mes, meses }: {
 
   const [modulo, setModulo] = React.useState<string | null>(null);
   const [ip, setIp] = React.useState<string | null>(null);
-  const [pestana, setPestana] = React.useState<Pestana>('resumen');
+  const [pestana, setPestana] = React.useState<Pestana>('protecciones');
+
+  /*
+   * De quién es cada dirección. Sobre los eventos SIN filtrar: la referencia
+   * de "país conocido" no puede encogerse por el filtro de módulo (ver
+   * `senasPorIp`).
+   */
+  const senas = React.useMemo(() => senasPorIp(datos.eventos), [datos.eventos]);
 
   /* ── el refresco ──────────────────────────────────────────────────────── */
   const [pendiente, empezar] = React.useTransition();
@@ -653,6 +795,12 @@ export function SeguridadClient({ datos, dias, mes, meses }: {
     : tr(dias === 1 ? 'win24' : dias === 2 ? 'win48' : 'win7');
   const nombreModulo = modulo ? MODULOS.find((m) => m.id === modulo)?.nombre ?? modulo : null;
   const queFiltra   = [nombreModulo, ip].filter(Boolean).join(' · ');
+  /* Qué hizo cada protección en lo que se está mirando. */
+  const pruebas = React.useMemo(
+    () => pruebasDe(eventos, cuentas, datos.bloqueadas.length),
+    [eventos, cuentas, datos.bloqueadas],
+  );
+
   const fallidos    = eventos.filter((e) => e.accion === 'LOGIN_FAILED').length;
   const exitosos    = eventos.filter((e) => e.accion === 'LOGIN_SUCCESS').length;
   const sospechosas = porIp.filter((x) => x.fallidos > 0 && x.exitosos === 0);
@@ -1001,6 +1149,15 @@ export function SeguridadClient({ datos, dias, mes, meses }: {
                   <td className="px-4 py-3">
                     <div className="text-text-1">{tr(`prot.${p.id}.nombre`)}</div>
                     <div className="mt-0.5 text-tiny text-text-3">{tr(`prot.${p.id}.detalle`)}</div>
+                    {/* Lo que hizo en la ventana que se está mirando. El tilde
+                        dice que existe; esto, que corrió. */}
+                    {pruebas[p.id] != null && (
+                      <div className={cn('mt-1 flex items-center gap-1.5 text-tiny', pruebas[p.id]?.tono)}>
+                        <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-current" />
+                        <span className="text-text-2">{ventana}:</span>
+                        <span>{tr(pruebas[p.id]?.clave ?? '', pruebas[p.id]?.valores)}</span>
+                      </div>
+                    )}
                   </td>
                   {MODULOS.map((m) => (
                     <td
@@ -1041,6 +1198,7 @@ export function SeguridadClient({ datos, dias, mes, meses }: {
               <FilaIp
                 key={x.ip}
                 x={x}
+                senas={senas.get(x.ip) ?? null}
                 quieto={quieto}
                 activa={ip === x.ip}
                 onClick={() => setIp(ip === x.ip ? null : x.ip)}
@@ -1110,8 +1268,9 @@ function Marca({ estado }: { estado: boolean | 'parcial' | undefined }): React.R
   return <span title={tr('markOpen')} className="inline-block rounded px-1.5 py-0.5 text-tiny font-bold bg-rose/15 text-rose">✕</span>;
 }
 
-function FilaIp({ x, quieto, activa, onClick, onBloqueada }: {
-  x: PorIp; quieto: boolean; activa: boolean; onClick: () => void; onBloqueada: () => void;
+function FilaIp({ x, senas, quieto, activa, onClick, onBloqueada }: {
+  x: PorIp; senas: Senas | null; quieto: boolean; activa: boolean;
+  onClick: () => void; onBloqueada: () => void;
 }): React.ReactElement {
   const tr = useTranslations('security');
   const idioma = useLocale();
@@ -1155,6 +1314,52 @@ function FilaIp({ x, quieto, activa, onClick, onBloqueada }: {
           <Franja pct={(x.fallidos / total) * 100} clase="bg-rose" quieto={quieto} />
         )}
       </div>
+
+      {/*
+        * De quién es esta dirección.
+        *
+        * Erick, 2026-10-07: *"sabemos de quiénes son, por qué no ponemos sus
+        * nombres en pequeño"*. Una IP sola no se puede juzgar; con los nombres
+        * al lado, `76.8.206.26` deja de ser un número y se lee como "la
+        * oficina". Va el nombre antes del arroba y no el correo entero:
+        * entran seis en una línea y nadie necesita el dominio, que es el
+        * mismo para todos.
+        */}
+      {senas !== null && senas.quienes.length > 0 && (
+        <p className="mt-1 truncate text-tiny text-text-2" title={senas.quienes.join(', ')}>
+          {senas.quienes.slice(0, 5).join(' · ')}
+          {senas.quienes.length > 5 && (
+            <span className="text-text-3"> {tr('ipMore', { n: senas.quienes.length - 5 })}</span>
+          )}
+        </p>
+      )}
+
+      {/*
+        * Y la que no es de nadie.
+        *
+        * Tres hechos, no un veredicto: nadie entró, probó N cuentas, el país
+        * no es de los nuestros. Juntos se leen como lo que suele ser, pero la
+        * pantalla no dice "es un bot" — eso lo decide quien mira, que tiene el
+        * botón de Bloquear a dos centímetros. Un cartel que acusa solo se
+        * ignora en cuanto se equivoca una vez.
+        */}
+      {senas !== null && !senas.conocida && (
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          <span className="rounded-full border border-rose/30 bg-rose/10 px-2 py-0.5 text-tiny text-rose">
+            {tr('ipNobody')}
+          </span>
+          {senas.probados.length > 1 && (
+            <span className="rounded-full border border-amber/30 bg-amber/10 px-2 py-0.5 text-tiny text-amber">
+              {tr('ipTried', { n: senas.probados.length })}
+            </span>
+          )}
+          {senas.paisNuevo && x.pais !== null && (
+            <span className="rounded-full border border-amber/30 bg-amber/10 px-2 py-0.5 text-tiny text-amber">
+              {tr('ipNewCountry', { pais: x.pais })}
+            </span>
+          )}
+        </div>
+      )}
 
       <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3 text-tiny text-text-3">
         <span>{hora(x.ultimo, idioma)}{x.modulos.length > 0 && ` · ${x.modulos.join(', ')}`}</span>

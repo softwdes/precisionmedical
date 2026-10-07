@@ -4,6 +4,7 @@ import { useEffect, useState, type CSSProperties } from 'react';
 import { Sidebar } from './sidebar';
 import { CortinaVersionBO } from './cortina-version-bo';
 import { Topbar } from './topbar';
+import { AvisoDobleFactor } from './aviso-doble-factor';
 import { BootAnimation } from './boot-animation';
 import { NavigationProgressProvider } from './navigation-progress';
 import { MobileBottomNav } from './mobile-bottom-nav';
@@ -157,6 +158,14 @@ export function AdminShell({
                 margen), así que ahí hace falta más — sin esto tapaba el botón
                 Responder de Mensajes y el paginador de Casos al llegar al fondo.
                 Auditoría móvil 2026-09-08. */}
+            {/*
+              El aviso del doble factor, arriba del contenido y sin taparlo.
+
+              En el portal LEGAL no: los abogados son externos y pedirles doble
+              factor es una conversación con el bufete, no un cartel. Decisión
+              de Erick, 2026-10-06 — también dejó TimeClock afuera por ahora.
+            */}
+            {variant !== 'attorney' && <AvisoDobleFactor />}
             <main className={`flex-1 p-4 sm:p-6 lg:p-8 md:pb-8 animate-fade-in ${variant === 'attorney' ? 'pb-40' : 'pb-20'}`}>{children}</main>
           </div>
           <MobileBottomNav onMenuClick={() => setMobileOpen(v => !v)} variant={variant} allowedModules={allowedModules} />

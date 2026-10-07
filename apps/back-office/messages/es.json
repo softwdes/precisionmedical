@@ -7432,6 +7432,12 @@
       "alertMeds": "Medicinas sin revisar",
       "saving": "Guardando…",
       "conflict": "Eso contradice lo que hay registrado: primero quitá los registros."
+    },
+    "aviso2fa": {
+      "titulo": "Tu cuenta todavía no tiene doble factor.",
+      "texto": "Son dos minutos y hace falta tu teléfono. Si lo perdés, un administrador te lo quita y volvés a entrar con tu contraseña.",
+      "activar": "Activarlo",
+      "ahoraNo": "Ahora no"
     }
   },
   "caseWizard": {

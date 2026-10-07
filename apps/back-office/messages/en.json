@@ -7432,6 +7432,12 @@
       "alertMeds": "Medications not reviewed",
       "saving": "Saving…",
       "conflict": "This conflicts with what is on file: remove the entries first."
+    },
+    "aviso2fa": {
+      "titulo": "Your account does not have two-factor yet.",
+      "texto": "It takes two minutes and you need your phone. If you lose it, an administrator removes it and you get back in with your password.",
+      "activar": "Turn it on",
+      "ahoraNo": "Not now"
     }
   },
   "caseWizard": {

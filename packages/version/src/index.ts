@@ -36,8 +36,34 @@
  * A mano, y solo cuando Erick dice que un lanzamiento es grande. No se
  * autoincrementa por deploy: "grande" es un juicio suyo, no algo que un script
  * pueda contar. El bump viaja en el commit del lanzamiento y lo hace Main Push.
+ *
+ * ── 3.10 → 3.11, y por qué NO 3.2 ─────────────────────────────────────────
+ *
+ * Erick pidió `3.2` para este lanzamiento, leyendo `3.10` como "tres punto
+ * uno". No se puede: `esVersionNueva('3.2', '3.10')` compara 2 contra 10 y da
+ * **false**, así que la cortina no se abriría para NADIE que ya haya visto la
+ * 3.10 — o sea, todo el equipo. El lanzamiento saldría mudo. Es exactamente la
+ * trampa que la nota de acá arriba anticipaba, y apareció en la primera
+ * oportunidad que tuvo.
  */
-export const VERSION = '3.10';
+export const VERSION = '3.11';
+
+/**
+ * La versión que tiene TITULAR propio en la cortina.
+ *
+ * Un lanzamiento normal muestra el número y los módulos que cambiaron. Uno
+ * grande se merece una frase —"Ciberseguridad está aquí"—, y esa frase es de
+ * ESA versión, no de la cortina.
+ *
+ * Por eso es un número y no un booleano: al subir `VERSION`, el titular se
+ * apaga **solo**. Con un `TIENE_TITULAR = true` alguien se olvida de bajarlo y
+ * la 3.12 anuncia la ciberseguridad de la 3.11 — un error que nadie reporta,
+ * porque no se ve roto, se ve viejo.
+ *
+ * Para darle titular al próximo lanzamiento: poner acá su número y escribir
+ * `versionTitular` / `versionSubtitulo` en los mensajes de cada app.
+ */
+export const TITULAR_DE = '3.11';
 
 /**
  * ¿`candidata` es posterior a `vista`?

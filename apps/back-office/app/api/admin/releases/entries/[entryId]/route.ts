@@ -51,6 +51,7 @@ export async function PATCH(
       id: true,
       hidden: true,
       needsReview: true,
+      textEn: true,
       release: { select: { status: true } },
     },
   });
@@ -66,7 +67,32 @@ export async function PATCH(
   const yaSeMostro =
     entry.release.status === 'PUBLISHED' && !entry.hidden && !entry.needsReview;
 
-  if (yaSeMostro) {
+  /*
+   * Salvo que lo único que se esté haciendo sea ESCRIBIR EL INGLÉS QUE FALTA.
+   *
+   * El candado de arriba se lleva puesto el caso que el schema declara
+   * obligatorio: "un release no se puede publicar con `textEn` en null en
+   * alguna entrada visible". Con el auto-publicado, una nota sin inglés sale
+   * igual y a partir de ahí es inmutable — queda en español para siempre para
+   * quien tenga el selector en EN. Medido el 2026-10-06 sobre el rango del
+   * lanzamiento: 28 notas, 0 con trailer `Release-EN:`, 16 de ellas visibles.
+   *
+   * Es la excepción más chica que arregla eso: un solo campo, y solo para
+   * llenar un hueco. Pisar un inglés ya escrito, o tocar cualquier otra cosa,
+   * sigue dando 409.
+   *
+   * No le cambia el texto a nadie bajo los pies: quien la leyó en español la
+   * vio en español porque no había otra, y el que lee en inglés pasa de ver
+   * español a ver inglés. Nadie pierde lo que ya leyó.
+   */
+  const soloLlenaElIngles =
+    Object.keys(parsed).length === 1 &&
+    parsed.textEn !== undefined &&
+    parsed.textEn !== null &&
+    parsed.textEn !== '' &&
+    entry.textEn === null;
+
+  if (yaSeMostro && !soloLlenaElIngles) {
     return NextResponse.json({ error: 'ALREADY_VISIBLE' }, { status: 409 });
   }
 
@@ -82,6 +108,8 @@ export async function PATCH(
         ? { audiences: parsed.audiences.map((a) => a.toUpperCase() as ReleaseAudience) }
         : {}),
       ...(parsed.hidden !== undefined ? { hidden: parsed.hidden } : {}),
+      // Guardar es revisar. En el camino de `soloLlenaElIngles` ya venía en
+      // false —la nota es visible—, así que no cambia nada.
       needsReview: false,
     },
   });

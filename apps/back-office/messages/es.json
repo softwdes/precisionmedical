@@ -3952,7 +3952,9 @@
       "actionAppointmentScheduled": "Cita agendada",
       "actionNoteAdded": "Nota agregada",
       "cifoSinSaldo": "La cuenta del proveedor se quedó sin saldo. Reintentar no va a servir: hay que recargarla.",
-      "cifoSinClave": "El proveedor rechazó la clave. Avisale a sistemas."
+      "cifoSinClave": "El proveedor rechazó la clave. Avisale a sistemas.",
+      "novedadTitular": "Ciberseguridad está aquí",
+      "novedadSubtitulo": "Ya podés activar el doble factor desde tu cuenta."
     },
     "calendar": {
       "weekdays": {

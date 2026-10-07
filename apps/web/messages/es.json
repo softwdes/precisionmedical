@@ -809,7 +809,9 @@
       "verBilleteras": "Ver billeteras"
     },
     "sinSaldo": "La cuenta del proveedor se quedó sin saldo. Reintentar no va a servir: hay que recargarla.",
-    "sinClave": "El proveedor rechazó la clave. Hay que revisarla en el entorno."
+    "sinClave": "El proveedor rechazó la clave. Hay que revisarla en el entorno.",
+    "versionTitular": "Ciberseguridad está aquí",
+    "versionSubtitulo": "Doble factor, Centro de Seguridad y control de accesos."
   },
   "notifications": {
     "title": "Notificaciones",

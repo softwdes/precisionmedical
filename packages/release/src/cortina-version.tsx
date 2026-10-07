@@ -42,8 +42,18 @@ const CLAVE_SESION = 'cifo:cortina-mostrada';
 const MS_EN_PANTALLA = 6_000;
 
 export interface DatosCortina {
-  /** `3.10`. Texto, nunca número. */
+  /** `3.11`. Texto, nunca número. */
   version: string;
+  /**
+   * La frase del lanzamiento: "Ciberseguridad está aquí". Vacía en un
+   * lanzamiento normal, que es la mayoría.
+   *
+   * Quién la pone y cuándo deja de ponerse lo decide `TITULAR_DE` en
+   * `@precision/version`: al subir el número, el titular se apaga solo.
+   */
+  titular?: string;
+  /** La segunda línea, debajo del titular. Vacía para no mostrarla. */
+  subtitulo?: string;
   /** Módulos que cambiaron, ya filtrados por audiencia y en el idioma de la app. */
   modulos: string[];
   /**
@@ -171,6 +181,23 @@ export function CortinaVersion({
 
   if (!abierta || datos === null) return null;
 
+  /*
+   * Los tiempos de entrada, corridos cuando hay titular.
+   *
+   * Se calculan y no se escriben a mano porque son una CADENA: si el titular
+   * entra a los 800ms, todo lo que viene después tiene que correrse, y la
+   * versión de seis números literales se desincroniza en cuanto alguien toca
+   * uno. La cortina se cierra sola a los 6s y la última pastilla de un
+   * lanzamiento con titular entra a ~2s: queda sitio de sobra.
+   */
+  const hayTitular = (datos.titular ?? '') !== '';
+  const msTitular = 800;
+  const msSubtitulo = msTitular + 180;
+  const msResumen = hayTitular ? msSubtitulo + 180 : 900;
+  const msModulos = msResumen + 200;
+  const msCifo = msModulos + 200;
+  const msCerrar = msModulos + 500;
+
   return (
     <div
       onClick={() => cerrar(true)}
@@ -234,10 +261,31 @@ export function CortinaVersion({
         v{datos.version}
       </p>
 
+      {/* El titular. Es lo único de la cortina que habla de ESTE lanzamiento
+          y no de la mecánica de lanzar, así que pesa más que el resumen y va
+          antes. `text-balance` para que no parta en una línea huérfana. */}
+      {hayTitular && (
+        <p
+          className="pm-cortina-anim relative mt-3 max-w-3xl text-balance px-6 text-center text-xl sm:text-3xl font-semibold leading-tight text-text-1 opacity-0"
+          style={{ animation: `pm-cortina-sube 600ms ${msTitular}ms ease-out forwards` }}
+        >
+          {datos.titular}
+        </p>
+      )}
+
+      {(datos.subtitulo ?? '') !== '' && (
+        <p
+          className="pm-cortina-anim relative mt-2 max-w-xl text-balance px-6 text-center text-sm sm:text-base text-text-2 opacity-0"
+          style={{ animation: `pm-cortina-sube 500ms ${msSubtitulo}ms ease-out forwards` }}
+        >
+          {datos.subtitulo}
+        </p>
+      )}
+
       {datos.resumen !== '' && (
         <p
-          className="pm-cortina-anim relative mt-1 text-sm text-text-2 opacity-0"
-          style={{ animation: 'pm-cortina-sube 500ms 900ms ease-out forwards' }}
+          className="pm-cortina-anim relative mt-1 text-sm text-text-muted opacity-0"
+          style={{ animation: `pm-cortina-sube 500ms ${msResumen}ms ease-out forwards` }}
         >
           {datos.resumen}
         </p>
@@ -248,7 +296,7 @@ export function CortinaVersion({
           <span
             key={modulo}
             className="pm-cortina-anim rounded-full border border-brand/30 bg-brand/10 px-3 py-1 text-xs sm:text-sm text-brand-text opacity-0"
-            style={{ animation: `pm-cortina-sube 450ms ${1100 + i * 130}ms ease-out forwards` }}
+            style={{ animation: `pm-cortina-sube 450ms ${msModulos + i * 120}ms ease-out forwards` }}
           >
             {modulo}
           </span>
@@ -256,20 +304,31 @@ export function CortinaVersion({
       </div>
 
       {/* CIFO, que es quien lo cuenta. Va al costado y chico: el protagonista
-          acá es el número, no él. */}
+          acá es el número, no él.
+
+          Y solo si sobra lugar. Visto a 800×450 se comía la "í" de
+          "Ciberseguridad está aquí" y la cuarta pastilla. Sobra lugar cuando
+          la ventana es ancha Y alta: con ≥1280 el contenido centrado (tope
+          768px) llega hasta 1024 y el robot arranca en 1096, y con ≥620 de
+          alto el bloque centrado no le baja encima. A 1024 de ancho se tocan,
+          así que `lg:` no alcanzaba.
+
+          Una media query con las dos condiciones, no dos variantes apiladas:
+          `hidden` y `xl:block` pesan igual en CSS y quién gana pasaría a
+          depender del orden en que Tailwind las emita. */}
       <img
         src="/cifo-saluda.gif"
         alt=""
         aria-hidden="true"
-        className="pm-cortina-anim pointer-events-none absolute bottom-0 right-2 w-32 select-none opacity-0 drop-shadow-2xl sm:w-44"
-        style={{ animation: 'pm-cortina-sube 700ms 1300ms ease-out forwards' }}
+        className="pm-cortina-anim pointer-events-none absolute bottom-0 right-2 hidden w-44 select-none opacity-0 drop-shadow-2xl [@media(min-width:1280px)_and_(min-height:620px)]:block"
+        style={{ animation: `pm-cortina-sube 700ms ${msCifo}ms ease-out forwards` }}
       />
 
       <button
         type="button"
         onClick={() => cerrar(true)}
         className="pm-cortina-anim relative mt-10 rounded-md border border-border bg-bg-1/80 px-4 py-2 text-sm text-text-2 opacity-0 transition-colors hover:text-text-1"
-        style={{ animation: 'pm-cortina-sube 400ms 1600ms ease-out forwards' }}
+        style={{ animation: `pm-cortina-sube 400ms ${msCerrar}ms ease-out forwards` }}
       >
         {datos.cerrar}
       </button>

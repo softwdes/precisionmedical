@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { CortinaVersion } from '@precision/release/cortina';
 import { useNovedadDeVersion, marcarVersionVista } from '@precision/release/novedad';
-import { VERSION } from '@precision/version';
+import { VERSION, TITULAR_DE } from '@precision/version';
 
 /**
  * La cortina de versión del back-office.
@@ -45,6 +45,10 @@ export function CortinaVersionBO(): React.ReactElement {
         version: VERSION,
         modulos: novedad.modulos,
         etiqueta: t('novedadEtiqueta'),
+        // Ver la nota en la cortina del Admin: se apaga solo al subir
+        // `VERSION`.
+        titular: VERSION === TITULAR_DE ? t('novedadTitular') : '',
+        subtitulo: VERSION === TITULAR_DE ? t('novedadSubtitulo') : '',
         // Vacío con cero: pasa cuando el changelog no vino. "0 cambios" debajo
         // de un cartel de versión nueva es peor que no poner nada.
         resumen: novedad.cambios === 0 ? '' : t('novedadCambios', { count: novedad.cambios }),

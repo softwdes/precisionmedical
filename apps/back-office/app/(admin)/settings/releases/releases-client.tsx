@@ -296,11 +296,22 @@ function EntryRow({
     if (cruce.length > 0) setAudiences(cruce);
   };
 
-  const dirty =
-    textEs !== entry.textEs ||
-    textEn !== (entry.textEn ?? '') ||
-    module !== entry.module ||
-    audiences.join() !== entry.audiences.join();
+  /*
+   * Una nota ya publicada con el inglés en blanco no está del todo cerrada:
+   * ese hueco se puede llenar, y nada más. La API acepta exactamente eso
+   * —un solo campo, y solo si estaba en null— así que acá el formulario
+   * tiene que mandar exactamente eso también.
+   */
+  const soloIngles = readOnly && entry.textEn === null && !entry.hidden;
+  /** Congelada de verdad: ni siquiera le falta el inglés. */
+  const congelado = readOnly && !soloIngles;
+
+  const dirty = soloIngles
+    ? textEn.trim() !== ''
+    : textEs !== entry.textEs ||
+      textEn !== (entry.textEn ?? '') ||
+      module !== entry.module ||
+      audiences.join() !== entry.audiences.join();
 
   const missingEnglish = textEn.trim() === '' && !entry.hidden;
 
@@ -334,14 +345,14 @@ function EntryRow({
       <input
         value={textEs}
         onChange={(event) => setTextEs(event.target.value)}
-        disabled={readOnly}
+        disabled={congelado || soloIngles}
         placeholder={t('placeholderEs')}
         className="w-full rounded-md bg-bg-1 px-2 py-1.5 text-[12px] text-text-1 outline-none focus:ring-1 focus:ring-brand disabled:opacity-60"
       />
       <input
         value={textEn}
         onChange={(event) => setTextEn(event.target.value)}
-        disabled={readOnly}
+        disabled={congelado}
         placeholder={t('placeholderEn')}
         className={
           'w-full rounded-md bg-bg-1 px-2 py-1.5 text-[12px] text-text-1 outline-none focus:ring-1 focus:ring-brand disabled:opacity-60 ' +
@@ -353,7 +364,7 @@ function EntryRow({
         <select
           value={module}
           onChange={(event) => cambiarModulo(event.target.value)}
-          disabled={readOnly}
+          disabled={congelado || soloIngles}
           className="rounded-md bg-bg-1 px-2 py-1 text-[11px] text-text-1 outline-none disabled:opacity-60"
         >
           {MODULE_KEYS.map((key) => (
@@ -370,7 +381,7 @@ function EntryRow({
               <button
                 key={audience}
                 type="button"
-                disabled={readOnly}
+                disabled={congelado || soloIngles}
                 onClick={() =>
                   setAudiences(
                     on ? audiences.filter((a) => a !== audience) : [...audiences, audience],
@@ -390,7 +401,7 @@ function EntryRow({
         <div className="ml-auto flex items-center gap-1.5">
           <button
             type="button"
-            disabled={readOnly || busy}
+            disabled={congelado || soloIngles || busy}
             onClick={() => onSave({ hidden: !entry.hidden })}
             className="rounded-md bg-white/5 px-2 py-1 text-[10px] text-text-2 hover:text-text-1 disabled:opacity-40"
           >
@@ -398,14 +409,20 @@ function EntryRow({
           </button>
           <button
             type="button"
-            disabled={readOnly || busy || !dirty}
+            disabled={congelado || busy || !dirty}
             onClick={() =>
-              onSave({
-                textEs,
-                textEn: textEn.trim() === '' ? null : textEn,
-                module,
-                audiences,
-              })
+              onSave(
+                // Un solo campo, porque la API cuenta las claves: mandarle
+                // los cuatro con tres iguales igual daría 409.
+                soloIngles
+                  ? { textEn }
+                  : {
+                      textEs,
+                      textEn: textEn.trim() === '' ? null : textEn,
+                      module,
+                      audiences,
+                    },
+              )
             }
             className="flex items-center gap-1 rounded-md bg-gradient-brand px-2.5 py-1 text-[10px] font-semibold text-white disabled:opacity-30"
           >

@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import { CortinaVersion } from '@precision/release/cortina';
 import { useNovedadDeVersion, marcarVersionVista } from '@precision/release/novedad';
-import { VERSION } from '@precision/version';
+import { VERSION, TITULAR_DE } from '@precision/version';
 
 /**
  * La cortina de versión del Admin: el hook, los textos y nada más.
@@ -30,6 +30,11 @@ export function CortinaVersionAdmin(): React.ReactElement {
         version: VERSION,
         modulos: novedad.modulos,
         etiqueta: t('versionEtiqueta'),
+        // El titular es de UNA versión, no de la cortina. Cuando `VERSION`
+        // suba y `TITULAR_DE` se quede atrás, esto da vacío solo — nadie
+        // tiene que acordarse de apagarlo.
+        titular: VERSION === TITULAR_DE ? t('versionTitular') : '',
+        subtitulo: VERSION === TITULAR_DE ? t('versionSubtitulo') : '',
         // Vacío con cero: pasa cuando el changelog no vino (ver `sinResumen`).
         // "0 cambios" debajo de un cartel de versión nueva es peor que nada.
         resumen: novedad.cambios === 0 ? '' : t('versionCambios', { count: novedad.cambios }),

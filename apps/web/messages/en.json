@@ -809,7 +809,9 @@
       "verBilleteras": "Open wallets"
     },
     "sinSaldo": "The provider account is out of credit. Retrying will not help — it needs to be topped up.",
-    "sinClave": "The provider rejected the key. It needs to be checked in the environment."
+    "sinClave": "The provider rejected the key. It needs to be checked in the environment.",
+    "versionTitular": "Cybersecurity is here",
+    "versionSubtitulo": "Two-factor, a Security Center, and access control."
   },
   "notifications": {
     "title": "Notifications",

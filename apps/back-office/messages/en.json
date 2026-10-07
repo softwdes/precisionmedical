@@ -3952,7 +3952,9 @@
       "actionAppointmentScheduled": "Appointment scheduled",
       "actionNoteAdded": "Note added",
       "cifoSinSaldo": "The provider account is out of credit. Retrying will not help — it needs to be topped up.",
-      "cifoSinClave": "The provider rejected the key. Let IT know."
+      "cifoSinClave": "The provider rejected the key. Let IT know.",
+      "novedadTitular": "Cybersecurity is here",
+      "novedadSubtitulo": "You can now turn on two-factor from your account."
     },
     "calendar": {
       "weekdays": {

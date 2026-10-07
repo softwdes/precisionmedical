@@ -184,7 +184,9 @@ export function SmsHistoryPanel({ onTitulo }: {
     setData(prev => prev && ({
       ...prev,
       messages: prev.messages.map(m => m.id === r.id ? { ...m, readAt: new Date().toISOString() } : m),
-      counts: { ...prev.counts, unread: Math.max(0, prev.counts.unread - 1) },
+      // El contador de la pastilla ya no es `unread`, así que no hay nada que
+      // descontar acá: abrir un mensaje no cambia cuántos entrantes hay.
+      counts: prev.counts,
     }));
 
     void fetch('/api/admin/message-logs', {
@@ -319,11 +321,22 @@ export function SmsHistoryPanel({ onTitulo }: {
         {/* Filtros — pills, no un formulario: son decisiones rápidas */}
         {!editando && vista === 'todos' && (
         <div className="flex items-center gap-x-4 gap-y-2 flex-wrap px-4 sm:px-6 pt-3 pb-1 shrink-0">
-          {/* Entrantes. Va primero y con el contador de sin leer porque es lo
-              unico de esta pantalla que pide una ACCION: lo demas es consulta. */}
+          {/* Entrantes. El contador dice CUÁNTAS HAY, no cuántas faltan leer.
+
+              Mostraba `unread` y eso engaña en la dirección que asusta: medido
+              el 2026-10-07, decía 11 cuando había UNA conversación esperando
+              respuesta. `readAt` solo se marca al desplegar el cuerpo en esta
+              lista, así que quien contesta o descarta desde la conversación
+              —que es como se trabaja— nunca lo toca. Caí yo mismo: leí ese 11
+              como "once sin atender" y el buzón estaba al día.
+
+              Lo que pide acción ya tiene su lugar: el badge rojo de la pestaña
+              "Por responder", que cuenta conversaciones y no mensajes. Esto es
+              un FILTRO, y al lado de un filtro el número honesto es cuántas
+              filas va a mostrar. */}
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mr-0.5">{t('filterDirection')}</span>
-            {([['ALL', t('dirAll'), undefined], ['IN', t('dirIn'), counts?.unread], ['OUT', t('dirOut'), undefined]] as [DirFilter, string, number | undefined][]).map(([k, l, n]) => (
+            {([['ALL', t('dirAll'), undefined], ['IN', t('dirIn'), counts?.inbound], ['OUT', t('dirOut'), undefined]] as [DirFilter, string, number | undefined][]).map(([k, l, n]) => (
               <FilterPill key={k} active={dir === k} onClick={() => { setDir(k); setPage(0); }} label={l} count={n || undefined} />
             ))}
           </div>

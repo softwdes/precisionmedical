@@ -40,6 +40,7 @@ import { z } from 'zod';
 import { db, writeAuditLog, Prisma } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { checkPatientStaff } from '@/lib/patient-access';
+import { duennoDelCorreo } from '@/lib/duenno-del-correo';
 
 /**
  * Los mismos campos del diálogo menos los que no corresponden acá.
@@ -87,7 +88,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const existing = await db.lawyer.findUnique({ where: { email: parsed.email } });
     if (existing) {
       return NextResponse.json(
-        { error: 'DUPLICATE_EMAIL', params: { email: parsed.email } },
+        { error: 'DUPLICATE_EMAIL', params: { email: parsed.email, duenno: duennoDelCorreo(existing) } },
         { status: 409 },
       );
     }

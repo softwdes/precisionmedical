@@ -423,7 +423,7 @@
       "srvNO_ACCESS": "This record has no portal access.",
       "srvNOT_A_LAWYER_ACCOUNT": "That is not an attorney account, so it cannot be revoked from here.",
       "srvBAN_FAILED": "Access could not be revoked.",
-      "srvDUPLICATE_EMAIL": "Someone with the email \"{email}\" already exists.",
+      "srvDUPLICATE_EMAIL": "That email already belongs to {duenno}. Each email can only be used once, because the legal portal identifies people by it. Leave it empty if this person does not have their own.",
       "srvCANNOT_DELETE_SELF": "You cannot remove your own access.",
       "srvFORBIDDEN": "You do not have permission to do this.",
       "srvNOT_FOUND": "What was being looked up could not be found.",
@@ -7175,7 +7175,8 @@
       "attorneyAdd": "Add attorney",
       "firmAdd": "Add law firm",
       "attorneyIsFirm": "That is the law firm, not a person. The firm goes in the column; this box is for the attorney.",
-      "attorneyRemove": "Remove this attorney from the case"
+      "attorneyRemove": "Remove this attorney from the case",
+      "managerIsCaseAttorney": "↑ Set as the attorney for this case"
     },
     "online": {
       "badge": "Online visit",

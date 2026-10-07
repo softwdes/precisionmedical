@@ -42,6 +42,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, writeAuditLog, Prisma } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
+import { duennoDelCorreo } from '@/lib/duenno-del-correo';
 
 const AltaMiembroSchema = z.object({
   parentFirmId: z.string().min(1),
@@ -103,7 +104,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json(
         {
           error:  'DUPLICATE_EMAIL',
-          params: { email: parsed.email },
+          params: { email: parsed.email, duenno: duennoDelCorreo(existing) },
           lawyerId: existing.id,
         },
         { status: 409 },

@@ -17,6 +17,7 @@ import { getSessionLawyer, type SessionLawyer } from '@/lib/get-session-lawyer';
 import { canAssignStaff } from '@/lib/attorney-portal';
 import { grantLawyerAccess, revokeLawyerAccess } from '@/lib/lawyer-access';
 import { resolveActor } from '@/lib/actor';
+import { duennoDelCorreo } from '@/lib/duenno-del-correo';
 
 const MEMBER_ROLES = ['ATTORNEY', 'CASE_MANAGER', 'PARALEGAL', 'LEGAL_ASSISTANT', 'OTHER'] as const;
 
@@ -71,10 +72,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // `lawyers.email` es @unique en toda la tabla, no solo dentro del bufete: sin
   // este chequeo el insert revienta con un P2002 crudo.
   if (input.email) {
-    const dup = await db.lawyer.findUnique({ where: { email: input.email }, select: { id: true } });
+    const dup = await db.lawyer.findUnique({ where: { email: input.email }, select: { id: true, entityType: true, firmName: true, firstName: true, lastName: true } });
     if (dup) {
       return NextResponse.json(
-        { error: 'DUPLICATE_EMAIL', params: { email: input.email } },
+        { error: 'DUPLICATE_EMAIL', params: { email: input.email, duenno: duennoDelCorreo(dup) } },
         { status: 409 },
       );
     }
@@ -182,10 +183,10 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
   if (!member) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
 
   if (input.email && input.email !== member.email) {
-    const dup = await db.lawyer.findUnique({ where: { email: input.email }, select: { id: true } });
+    const dup = await db.lawyer.findUnique({ where: { email: input.email }, select: { id: true, entityType: true, firmName: true, firstName: true, lastName: true } });
     if (dup && dup.id !== member.id) {
       return NextResponse.json(
-        { error: 'DUPLICATE_EMAIL', params: { email: input.email } },
+        { error: 'DUPLICATE_EMAIL', params: { email: input.email, duenno: duennoDelCorreo(dup) } },
         { status: 409 },
       );
     }

@@ -1548,6 +1548,19 @@ export function EdsonClient({ clinics, providers, providersFiltro, carriers, law
                                   * catálogo o texto escrito a mano— y quitar solo
                                   * una dejaría la otra en pie.
                                   */
+                                /*
+                                  * Mismo endpoint y mismo patrón optimista que
+                                  * quitar: el abogado del caso es `attorneyId`,
+                                  * y se manda `attorneyNameRaw: null` para que
+                                  * no quede un texto viejo compitiendo con el
+                                  * vínculo nuevo.
+                                  */
+                                onUsarComoAbogado={(lawyerId, nombre) => void saveTo(
+                                  `/api/admin/cases/${row.caseId}/update-legal-insurance`,
+                                  row.caseId,
+                                  { attorneyName: nombre },
+                                  { attorneyId: lawyerId, attorneyNameRaw: null },
+                                )}
                                 onQuitarAbogado={() => void saveTo(
                                   `/api/admin/cases/${row.caseId}/update-legal-insurance`,
                                   row.caseId,

@@ -423,7 +423,7 @@
       "srvNO_ACCESS": "Esta ficha no tiene acceso al portal.",
       "srvNOT_A_LAWYER_ACCOUNT": "Esa cuenta no es de abogado, así que no se revoca desde acá.",
       "srvBAN_FAILED": "No se pudo revocar el acceso.",
-      "srvDUPLICATE_EMAIL": "Ya existe alguien con el email \"{email}\".",
+      "srvDUPLICATE_EMAIL": "Ese correo ya es de {duenno}. Cada correo se puede usar una sola vez, porque el portal legal identifica a las personas por él. Dejalo vacío si esta persona no tiene uno propio.",
       "srvCANNOT_DELETE_SELF": "No podés darte de baja a vos mismo.",
       "srvFORBIDDEN": "No tenés permiso para hacer esto.",
       "srvNOT_FOUND": "No se encontró lo que se estaba buscando.",
@@ -7175,7 +7175,8 @@
       "attorneyAdd": "Agregar abogado",
       "firmAdd": "Agregar bufete",
       "attorneyIsFirm": "Ese es el bufete, no una persona. El bufete va en la columna; acá va el abogado.",
-      "attorneyRemove": "Quitar al abogado de este caso"
+      "attorneyRemove": "Quitar al abogado de este caso",
+      "managerIsCaseAttorney": "↑ Usar como abogado de este caso"
     },
     "online": {
       "badge": "Cita online",

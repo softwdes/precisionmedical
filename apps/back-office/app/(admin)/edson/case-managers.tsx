@@ -149,7 +149,17 @@ export function CopyLine({ icon, value, href }: { icon: React.ReactNode; value: 
   );
 }
 
-function ManagerCard({ m, onRemove }: { m: Manager; onRemove?: () => void }) {
+function ManagerCard({ m, onRemove, onUsarComoAbogado }: {
+  m: Manager;
+  onRemove?: () => void;
+  /**
+   * Poner a ESTA persona como abogado del caso.
+   *
+   * Solo llega con valor cuando la persona es un ATTORNEY y el caso todavia
+   * no tiene abogado. Ver la nota de donde se arma, en el popover.
+   */
+  onUsarComoAbogado?: () => void;
+}) {
   const t = useTranslations('phoenix.edsonTracking');
   const d = managerData(m);
   return (
@@ -176,6 +186,15 @@ function ManagerCard({ m, onRemove }: { m: Manager; onRemove?: () => void }) {
         {d.email && <CopyLine icon={<Mail className="w-3 h-3" />} value={d.email} href={`mailto:${d.email}`} />}
         {d.phone && <CopyLine icon={<Phone className="w-3 h-3" />} value={d.phone} />}
       </div>
+      {onUsarComoAbogado && (
+        <button
+          type="button"
+          onClick={onUsarComoAbogado}
+          className="mt-1.5 w-full rounded-md border border-dashed border-amber/40 px-2 py-1 text-[11px] text-amber hover:bg-amber/10"
+        >
+          {t('managerIsCaseAttorney')}
+        </button>
+      )}
     </div>
   );
 }
@@ -183,7 +202,7 @@ function ManagerCard({ m, onRemove }: { m: Manager; onRemove?: () => void }) {
 // ─── Popover de la grilla ────────────────────────────────────────────────────
 
 export function ManagersPopover({
-  caseId, attorneyName, attorneyEmail, firmName, paciente, caseCode, rect, onClose, onAdd, onEditLegal, onQuitarAbogado,
+  caseId, attorneyName, attorneyEmail, firmName, paciente, caseCode, rect, onClose, onAdd, onEditLegal, onQuitarAbogado, onUsarComoAbogado,
 }: {
   caseId: string;
   /** De quién es este panel. Ver la nota del encabezado. */
@@ -212,6 +231,19 @@ export function ManagersPopover({
    * notaba, que es como se llega a "no se puede".
    */
   onQuitarAbogado: () => void;
+  /**
+   * Ascender a un ENCARGADO que es abogado a abogado DEL CASO.
+   *
+   * `case_managers` guarda a cualquier miembro del bufete con su rol, y el
+   * abogado del caso es otra cosa: `cases.attorneyId`, que es lo que leen
+   * facturacion, el lien y el portal legal. Agregar al abogado como
+   * "encargado" NO le pone abogado al caso, y desde la pantalla las dos
+   * cosas se ven igual: una persona con el rotulo ATTORNEY.
+   *
+   * Medido el 2026-10-06: 4 casos tienen un ATTORNEY entre sus encargados y
+   * `attorneyId` vacio. Para facturacion esos casos no tienen abogado.
+   */
+  onUsarComoAbogado: (lawyerId: string, nombre: string) => void;
 }) {
   const t = useTranslations('phoenix.edsonTracking');
   const { current, loading } = useManagers(caseId);
@@ -339,7 +371,25 @@ export function ManagersPopover({
       {!loading && current.length === 0 && (
         <p className="text-text-muted text-[12px] italic">{t('managerNone')}</p>
       )}
-      {current.map(m => <ManagerCard key={m.id} m={m} />)}
+      {/*
+        * El ofrecimiento sale SOLO si esta persona es abogada y el caso no
+        * tiene abogado todavia. Con abogado puesto no se ofrece nada: cambiar
+        * al abogado del caso es una decision, no un atajo, y para eso esta el
+        * lapiz de la tarjeta de arriba.
+        */}
+      {current.map(m => {
+        const d = managerData(m);
+        const ofrecer = !attorneyName && d.role === 'ATTORNEY' && !!m.lawyer?.id;
+        return (
+          <ManagerCard
+            key={m.id}
+            m={m}
+            onUsarComoAbogado={ofrecer
+              ? () => { onClose(); onUsarComoAbogado(m.lawyer!.id, d.name); }
+              : undefined}
+          />
+        );
+      })}
 
       {lienEmails.length > 0 && (
         <button

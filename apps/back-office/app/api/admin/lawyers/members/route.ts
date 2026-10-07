@@ -10,6 +10,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, writeAuditLog, Prisma } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
+import { duennoDelCorreo } from '@/lib/duenno-del-correo';
 
 const MemberInputSchema = z.object({
   id: z.string().optional(),
@@ -49,8 +50,28 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (parsed.email) {
     const dup = await db.lawyer.findUnique({ where: { email: parsed.email } });
     if (dup) {
+      /*
+       * El mensaje dice DE QUIEN es el correo, y esa palabra cambia todo.
+       *
+       * `lawyers.email` es unico en TODA la tabla —bufetes y personas comparten
+       * el indice— y no se puede relajar: el portal legal identifica al abogado
+       * que inicia sesion por su correo (ver `lib/get-session-lawyer.ts`: "email
+       * es la unica llave comun"). Si un bufete y una persona lo compartieran,
+       * el portal no sabria quien entro.
+       *
+       * Asi que el rechazo es correcto; lo que fallaba era contarlo. Decia
+       * "alguien con ese correo ya existe" y el choque tipico es con el BUFETE
+       * de la propia persona: en un bufete de un solo abogado, su correo
+       * personal ES el de la oficina. Erick perdio un rato con eso el
+       * 2026-10-06 intentando completar a Brian Hills con el correo de Brian
+       * Hills Law, y termino dudando de si la pantalla editaba o creaba.
+       */
+      const duenno = duennoDelCorreo(dup);
       return NextResponse.json(
-        { error: 'DUPLICATE_EMAIL', params: { email: parsed.email } },
+        {
+          error:  'DUPLICATE_EMAIL',
+          params: { email: parsed.email, duenno, esBufete: String(dup.entityType === 'FIRM') },
+        },
         { status: 409 },
       );
     }
@@ -110,8 +131,28 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
   if (parsed.email && parsed.email !== before.email) {
     const dup = await db.lawyer.findUnique({ where: { email: parsed.email } });
     if (dup) {
+      /*
+       * El mensaje dice DE QUIEN es el correo, y esa palabra cambia todo.
+       *
+       * `lawyers.email` es unico en TODA la tabla —bufetes y personas comparten
+       * el indice— y no se puede relajar: el portal legal identifica al abogado
+       * que inicia sesion por su correo (ver `lib/get-session-lawyer.ts`: "email
+       * es la unica llave comun"). Si un bufete y una persona lo compartieran,
+       * el portal no sabria quien entro.
+       *
+       * Asi que el rechazo es correcto; lo que fallaba era contarlo. Decia
+       * "alguien con ese correo ya existe" y el choque tipico es con el BUFETE
+       * de la propia persona: en un bufete de un solo abogado, su correo
+       * personal ES el de la oficina. Erick perdio un rato con eso el
+       * 2026-10-06 intentando completar a Brian Hills con el correo de Brian
+       * Hills Law, y termino dudando de si la pantalla editaba o creaba.
+       */
+      const duenno = duennoDelCorreo(dup);
       return NextResponse.json(
-        { error: 'DUPLICATE_EMAIL', params: { email: parsed.email } },
+        {
+          error:  'DUPLICATE_EMAIL',
+          params: { email: parsed.email, duenno, esBufete: String(dup.entityType === 'FIRM') },
+        },
         { status: 409 },
       );
     }

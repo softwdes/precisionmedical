@@ -53,6 +53,7 @@ import {
 import { fechaParaSms, horaParaSms, fechaSolaParaCorreo } from '@/lib/fechas';
 import { armarSmsDeLaBase } from '@/lib/plantillas-sms-db';
 import { horarioYaPaso } from '@/lib/scheduling-rules';
+import { telefonoDe } from '@/lib/telefono-paciente';
 
 /** Minutos antes de la cita a los que se le pide llegar. */
 const MINUTOS_ANTES_DE_LLEGAR = 15;
@@ -131,11 +132,11 @@ export async function cargarCitaParaAvisar(appointmentId: string): Promise<CitaP
       clinic:  { select: { name: true, address: true, phone: true } },
       patient: {
         select: {
-          id: true, firstName: true, lastName: true, phone: true, email: true,
+          id: true, firstName: true, lastName: true, phone: true, phone2: true, email: true,
           dateOfBirth: true, preferredLanguage: true,
           sharesPhone: true, sharesEmail: true,
           guardianPatient: {
-            select: { firstName: true, lastName: true, phone: true, email: true },
+            select: { firstName: true, lastName: true, phone: true, phone2: true, email: true },
           },
         },
       },
@@ -174,7 +175,18 @@ export async function cargarCitaParaAvisar(appointmentId: string): Promise<CitaP
     patientId:     cita.patient.id,
     caseId:        cita.caseId,
     scheduledFor:  cita.scheduledFor,
-    telefono:      destino.phone?.trim() || null,
+    /**
+     * `telefonoDe` y no `.phone`: la ficha tiene principal Y celular, y acá
+     * se miraba solo el primero. Medido el 2026-10-06: **3.076 de 5.824
+     * pacientes tienen cargado SOLO el celular**, así que no recibían NI UN
+     * recordatorio — y el sistema no lo reportaba como falla, simplemente no
+     * mandaba nada por SMS.
+     *
+     * Es el mismo resolvedor que usan las siete pantallas y el envío del
+     * portal desde el 2026-09-15. Esta función y la ruta de envío manual eran
+     * las dos únicas que no lo habían adoptado.
+     */
+    telefono:      telefonoDe(destino),
     // `correoUsable` y no `trim()`: el alta rapida inventa direcciones
     // `@no-email.lienmaster.local` que tienen forma de correo y no existen.
     email:         correoUsable(destino.email),

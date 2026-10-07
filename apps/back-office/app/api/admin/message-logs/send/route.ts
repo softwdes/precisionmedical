@@ -33,6 +33,7 @@ import { z } from 'zod';
 import { db, isMinor, writeAuditLog, type Prisma } from '@precision-medical/database';
 import { checkPatientStaff } from '@/lib/patient-access';
 import { resolveActor } from '@/lib/actor';
+import { telefonoDe } from '@/lib/telefono-paciente';
 import { sendSms } from '@/lib/sms';
 import { horaLocalClinica } from '@/lib/fechas';
 
@@ -80,8 +81,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const paciente = datos.patientId ? await db.patient.findUnique({
     where: { id: datos.patientId },
     select: {
-      id: true, firstName: true, lastName: true, phone: true, dateOfBirth: true,
-      guardianPatient: { select: { firstName: true, lastName: true, phone: true } },
+      id: true, firstName: true, lastName: true, phone: true, phone2: true, dateOfBirth: true,
+      guardianPatient: { select: { firstName: true, lastName: true, phone: true, phone2: true } },
     },
   }) : null;
   if (datos.patientId && !paciente) {
@@ -101,8 +102,28 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
    * clínica, cualquiera podría mandarle el historial de alguien a su propio
    * teléfono.
    */
+  /**
+   * `telefonoDe` y no `.phone` a secas: la ficha tiene DOS campos y el
+   * segundo es el CELULAR.
+   *
+   * Esta ruta miraba solo el principal. Medido el 2026-10-06: **3.076 de
+   * 5.824 pacientes tienen cargado SOLO el celular**, así que para el
+   * mostrador figuraban como imposibles de contactar teniendo el número a la
+   * vista en su ficha. Y al revés: de las 17 fallas reales de Twilio, 14 son
+   * el código 30006 —"este número no recibe SMS"—, que es lo que pasa al
+   * escribirle a un fijo.
+   *
+   * `telefonoDe` ya existía desde el 2026-09-15 con esta misma medición, y lo
+   * usan siete pantallas y el envío del portal. Las dos rutas que MANDAN SMS
+   * —esta y el recordatorio— eran las únicas que no lo habían adoptado.
+   *
+   * Sigue ganando el principal cuando hay dos: de los 1.252 con ambos campos,
+   * solo 239 tienen números distintos de verdad; en el resto es el mismo
+   * número cargado dos veces. Esto NO cambia a dónde le llega a nadie que hoy
+   * recibe bien — solo alcanza a quien no recibía nada.
+   */
   const telefono = paciente
-    ? (apoderado?.phone ?? paciente.phone)?.trim()
+    ? (telefonoDe(apoderado) ?? telefonoDe(paciente)) ?? undefined
     : datos.numero?.trim();
   if (!telefono) return NextResponse.json({ error: 'SIN_TELEFONO' }, { status: 409 });
 

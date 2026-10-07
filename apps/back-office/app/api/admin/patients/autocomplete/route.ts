@@ -16,6 +16,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db, calcAge, isMinor as esMenor } from '@precision-medical/database';
+import { telefonoDe } from '@/lib/telefono-paciente';
 import { checkPatientStaff, alcanceDePacientes } from '@/lib/patient-access';
 import { separarFecha, clausulasDeFecha } from '@/lib/fecha-buscada';
 import { idsPorTelefono } from '@/lib/telefono-buscado';
@@ -137,7 +138,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
        * de envío manda a la ficha del apoderado. Sin esto la pantalla mostraría
        * un número y el mensaje saldría a otro.
        */
-      ...(paraSms ? { guardianPatient: { select: { phone: true, firstName: true, lastName: true } } } : {}),
+      ...(paraSms ? { guardianPatient: { select: { phone: true, phone2: true, firstName: true, lastName: true } } } : {}),
     },
   });
 
@@ -152,7 +153,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const numerosDeBaja = new Map<string, Date>();
   if (paraSms) {
     const destinos = patients
-      .map((p) => (p as { guardianPatient?: { phone: string | null } }).guardianPatient?.phone ?? p.phone)   // mismo criterio que arriba: nunca phone2
+      // Mismo criterio que arriba: el resolvedor compartido, no una copia.
+      .map((p) => {
+        const g = (p as { guardianPatient?: { phone: string | null; phone2?: string | null } | null }).guardianPatient;
+        return telefonoDe(g) ?? telefonoDe(p);
+      })
       .filter((t): t is string => !!t && t.trim() !== '');
     if (destinos.length > 0) {
       const bajas = await db.messageLog.findMany({
@@ -197,24 +202,23 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         caseCount: p._count.cases,
         isArchived: p.status === 'INACTIVE',
         ...(paraSms ? (() => {
-          const tutor = (p as { guardianPatient?: { phone: string | null; firstName: string; lastName: string } | null }).guardianPatient;
+          const tutor = (p as { guardianPatient?: { phone: string | null; phone2: string | null; firstName: string; lastName: string } | null }).guardianPatient;
           // El menor cobra el teléfono del apoderado, igual que hace el envío.
-          const porTutor = esMenor(p.dateOfBirth) && tutor?.phone ? tutor : null;
+          const porTutor = esMenor(p.dateOfBirth) && telefonoDe(tutor) ? tutor : null;
           /**
-           * `phone` SOLO — nunca `phone2`, aunque el resto de este endpoint sí
-           * caiga al secundario para el subtítulo.
+           * El MISMO resolvedor que usa la ruta de envío, no una copia.
            *
-           * Porque la ruta de envío usa `paciente.phone` a secas: un paciente
-           * con el principal vacío y el secundario cargado NO recibe el SMS.
-           * Medido el 2026-10-06 comparando las dos reglas sobre 3.000 fichas:
-           * con el `?? phone2` divergían 1.432. La pantalla los habría mostrado
-           * como contactables y el envío habría devuelto SIN_TELEFONO después
-           * de redactar — el caso exacto que este buscador viene a evitar.
+           * Acá hubo un ida y vuelta que vale dejar escrito. Primero puse
+           * `p.phone ?? p.phone2` y medí contra la regla del envío sobre 3.000
+           * fichas: **divergían 1.432**, porque el envío miraba solo `phone`.
+           * Lo alineé a `phone` a secas. Después Erick decidió que el envío
+           * usara el celular cuando no hay principal, así que la regla de allá
+           * cambió — y si esto fuera una copia, volvería a divergir.
            *
-           * Si algún día el envío empieza a usar el secundario, ESTA línea es
-           * la que tiene que cambiar con él.
+           * Por eso ahora los dos llaman a `telefonoDe`. Lo que la pantalla
+           * promete no puede salir de una regla paralela a la que manda.
            */
-          const destino  = (porTutor?.phone ?? p.phone ?? '').trim();
+          const destino  = (porTutor ? telefonoDe(porTutor) : telefonoDe(p)) ?? '';
           const baja     = destino ? numerosDeBaja.get(destino) ?? null : null;
           return {
             /** El número al que SALDRÍA el mensaje. Vacío = no se puede mandar. */

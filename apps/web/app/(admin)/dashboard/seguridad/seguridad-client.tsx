@@ -1005,12 +1005,6 @@ export function SeguridadClient({ datos, dias, mes, meses }: {
       )}
 
       {pestana === 'resumen' && (<>
-      {/* ── El medidor y el radar ─────────────────────────────────────── */}
-      <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-[minmax(0,300px)_1fr]">
-        <Medidor key={exposicionGeneral()} valor={exposicionGeneral()} quieto={quieto} />
-        <Radar ips={porIp} quieto={quieto} desde={desde} hasta={hasta} />
-      </div>
-
       {/* ── Las cifras ────────────────────────────────────────────────── */}
       <section>
         <h2 className="mb-3 flex flex-wrap items-center gap-2 text-tiny font-bold uppercase tracking-widest text-text-muted">
@@ -1050,6 +1044,19 @@ export function SeguridadClient({ datos, dias, mes, meses }: {
       </>)}
 
       {pestana === 'protecciones' && (<>
+      {/*
+        * El medidor y el radar abren la pantalla.
+        *
+        * Erick, 2026-10-07: *"esto que está bonito tiene que ir junto con
+        * protecciones arriba de los módulos"*. Y el medidor pertenece acá:
+        * mide lo que esta pestaña cuenta —5 módulos × 7 protecciones— y en
+        * Resumen era un número sin su tabla al lado.
+        */}
+      <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-[minmax(0,300px)_1fr]">
+        <Medidor key={exposicionGeneral()} valor={exposicionGeneral()} quieto={quieto} />
+        <Radar ips={porIp} quieto={quieto} desde={desde} hasta={hasta} />
+      </div>
+
       {/* ── Por módulo: acá se filtra todo ────────────────────────────── */}
       <section>
         <h2 className="mb-3 flex flex-wrap items-center gap-2 text-tiny font-bold uppercase tracking-widest text-text-muted">

@@ -264,7 +264,8 @@
     "inteligencia": "Inteligencia",
     "system": "Sistema",
     "messages": "Mensajes",
-    "rewards": "Premios"
+    "rewards": "Premios",
+    "openIncidents": "{n, plural, one {# incidencia sin cerrar} other {# incidencias sin cerrar}}"
   },
   "dashboard": {
     "clinicStatsSoon": "Estadísticas de clínicas — próximamente",
@@ -2429,6 +2430,10 @@
     "removeFilter": "Quitar este filtro",
     "byModule": "Por módulo",
     "byModuleHint": "lo que cubre a cada uno · tocá uno para resaltar su columna",
+    "incNone": "Sin incidencias abiertas",
+    "incLocked": "{n, plural, one {cuenta trabada} other {cuentas trabadas}}",
+    "incIps": "{n, plural, one {dirección que solo falló} other {direcciones que solo fallaron}}",
+    "incAlerts": "{n, plural, one {aviso sin leer} other {avisos sin leer}}",
     "moduleAll": "Todos los módulos",
     "sameApp": "Clinic, Providers y Attorneys son el mismo despliegue: esas tres columnas siempre van a decir lo mismo.",
     "tab": {

@@ -19,6 +19,20 @@ interface NotificationsDrawerProps {
   onClose: () => void;
 }
 
+/**
+ * El texto del aviso, sin la marca de control.
+ *
+ * El cron de seguridad pega al final del cuerpo una clave para no repetir
+ * el mismo aviso, separada por un espacio de ancho cero. Ese carácter se
+ * esconde a sí mismo y no a lo que sigue, así que sin esto la clave se lee
+ * en pantalla — pasó el 2026-10-07 en la campana de dos administradores:
+ * "…desde ese país.pais:93fb65d1-…:BO".
+ *
+ * Cortar acá arregla también los avisos ya guardados, sin tocar la base.
+ */
+const soloElTexto = (body: string | null | undefined): string =>
+  String(body ?? '').split('\u200B')[0] ?? '';
+
 export function NotificationsDrawer({ open, onClose }: NotificationsDrawerProps): React.ReactElement {
   const t = useTranslations('notifications');
   const locale = useLocale();
@@ -110,7 +124,7 @@ export function NotificationsDrawer({ open, onClose }: NotificationsDrawerProps)
                     <p className={cn('text-small', !n.readAt ? 'font-semibold text-text-1' : 'text-text-2')}>
                       {n.title}
                     </p>
-                    <p className="text-tiny text-text-3 mt-0.5">{n.body}</p>
+                    <p className="text-tiny text-text-3 mt-0.5">{soloElTexto(n.body)}</p>
                     <p className="text-tiny text-text-muted mt-1">
                       {new Date(n.createdAt).toLocaleString(locale === 'en' ? 'en-US' : 'es-ES', {
                         day: '2-digit',

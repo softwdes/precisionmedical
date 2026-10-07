@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl';
 import { cn } from '@precision/ui';
 import { VERSION } from '@precision/version';
 import { InsigniaVersion } from '@precision/release/insignia';
+import { api as trpc } from '@/lib/trpc/client';
 import {
   LayoutDashboard,
   Users,
@@ -33,6 +34,8 @@ interface NavItem {
   module: LmModule;
   /** When true, item is shown but not clickable (e.g. module not yet implemented). */
   disabled?: boolean;
+  /** Incidencias abiertas. 0 o ausente = sin insignia. */
+  badge?: number;
 }
 
 interface SidebarProps {
@@ -79,8 +82,28 @@ export function Sidebar({ isOpen, onClose }: SidebarProps): React.ReactElement {
    * Y porque el permiso es distinto: quien mira los costos del modelo no es
    * necesariamente quien debe ver el mapa de qué está desprotegido.
    */
+  /*
+   * Las incidencias abiertas, para el número del sidebar.
+   *
+   * `enabled` por el mismo permiso que abre la pantalla: la ruta es
+   * `superAdminProcedure`, así que pedirla sin ese rol sería un error en la
+   * consola de todo el mundo cada minuto.
+   *
+   * Cada 60 s y no cada 30 como la campana: esto son tres consultas y lo
+   * que cuenta no cambia de un minuto al otro.
+   */
+  const puedeSeguridad = can(role, 'seguridad');
+  const { data: incidencias } = trpc.seguridad.incidencias.useQuery(undefined, {
+    enabled: puedeSeguridad,
+    refetchInterval: 60_000,
+  });
+
   const NAV_SECURITY: NavItem[] = [
-    { key: 'seguridad', href: '/dashboard/seguridad', icon: ShieldAlert, label: t('nav.security'), module: 'seguridad' },
+    {
+      key: 'seguridad', href: '/dashboard/seguridad', icon: ShieldAlert,
+      label: t('nav.security'), module: 'seguridad',
+      badge: incidencias?.total ?? 0,
+    },
     { key: 'divulgacion', href: '/dashboard/seguridad/divulgacion', icon: FileSearch, label: t('nav.disclosure'), module: 'seguridad' },
   ];
 
@@ -235,7 +258,22 @@ function NavGroup({ items, pathname, role, grants }: { items: NavItem[]; pathnam
                 <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-0.5 rounded-r-full bg-brand" />
               )}
               <Icon className="h-4 w-4 shrink-0" />
-              <span>{item.label}</span>
+              <span className="flex-1">{item.label}</span>
+              {/*
+                El número de incidencias abiertas.
+
+                Rojo y no la insignia de marca: esto no es "hay novedades",
+                es "hay algo sin cerrar". Y solo aparece cuando hay: un cero
+                permanente al lado de Seguridad enseña a no mirarlo.
+              */}
+              {item.badge !== undefined && item.badge > 0 && (
+                <span
+                  className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-rose px-1.5 text-tiny font-bold tabular-nums text-white"
+                  title={t('nav.openIncidents', { n: item.badge })}
+                >
+                  {item.badge > 9 ? '9+' : item.badge}
+                </span>
+              )}
             </Link>
           </li>
         );

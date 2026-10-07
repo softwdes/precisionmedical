@@ -2,13 +2,14 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../trpc';
 import { supabaseAdmin } from '../supabase-admin';
+import { misIds } from '../mis-ids';
 
 export const notificationsRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
     const { data, error } = await supabaseAdmin
       .from('notifications')
       .select('id, type, title, body, linkUrl, readAt, createdAt')
-      .eq('userId', ctx.user.id)
+      .in('userId', await misIds(ctx))
       .order('createdAt', { ascending: false })
       .limit(50);
 
@@ -20,7 +21,7 @@ export const notificationsRouter = router({
     const { count } = await supabaseAdmin
       .from('notifications')
       .select('id', { count: 'exact', head: true })
-      .eq('userId', ctx.user.id)
+      .in('userId', await misIds(ctx))
       .is('readAt', null);
 
     return count ?? 0;
@@ -33,7 +34,9 @@ export const notificationsRouter = router({
         .from('notifications')
         .update({ readAt: new Date().toISOString() })
         .eq('id', input.id)
-        .eq('userId', ctx.user.id);
+        // Sigue siendo el dueño quien marca: el `in` no afloja eso, solo
+        // contempla que "yo" pueda tener dos ids.
+        .in('userId', await misIds(ctx));
 
       if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
       return { success: true };
@@ -43,7 +46,7 @@ export const notificationsRouter = router({
     const { error } = await supabaseAdmin
       .from('notifications')
       .update({ readAt: new Date().toISOString() })
-      .eq('userId', ctx.user.id)
+      .in('userId', await misIds(ctx))
       .is('readAt', null);
 
     if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });

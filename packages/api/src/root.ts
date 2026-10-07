@@ -6,6 +6,7 @@ import { paymentsRouter } from './routers/payments';
 import { pettyCashRouter } from './routers/petty-cash';
 import { dashboardRouter } from './routers/dashboard';
 import { notificationsRouter } from './routers/notifications';
+import { seguridadRouter } from './routers/seguridad';
 import { searchRouter } from './routers/search';
 import { walletsRouter } from './routers/wallets';
 import { fxRouter } from './routers/fx';
@@ -30,6 +31,7 @@ export const appRouter = router({
   pettyCash: pettyCashRouter,
   dashboard: dashboardRouter,
   notifications: notificationsRouter,
+  seguridad: seguridadRouter,
   search: searchRouter,
   wallets: walletsRouter,
   fx: fxRouter,

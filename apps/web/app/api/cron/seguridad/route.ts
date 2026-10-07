@@ -76,6 +76,22 @@ const FALLOS_PARA_AVISAR = 5;
 /** Quién se entera. Mismo criterio que el cron de auditoría. */
 const ROLES_AVISADOS = ['SUPER_ADMIN', 'ADMIN'];
 
+/**
+ * Cuánta historia de países hace falta para que "país nuevo" signifique algo.
+ *
+ * El 2026-10-07 esta regla avisó que Erick entró desde La Paz "por primera
+ * vez". Entra desde ahí todos los días: lo nuevo no era el país, era el
+ * REGISTRO del país, que arrancó el 2026-10-03. Con dos días de historia,
+ * cualquier lugar parece nuevo.
+ *
+ * Dos semanas es el primer número con el que la frase es cierta: si en
+ * catorce días alguien nunca entró desde ahí, que aparezca hoy sí es una
+ * novedad. Antes de eso la regla se calla y lo dice en su respuesta
+ * (`sinBase`), para que el silencio se pueda ver y no se confunda con que
+ * no pasó nada.
+ */
+const DIAS_DE_BASE = 14;
+
 const ZONA = 'America/Denver';
 
 /** Postgres devuelve `timestamp` sin zona; sin la `Z` el servidor la lee mal. */
@@ -177,23 +193,38 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // algún ingreso con país ANTES de la ventana, "país nuevo" significa "primera
   // fila con país de esta persona" y avisa por todos. Medido el 2026-10-06
   // sobre 7 días: 33 avisos de 69 eventos, casi uno por ingreso.
+  /** Cuántos se callaron por no tener historia suficiente. Viaja en la respuesta. */
+  let sinBase = 0;
+
   for (const e of eventos.filter((x) => x.action === 'LOGIN_SUCCESS')) {
     const m = (e.metadata ?? {}) as Record<string, unknown>;
     const pais = (m.pais as string) ?? null;
     const quienId = e.actorUserId as string;
     if (!pais || !quienId) continue;
 
-    // ¿Sabemos de dónde entraba antes? Si no, no hay con qué comparar.
+    /*
+     * ¿Sabemos de dónde entra esta persona habitualmente?
+     *
+     * No alcanza con que exista UN ingreso con país: hace falta que la
+     * historia sea vieja. Se pide el más antiguo y se mira su fecha — con
+     * menos de `DIAS_DE_BASE` no hay con qué comparar y la regla se calla.
+     * Es lo que faltaba el 2026-10-07, cuando avisó que alguien entró "por
+     * primera vez" desde el país del que entra todos los días.
+     */
     const { data: base } = await admin
       .from('audit_logs')
-      .select('id')
+      .select('createdAt')
       .eq('actorUserId', quienId)
       .eq('action', 'LOGIN_SUCCESS')
       .not('metadata->>pais', 'is', null)
-      .lt('createdAt', desde)
+      .order('createdAt', { ascending: true })
       .limit(1);
 
-    if (!base || base.length === 0) continue;  // sin base: no se inventa una alarma
+    const desdeCuando = base?.[0]?.createdAt as string | undefined;
+    if (desdeCuando === undefined) { sinBase += 1; continue; }
+
+    const diasDeBase = (Date.now() - new Date(desdeCuando).getTime()) / 86_400_000;
+    if (diasDeBase < DIAS_DE_BASE) { sinBase += 1; continue; }
 
     const { data: antes } = await admin
       .from('audit_logs')
@@ -260,7 +291,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const nuevos = unicos.filter((a) => !yaAvisado.has(a.clave));
   if (nuevos.length === 0) {
-    return NextResponse.json({ eventos: eventos.length, avisos: 0, callados: unicos.length });
+    return NextResponse.json({ eventos: eventos.length, avisos: 0, callados: unicos.length, sinBase });
   }
 
   /* ── a quién ─────────────────────────────────────────────────────────── */

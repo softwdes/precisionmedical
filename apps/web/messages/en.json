@@ -264,7 +264,8 @@
     "inteligencia": "Intelligence",
     "system": "System",
     "messages": "Messages",
-    "rewards": "Rewards"
+    "rewards": "Rewards",
+    "openIncidents": "{n, plural, one {# open incident} other {# open incidents}}"
   },
   "dashboard": {
     "clinicStatsSoon": "Clinic statistics — coming soon",
@@ -2429,6 +2430,10 @@
     "removeFilter": "Remove this filter",
     "byModule": "By module",
     "byModuleHint": "what covers each one · tap one to highlight its column",
+    "incNone": "No open incidents",
+    "incLocked": "{n, plural, one {locked account} other {locked accounts}}",
+    "incIps": "{n, plural, one {address that only failed} other {addresses that only failed}}",
+    "incAlerts": "{n, plural, one {unread alert} other {unread alerts}}",
     "moduleAll": "All modules",
     "sameApp": "Clinic, Providers and Attorneys are one deployment: those three columns will always say the same thing.",
     "tab": {

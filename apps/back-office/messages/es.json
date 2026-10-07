@@ -5917,7 +5917,6 @@
       "segments": "{chars} caracteres · {n} segmento(s)",
       "unicodeWarning": "codificación larga ({chars}) — corta cada 70 caracteres en vez de 160",
       "sendError": "No se pudo enviar el mensaje",
-      "outsideHours": "Fuera del horario de atención (8:00–18:00). Mandalo durante el día, o llamá.",
       "optedOut": "Este paciente respondió STOP. El operador bloquea nuestros mensajes — hay que llamarlo.",
       "noPhone": "Sin teléfono cargado",
       "filterDirection": "Dirección",
@@ -5992,8 +5991,7 @@
       "newSmsNoPhone": "Sin teléfono — no se le puede escribir",
       "newSmsOptOut": "Se dio de baja el {fecha} — no se le puede escribir",
       "newSmsVia": "va al teléfono de {nombre}, su apoderado",
-      "newSmsArchived": "archivado",
-      "newSmsOutsideHours": "Fuera del horario de {desde}:00 a {hasta}:00. Podés elegir igual: el aviso aparece al enviar."
+      "newSmsArchived": "archivado"
     },
     "calls": {
       "payModalTitle": "Pago del caso",

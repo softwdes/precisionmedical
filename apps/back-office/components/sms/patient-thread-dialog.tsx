@@ -221,7 +221,6 @@ export function PatientThreadDialog({
          * "Error 409" le dice a recepción que algo se rompió cuando en realidad
          * el sistema está haciendo exactamente lo que tiene que hacer.
          */
-        if (data.error === 'FUERA_DE_HORARIO') { setError(t('outsideHours')); return; }
         if (data.error === 'DADO_DE_BAJA')     { setError(t('optedOut'));     return; }
         if (data.error === 'SIN_TELEFONO')     { setError(t('noPhone'));      return; }
         setError(t('sendError'));

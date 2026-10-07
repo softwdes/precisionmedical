@@ -5917,7 +5917,6 @@
       "segments": "{chars} characters · {n} segment(s)",
       "unicodeWarning": "long encoding ({chars}) — it breaks every 70 characters instead of 160",
       "sendError": "The message could not be sent",
-      "outsideHours": "Outside clinic hours (8:00–18:00). Send it during the day, or call.",
       "optedOut": "This patient replied STOP. The carrier blocks our messages — call them.",
       "noPhone": "No phone on file",
       "filterDirection": "Direction",
@@ -5992,8 +5991,7 @@
       "newSmsNoPhone": "No phone on file — cannot be texted",
       "newSmsOptOut": "Opted out on {fecha} — cannot be texted",
       "newSmsVia": "goes to {nombre}, their guardian",
-      "newSmsArchived": "archived",
-      "newSmsOutsideHours": "Outside the {desde}:00–{hasta}:00 window. You can still pick someone: the warning comes up on send."
+      "newSmsArchived": "archived"
     },
     "calls": {
       "payModalTitle": "Case payment",

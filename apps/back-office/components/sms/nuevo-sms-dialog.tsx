@@ -33,15 +33,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@precision/ui';
-import { Search, AlertTriangle, Loader2, UserX } from 'lucide-react';
+import { Search, Loader2, UserX } from 'lucide-react';
 import { EmptyState, PersonAvatar, Skeleton } from '@/components/ui-phoenix';
 import { formatUsPhone } from '@/lib/phone';
 import type { PacienteDelHilo } from './patient-thread-dialog';
 
 const CLINIC_TZ = 'America/Denver';
-/** Los mismos que valida la ruta de envío. Si cambian allá, cambian acá. */
-const HORA_DESDE = 8;
-const HORA_HASTA = 18;
 
 interface Resultado {
   id: string;
@@ -106,12 +103,6 @@ export function NuevoSmsDialog({
 
   useEffect(() => { void buscar(q); }, [q, buscar]);
 
-  /**
-   * Fuera de horario la ruta rechaza el envío. Se avisa acá arriba y no en cada
-   * renglón: no depende del paciente, depende del reloj.
-   */
-  const hora = Number(new Date().toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: CLINIC_TZ }));
-  const fueraDeHorario = hora < HORA_DESDE || hora >= HORA_HASTA;
 
   const elegir = (r: Resultado) => {
     if (!r.smsPhone || r.smsOptOutSince) return;
@@ -138,14 +129,7 @@ export function NuevoSmsDialog({
         </DialogHeader>
 
         <div className="px-4 sm:px-6 shrink-0 space-y-2">
-          {/* Ámbar y no rojo: no impide elegir a nadie, y además se puede mandar
-              igual forzando el horario desde la ventana de conversación. */}
-          {fueraDeHorario && (
-            <div className="flex items-start gap-2 rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber">
-              <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
-              <span>{t('newSmsOutsideHours', { desde: HORA_DESDE, hasta: HORA_HASTA })}</span>
-            </div>
-          )}
+
           <div className="relative">
             <Search className="w-3.5 h-3.5 text-text-muted absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input

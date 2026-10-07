@@ -35,13 +35,9 @@ import { checkPatientStaff } from '@/lib/patient-access';
 import { resolveActor } from '@/lib/actor';
 import { telefonoDe } from '@/lib/telefono-paciente';
 import { sendSms } from '@/lib/sms';
-import { horaLocalClinica } from '@/lib/fechas';
 
 export const dynamic = 'force-dynamic';
 
-/** La franja en que la clínica le escribe a un paciente. */
-const HORA_DESDE = 8;
-const HORA_HASTA = 18;
 
 const Entrada = z.object({
   /**
@@ -61,7 +57,6 @@ const Entrada = z.object({
    */
   body: z.string().trim().min(1).max(800),
   /** Mandar fuera del horario de atención, a sabiendas. */
-  forzarHorario: z.boolean().default(false),
 });
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -141,13 +136,26 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const hora = horaLocalClinica();
-  if (!datos.forzarHorario && (hora < HORA_DESDE || hora >= HORA_HASTA)) {
-    return NextResponse.json(
-      { error: 'FUERA_DE_HORARIO', hora, desde: HORA_DESDE, hasta: HORA_HASTA },
-      { status: 409 },
-    );
-  }
+  /**
+   * Acá había un bloqueo por horario: fuera de 8-18 la ruta devolvía 409 y no
+   * mandaba nada. Erick lo sacó el 2026-10-06.
+   *
+   * El caso que lo tumbó: Beatriz le estaba CONTESTANDO a una paciente que
+   * acababa de escribirle a las 16:58 ("Ok perfecto ya lo voy a llenar,
+   * muchas gracias"), y el sistema no la dejó responder "De nada". Impedir
+   * una respuesta a alguien que está del otro lado escribiendo en ese momento
+   * no protege a nadie: deja a la paciente sin respuesta y obliga a llamar.
+   *
+   * Esta franja tampoco era la de la ley. La restricción de horario que
+   * existe de verdad para SMS en EE.UU. es 8:00-21:00 en la hora del que
+   * recibe, y aplica a lo comercial, no a un mensaje de la clínica sobre la
+   * cita de su propio paciente. La de acá era una decisión nuestra, más
+   * estricta que la norma, y le pegaba al caso que más importa.
+   *
+   * Lo que SÍ queda protegiendo al paciente: la baja por STOP (21610) y el
+   * teléfono vacío, dos renglones más arriba. Esos son del paciente; el
+   * horario era nuestro.
+   */
 
   const actor = await resolveActor(req.headers);
 
@@ -182,7 +190,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       // El TEXTO no va acá: ya está en `message_logs`, y duplicar PHI en una
       // segunda tabla es duplicar la superficie que hay que proteger.
       caracteres: datos.body.length,
-      fueraDeHorario: datos.forzarHorario,
+
       aApoderado: apoderado !== null,
     } as Prisma.JsonValue,
   });

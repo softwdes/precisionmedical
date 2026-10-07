@@ -6056,8 +6056,11 @@
       "ctxNextAppointment": "Próxima cita",
       "recoverFromTwilio": "Recuperar desde Twilio",
       "recoverHint": "Trae las llamadas de los últimos 90 días. Se puede apretar más de una vez: no duplica.",
-      "recoverDone": "Listo: {n} llamadas recuperadas.",
-      "recoverError": "No se pudo recuperar. Probá de nuevo."
+      "recoverDone": "Listo: {n} llamadas nuevas y {r} completadas con el número que faltaba.",
+      "recoverError": "No se pudo recuperar. Probá de nuevo.",
+      "filterWho": "Quién",
+      "filterEveryone": "Todo el equipo",
+      "recoverNothing": "Ya estaba todo al día: no faltaba ninguna."
     },
     "edson": {
       "title": "Bandeja Edson",

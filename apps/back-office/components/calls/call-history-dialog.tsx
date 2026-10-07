@@ -78,6 +78,8 @@ export interface CallLogRow {
 }
 
 /** Filtro de resultado. `MISSED` agrupa NO_ANSWER + BUSY + FAILED en la API. */
+/** Los dos valores que entiende la API en `?scope=`. */
+type Scope = 'all' | 'mine';
 type OutcomeFilter = 'all' | 'ANSWERED' | 'MISSED';
 /** Filtro de período, en días hacia atrás. `0` = sin límite. */
 type PeriodFilter = 0 | 1 | 7 | 30;
@@ -128,6 +130,18 @@ export function CallHistoryDialog({
   const t      = useTranslations('phoenix.calls');
   const locale = useLocale();
 
+  /**
+   * De quién: del equipo o mías.
+   *
+   * Arranca en TODAS porque ese es el motivo por el que esta pantalla existe
+   * (Erick, 2026-10-07): ver si otro ya le llamó a ese paciente, para no
+   * llamarlo dos veces. Lo propio es el recorte, no el punto de partida.
+   *
+   * "Mías" incluye las que atendí: `scope=mine` en la API compara por
+   * `agentUserId` y además por nombre, para las filas viejas que lo tienen
+   * denormalizado y sin id.
+   */
+  const [quien, setQuien] = useState<Scope>('all');
   const [outcome, setOutcome] = useState<OutcomeFilter>('all');
   const [period, setPeriod]   = useState<PeriodFilter>(0);
   const [page, setPage]       = useState(0);
@@ -145,9 +159,9 @@ export function CallHistoryDialog({
    * Se puede apretar dos veces sin miedo: la ruta salta las que ya están.
    */
   const [rescatando, setRescatando] = useState(false);
-  const [rescate, setRescate] = useState<{ insertadas: number } | 'error' | null>(null);
+  const [rescate, setRescate] = useState<{ insertadas: number; reparadas: number } | 'error' | null>(null);
 
-  const filtered = outcome !== 'all' || period !== 0;
+  const filtered = outcome !== 'all' || period !== 0 || quien !== 'all';
 
   /**
    * El rescate se ofrece en LOS DOS vacíos, con filtro y sin filtro.
@@ -167,7 +181,19 @@ export function CallHistoryDialog({
       {rescate === 'error' ? (
         <p className="text-[11px] text-rose">{t('recoverError')}</p>
       ) : rescate ? (
-        <p className="text-[11px] text-emerald">{t('recoverDone', { n: rescate.insertadas })}</p>
+        /**
+         * Las DOS cifras, y un texto aparte cuando no hubo nada que hacer.
+         *
+         * Mostrando solo `insertadas`, la segunda vez que alguien aprieta el
+         * botón lee "Listo: 0 llamadas recuperadas" — justo en la corrida que
+         * completó las 32 que estaban sin número. Un cero no es "no pasó
+         * nada": acá puede ser "ya estaban todas, y además arreglé 32".
+         */
+        <p className="text-[11px] text-emerald">
+          {rescate.insertadas === 0 && rescate.reparadas === 0
+            ? t('recoverNothing')
+            : t('recoverDone', { n: rescate.insertadas, r: rescate.reparadas })}
+        </p>
       ) : null}
       <button
         type="button"
@@ -181,18 +207,28 @@ export function CallHistoryDialog({
               body: JSON.stringify({}),
             });
             if (!res.ok) throw new Error(String(res.status));
-            const data = await res.json() as { insertadas: number };
-            setRescate({ insertadas: data.insertadas });
+            const data = await res.json() as { insertadas: number; reparadas?: number };
+            setRescate({ insertadas: data.insertadas, reparadas: data.reparadas ?? 0 });
             /**
-             * Se SACAN los filtros al terminar.
+             * Se sacan LOS TRES filtros al terminar.
              *
              * El rescate trae 90 días siempre, sin mirar lo que diga la
-             * pantalla. Recargar con el filtro puesto podía dejar "recuperé 39"
-             * arriba de una lista vacía —porque ninguna de esas 39 era de hoy, o
-             * ninguna fue contestada— y eso se lee como que no funcionó.
+             * pantalla. Recargar con un filtro puesto deja "recuperé 58" arriba
+             * de una lista vacía, y eso se lee como que no funcionó.
+             *
+             * ⚠️ Esto ya estaba arreglado cuando los filtros eran DOS. Al
+             * agregar "Quién" quedó a medias: se limpiaban resultado y período
+             * y se mantenía `quien`. Con "Mis llamadas" puesto el agujero es
+             * peor que antes — de las 58, solo 7 tienen dueño conocido y
+             * NINGUNA entrante lo tiene, así que la lista quedaba casi vacía
+             * justo después de decir que trajo 58.
+             *
+             * La lección, porque es la segunda vez: al agregar un filtro hay
+             * que visitar todos los lugares que los limpian. Un reset a medias
+             * no falla — muestra de menos, que es lo que no se nota.
              */
-            setOutcome('all'); setPeriod(0); setPage(0);
-            void load(0, 'all', 0);
+            setQuien('all'); setOutcome('all'); setPeriod(0); setPage(0);
+            void load(0, 'all', 0, 'all');
           } catch {
             setRescate('error');
           } finally {
@@ -212,26 +248,24 @@ export function CallHistoryDialog({
 
   const load = useCallback(async (
     nextPage: number, nextOutcome: OutcomeFilter, nextPeriod: PeriodFilter,
+    nextQuien: Scope,
   ) => {
     setLoading(true);
     setError(false);
     try {
       const params = new URLSearchParams({
         /**
-         * TODAS las llamadas del equipo, no solo las mías.
+         * Arranca en TODAS, y "Mías" es un filtro.
          *
-         * Pedido de Erick el 2026-10-07, con el motivo que lo justifica: el
-         * historial sirve para que dos personas no le llamen al mismo paciente,
-         * y para eso hay que ver lo que hicieron los demás. Mostrando solo lo
-         * propio, cada uno ve su mitad y nadie ve el solapamiento.
+         * El orden importa y lo pidió Erick así (2026-10-07): esta pantalla
+         * existe para ver si OTRO ya le llamó a ese paciente, y no llamarlo
+         * dos veces. Si abriera en "mías", cada uno vería su mitad y nadie
+         * vería el solapamiento, que es justo lo que se busca.
          *
-         * Se notó al recuperar el historial: entraron 58 llamadas y la pantalla
-         * decía "1 de 1", porque 57 eran de otras personas.
-         *
-         * La columna "Atendió" ya dice de quién es cada una, así que no se
-         * pierde el "cuáles son mías" — se gana el resto.
+         * Antes pedía siempre `mine` y por eso la pantalla decía "1 de 1" con
+         * 58 llamadas en la base: 57 eran de otras personas.
          */
-        scope: 'all',
+        scope: nextQuien,
         page:  String(nextPage),
         size:  String(PAGE_SIZE),
       });
@@ -254,8 +288,8 @@ export function CallHistoryDialog({
 
   useEffect(() => {
     if (!open) return;
-    void load(page, outcome, period);
-  }, [open, page, outcome, period, load]);
+    void load(page, outcome, period, quien);
+  }, [open, page, outcome, period, quien, load]);
 
   const calls      = data?.calls ?? [];
   const totalPages = data?.totalPages ?? 1;
@@ -299,6 +333,25 @@ export function CallHistoryDialog({
         {/* Filtros — aplican a la pestaña activa. Pills, no un formulario:
             son 2 decisiones rápidas, no una búsqueda avanzada. */}
         <div className="flex items-center gap-x-4 gap-y-2 flex-wrap px-4 sm:px-6 pt-3 pb-1 shrink-0">
+          {/* Va PRIMERO: los otros dos recortan una lista, éste cambia de qué
+              lista se trata. */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mr-0.5">
+              {t('filterWho')}
+            </span>
+            {([
+              ['all',  t('filterEveryone')],
+              ['mine', t('tabMine')],
+            ] as [Scope, string][]).map(([key, label]) => (
+              <FilterPill
+                key={key}
+                active={quien === key}
+                onClick={() => { setQuien(key); setPage(0); }}
+                label={label}
+              />
+            ))}
+          </div>
+
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mr-0.5">
               {t('filterOutcome')}
@@ -345,7 +398,7 @@ export function CallHistoryDialog({
               <span>{t('loadError')}</span>
               <button
                 type="button"
-                onClick={() => void load(page, outcome, period)}
+                onClick={() => void load(page, outcome, period, quien)}
                 className="inline-flex items-center gap-1.5 font-semibold hover:underline"
               >
                 <RefreshCw className="w-3 h-3" />

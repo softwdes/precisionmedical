@@ -6056,8 +6056,11 @@
       "ctxNextAppointment": "Next appointment",
       "recoverFromTwilio": "Recover from Twilio",
       "recoverHint": "Pulls the last 90 days of calls. Safe to press more than once: it will not duplicate.",
-      "recoverDone": "Done: {n} calls recovered.",
-      "recoverError": "Could not recover. Try again."
+      "recoverDone": "Done: {n} new calls and {r} completed with the missing number.",
+      "recoverError": "Could not recover. Try again.",
+      "filterWho": "Who",
+      "filterEveryone": "Whole team",
+      "recoverNothing": "Everything was already up to date: none were missing."
     },
     "edson": {
       "title": "Edson Queue",

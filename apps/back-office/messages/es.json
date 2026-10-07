@@ -2327,7 +2327,8 @@
       "rxSinVisitaHint": "Sin visita: la receta va a tu nombre y no queda atada a una consulta",
       "rxNoPrescriber": "Para recetar sin una visita hace falta ser provider: la receta se firma a tu nombre y no hay consulta de la que tomar el médico.",
       "rxMedDownloadHint": "Lo que el paciente retiró en cualquier farmacia, últimos 12 meses",
-      "rxConsentSinVisita": "El permiso del paciente para consultar las farmacias se registra en una visita, y este caso todavía no tiene ninguna."
+      "rxConsentSinVisita": "El permiso del paciente para consultar las farmacias se registra en una visita, y este caso todavía no tiene ninguna.",
+      "rxStatus_confirmed": "Confirmada por la farmacia"
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",

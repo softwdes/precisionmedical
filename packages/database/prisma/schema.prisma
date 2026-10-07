@@ -1957,6 +1957,29 @@ model Prescription {
   dawRxId   String?
   dawSentAt DateTime?
 
+  /// ── El acuse de la FARMACIA ─────────────────────────────────────────────
+  ///
+  /// `SENT` significa "salió de acá". Esto significa "la farmacia dijo que la
+  /// recibió", que no es lo mismo y es lo único que prueba que está hecha.
+  ///
+  /// Llega por webhook como `Body.Status` → `Code "010"`,
+  /// *"PRESCRIPTION ORDER RECEIVED.THANK YOU!"*. Hasta el 2026-10-07 el aviso
+  /// se guardaba crudo en el audit log y **no cambiaba nada**: la pantalla
+  /// decía lo mismo con acuse y sin acuse, así que la única forma de saberlo
+  /// era que alguien leyera el registro técnico.
+  ///
+  /// Medido ese día con las dos recetas reales de Anita Ostler: el acuse tardó
+  /// **31 segundos y 1 m 34 s**. Nada que ver con los 15 minutos que
+  /// suponíamos — esos son `VENTANA_RECHAZO_MS`, nuestra ventana para atribuir
+  /// un RECHAZO, que es otra cosa.
+  pharmacyAckAt   DateTime?
+  /// El código tal cual lo manda Surescripts ("010"). Se guarda aparte del
+  /// texto para poder decidir sobre él sin tener que parsear una frase.
+  pharmacyAckCode String?
+  /// La frase literal de la farmacia. Va a pantalla: lo que ELLA dijo vale más
+  /// que nuestra traducción de su código.
+  pharmacyAckText String?
+
   /// Identificadores del medicamento que devuelve ScriptSure. Se guardan para
   /// poder REPETIR la receta: su carrito (MedCart) identifica el fármaco por
   /// `routedMedId` + `gcnSeqno`, no por nombre. Sin esto, repetir obligaría al

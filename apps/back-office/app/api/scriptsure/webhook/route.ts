@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { db, writeAuditLog, VIGENTES } from '@precision-medical/database';
-import { mapRawRx, persistPrescription, marcarRechazoNcpdp, asStr, pick } from '@/lib/scriptsure-prescriptions';
+import { mapRawRx, persistPrescription, marcarRechazoNcpdp, marcarAcusePharmacy, asStr, pick } from '@/lib/scriptsure-prescriptions';
 
 /**
  * POST /api/scriptsure/webhook — receptor de notificaciones de ScriptSure/DAW.
@@ -111,6 +111,20 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const rechazo = await marcarRechazoNcpdp(payload, sourceIp);
   if (rechazo.tipo !== 'no-es-error') {
     return NextResponse.json({ ok: true, rechazo });
+  }
+
+  /**
+   * 2b. ¿Es el ACUSE de la farmacia? Mismo caso que el rechazo y por el mismo
+   *     motivo: no trae paciente ni medicamento, así que el mapeo de abajo lo
+   *     descarta por `NO_PATIENT_ID` y el acuse se perdía.
+   *
+   *     Es el otro extremo del rechazo: uno dice que falló y el otro que llegó.
+   *     Guardábamos el que falla y tirábamos el que llega, así que la pantalla
+   *     nunca podía decir "hecho".
+   */
+  const acuse = await marcarAcusePharmacy(payload, sourceIp);
+  if (acuse.tipo !== 'no-es-acuse') {
+    return NextResponse.json({ ok: true, acuse });
   }
 
   // 3. Mapear. El estado suele venir en el sobre, no en la receta.

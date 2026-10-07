@@ -470,3 +470,129 @@ export async function marcarRechazoNcpdp(
 
   return { tipo: 'marcada', prescriptionId: rx.id, dawRxId: rx.dawRxId, code: err.code };
 }
+
+// ─── El acuse de la farmacia ─────────────────────────────────────────────────
+
+export type ResultadoAcuse =
+  | { tipo: 'no-es-acuse' }
+  | { tipo: 'marcada'; prescriptionId: string; code: string }
+  | { tipo: 'sin-candidata'; code: string; relatesTo: string | null };
+
+/** `Body.Status` → el código y la frase de la farmacia, o null si no es eso. */
+export function leerAcuseNcpdp(
+  payload: Record<string, unknown>,
+): { code: string; text: string; relatesTo: string | null } | null {
+  const msg = (payload.Message ?? payload.message) as Record<string, unknown> | undefined;
+  if (!msg) return null;
+  const body = (msg.Body ?? msg.body) as Record<string, unknown> | undefined;
+  const st = (body?.Status ?? body?.status) as Record<string, unknown> | undefined;
+  if (!st) return null;
+
+  const code = asStr(pick(st, 'Code', 'code'));
+  if (!code) return null;
+
+  const header = (msg.Header ?? msg.header) as Record<string, unknown> | undefined;
+  return {
+    code,
+    text: asStr(pick(st, 'Description', 'description')) ?? '',
+    relatesTo: (header ? asStr(pick(header, 'RelatesToMessageID', 'relatesToMessageID')) : null) ?? null,
+  };
+}
+
+/**
+ * Marca una receta como ACUSADA por la farmacia.
+ *
+ * ── Cómo se encuentra CUÁL receta ───────────────────────────────────────────
+ *
+ * El acuse no nombra la receta: trae `RelatesToMessageID`, que apunta al
+ * `MessageID` del NewRx que salió minutos antes. Ese NewRx sí quedó entero en
+ * el audit log —el webhook guarda todo crudo antes de intentar nada— y lleva el
+ * **NDC** del medicamento. Y el NDC que guardamos nosotros es EL MISMO:
+ * verificado el 2026-10-07 con la losartan de Anita Ostler, `68382013616` en
+ * los dos lados.
+ *
+ * O sea que la cadena es: acuse → `RelatesToMessageID` → NewRx en el audit log
+ * → NDC → receta. No se adivina por tiempo, como sí hay que hacer con el
+ * rechazo (que no trae ninguna referencia).
+ *
+ * El NDC igual no basta solo: el mismo paciente puede tener dos recetas del
+ * mismo fármaco. Por eso se toma la más reciente **sin acusar todavía**, y
+ * dentro de la misma ventana que el rechazo — un acuse de hace horas no es de
+ * la que se acaba de mandar.
+ */
+export async function marcarAcusePharmacy(
+  payload: Record<string, unknown>,
+  sourceIp: string,
+): Promise<ResultadoAcuse> {
+  const acuse = leerAcuseNcpdp(payload);
+  if (!acuse) return { tipo: 'no-es-acuse' };
+
+  // El NDC del NewRx al que este acuse responde.
+  let ndc: string | null = null;
+  if (acuse.relatesTo) {
+    const previos = await db.auditLog.findMany({
+      where: { action: 'SCRIPTSURE_WEBHOOK', createdAt: { gte: new Date(Date.now() - VENTANA_RECHAZO_MS) } },
+      select: { metadata: true },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+    for (const p of previos) {
+      const raw = (p.metadata as Record<string, unknown> | null)?.raw as Record<string, unknown> | undefined;
+      const m = raw?.Message as Record<string, unknown> | undefined;
+      const h = m?.Header as Record<string, unknown> | undefined;
+      if (!h || asStr(pick(h, 'MessageID')) !== acuse.relatesTo) continue;
+      const nrx = (m?.Body as Record<string, unknown> | undefined)?.NewRx as Record<string, unknown> | undefined;
+      const med = nrx?.MedicationPrescribed as Record<string, unknown> | undefined;
+      const prod = med?.Product as Record<string, unknown> | undefined;
+      const coded = prod?.DrugCoded as Record<string, unknown> | undefined;
+      ndc = (coded ? asStr(pick(coded, 'NDC', 'ndc')) : null) ?? null;
+      break;
+    }
+  }
+
+  const candidata = ndc
+    ? await db.prescription.findFirst({
+        where: {
+          ndc,
+          pharmacyAckAt: null,
+          createdAt: { gte: new Date(Date.now() - VENTANA_RECHAZO_MS) },
+        },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, dawRxId: true },
+      })
+    : null;
+
+  /**
+   * El acuse SIEMPRE queda en el audit log, se haya podido atribuir o no: es la
+   * única traza de que la farmacia contestó. Sin atribuir sigue valiendo —
+   * dice que algo llegó— y con el `relatesTo` escrito se puede rastrear a mano.
+   */
+  await writeAuditLog(db, {
+    actorType: 'SYSTEM',
+    action: 'SCRIPTSURE_RX_ACK',
+    entityType: 'prescriptions',
+    entityId: candidata?.id ?? 'sin-atribuir',
+    ipAddress: sourceIp,
+    metadata: {
+      source: 'WEBHOOK',
+      code: acuse.code,
+      text: acuse.text,
+      relatesTo: acuse.relatesTo,
+      ndc,
+      dawRxId: candidata?.dawRxId ?? null,
+    },
+  });
+
+  if (!candidata) return { tipo: 'sin-candidata', code: acuse.code, relatesTo: acuse.relatesTo };
+
+  await db.prescription.update({
+    where: { id: candidata.id },
+    data: {
+      pharmacyAckAt: new Date(),
+      pharmacyAckCode: acuse.code,
+      pharmacyAckText: acuse.text || null,
+    },
+  });
+
+  return { tipo: 'marcada', prescriptionId: candidata.id, code: acuse.code };
+}

@@ -790,11 +790,23 @@ export function CaseRxTab({ caseId, patientId, canPrescribe, clinical, visitId }
                           {rx.deaSchedule && (
                             <TagPill label={`DEA ${rx.deaSchedule}`} colorClass="bg-amber/15 text-amber border-amber/30" />
                           )}
-                          <TagPill
-                            label={td(`rxStatus_${RX_STATUS_KEY[rxStatusOf(rx.status)]}`)}
-                            colorClass={RX_STATUS_CLASS[rxStatusOf(rx.status)]}
-                          />
+                          {/* Mismo criterio que en la consulta: con acuse de la
+                              farmacia, ese es el estado que importa. Las dos
+                              pantallas tienen que decir lo mismo. */}
+                          {rx.pharmacyAckAt
+                            ? <TagPill label={td('rxStatus_confirmed')} colorClass="bg-emerald/15 text-emerald border-emerald/30" />
+                            : <TagPill
+                                label={td(`rxStatus_${RX_STATUS_KEY[rxStatusOf(rx.status)]}`)}
+                                colorClass={RX_STATUS_CLASS[rxStatusOf(rx.status)]}
+                              />}
                         </div>
+                        {rx.pharmacyAckAt && (
+                          <p className="text-[11px] text-emerald mt-1">
+                            {rx.pharmacyAckText || td('rxStatus_confirmed')}
+                            {' · '}
+                            {new Date(rx.pharmacyAckAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        )}
                         {rx.status === 'ERROR' && (
                           <p className="text-[11px] text-rose mt-1 flex items-start gap-1.5">
                             <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />

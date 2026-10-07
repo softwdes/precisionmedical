@@ -14,6 +14,10 @@ const RX_SELECT = {
   status: true,
   dawSentAt: true,
   createdAt: true,
+  // El acuse de la farmacia: lo único que prueba que la receta está HECHA.
+  // `SENT` solo dice que salió de acá.
+  pharmacyAckAt: true,
+  pharmacyAckText: true,
   // Solo para saber si se puede repetir — el carrito de ScriptSure resuelve
   // el fármaco por estos ids, no por nombre. Las recetas anteriores a que
   // empezáramos a guardarlos no se pueden repetir.

@@ -57,6 +57,9 @@ export interface RxRow {
   dawSentAt: string | null;
   createdAt: string;
   canRefill: boolean;
+  /** Acuse de la farmacia — "allá la recibieron", distinto de "salió de acá". */
+  pharmacyAckAt?: string | null;
+  pharmacyAckText?: string | null;
 }
 
 export interface LabRow {

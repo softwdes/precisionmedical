@@ -71,6 +71,16 @@ interface SentRx {
   pharmacyName: string | null;
   status: 'DRAFT' | 'SENT' | 'PENDING_DAW' | 'VOIDED' | 'ERROR';
   dawSentAt: string | null;
+  /**
+   * Cuándo la farmacia acusó recibo, y con qué palabras.
+   *
+   * Va aparte del `status` porque son dos hechos distintos: `SENT` es "salió de
+   * acá" y esto es "allá la recibieron". Hasta el 2026-10-07 el acuse llegaba
+   * por webhook, se guardaba crudo y no se mostraba, así que la pantalla decía
+   * lo mismo con acuse y sin acuse.
+   */
+  pharmacyAckAt?: string | null;
+  pharmacyAckText?: string | null;
   createdAt: string;
   /** false en recetas anteriores a que guardáramos los ids del fármaco */
   canRefill: boolean;
@@ -582,8 +592,23 @@ function SentRxRow({ rx, readOnly, refilling, onRefill }: {
           {rx.deaSchedule && (
             <TagPill label={`DEA ${rx.deaSchedule}`} colorClass="bg-amber/15 text-amber border-amber/30" />
           )}
-          <TagPill label={t(`rxStatus_${STATUS_KEY[rx.status]}`)} colorClass={STATUS_CLASS[rx.status]} />
+          {/* Con acuse de la farmacia, ESE es el estado que importa: pisa al
+              "enviada", que a su lado no agrega nada. Sin acuse se muestra el
+              de siempre. */}
+          {rx.pharmacyAckAt
+            ? <TagPill label={t('rxStatus_confirmed')} colorClass="bg-emerald/15 text-emerald border-emerald/30" />
+            : <TagPill label={t(`rxStatus_${STATUS_KEY[rx.status]}`)} colorClass={STATUS_CLASS[rx.status]} />}
         </div>
+        {/* Lo que la farmacia dijo, con sus palabras y la hora. Un sello verde
+            solo no distingue "la mandamos" de "allá la tienen", y esa es justo
+            la diferencia que el médico necesita para dejar de pensar en ella. */}
+        {rx.pharmacyAckAt && (
+          <p className="text-[11px] text-emerald mt-1">
+            {rx.pharmacyAckText || t('rxStatus_confirmed')}
+            {' · '}
+            {new Date(rx.pharmacyAckAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+          </p>
+        )}
         {/* Con error la farmacia NUNCA la recibió — decirlo, no dejar que el
             doctor lo deduzca de un color */}
         {rx.status === 'ERROR' && (

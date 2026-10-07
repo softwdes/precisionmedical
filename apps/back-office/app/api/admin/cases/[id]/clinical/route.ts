@@ -52,8 +52,20 @@ export async function GET(
      * últimos 90 días. A $100 el código de no-show son ~$5.100 que la regla
      * manda cobrar y la pantalla no dejaba.
      *
-     * La cancelación CON AVISO sigue afuera: esa no se cobra y no da acceso
-     * al caso, por la misma regla.
+     * La cancelación CON AVISO sigue afuera **mientras esté limpia**: esa no se
+     * cobra y no da acceso al caso, por la misma regla.
+     *
+     * Pero si ya tiene PLATA encima, entra. La premisa de dejarla afuera es
+     * "esta visita no se cobra", y una fila que ya tiene cargos, servicios o un
+     * cobro la desmiente por sí sola. Sin esto quedaba encerrada por los cuatro
+     * lados: no aparece en Servicios, reabrirla responde `HAS_CHARGES` y
+     * borrarla responde `CARGOS`. No había ningún camino.
+     *
+     * Lo destapó Darrell el 2026-10-07 con Scott Shurtleff (13-may, $151,26 sin
+     * cobrar): *"was cancelled but pt was seen. I cannot open it to make
+     * payments"*. Medido ese día: **51 canceladas con aviso con fila de cobro y
+     * $11.129,11 pendientes** que el mostrador no podía cobrar por pantalla. Casi
+     * todas vienen del v2, donde la visita ocurrió y acá llegó como cancelada.
      *
      * ⚠️ Que la visita VENGA no significa que acepte de todo: una consulta que
      * no ocurrió no puede recibir una nota, una receta, un lab ni una férula.
@@ -67,6 +79,17 @@ export async function GET(
         { status: { notIn: ['CANCELLED', 'NO_SHOW'] } },
         { status: 'NO_SHOW' },
         { status: 'CANCELLED', cancelledSameDay: true },
+        // Cancelada con aviso pero con plata encima. Las tres formas que puede
+        // tomar un cargo: las líneas planeadas del JSON, los servicios en efectivo
+        // y la fila de facturación.
+        {
+          status: 'CANCELLED',
+          OR: [
+            { NOT: { plannedServiceCodes: { equals: [] } } },
+            { cashServices: { some: {} } },
+            { billing:      { some: {} } },
+          ],
+        },
       ],
     },
     orderBy: { scheduledFor: 'desc' },
@@ -92,6 +115,9 @@ export async function GET(
           id: true, drugName: true, deaSchedule: true, dose: true, frequency: true,
           quantityTotal: true, refills: true, pharmacyName: true, status: true,
           dawSentAt: true, createdAt: true,
+          // El acuse de la farmacia, igual que en el endpoint por cita: las dos
+          // pantallas muestran el mismo sello y tienen que leer el mismo dato.
+          pharmacyAckAt: true, pharmacyAckText: true,
           // Solo para derivar canRefill — el carrito de ScriptSure identifica el
           // fármaco por estos ids (misma regla que el endpoint por cita)
           routedMedId: true, gcnSeqno: true, ndc: true,

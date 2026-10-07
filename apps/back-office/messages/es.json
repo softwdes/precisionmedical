@@ -6049,7 +6049,11 @@
       "unregisteredCaller": "Número no registrado",
       "unregisteredHint": "Al contestar vas a poder crear el paciente o vincularlo a uno existente.",
       "ctxActiveCase": "Caso activo",
-      "ctxNextAppointment": "Próxima cita"
+      "ctxNextAppointment": "Próxima cita",
+      "recoverFromTwilio": "Recuperar desde Twilio",
+      "recoverHint": "Trae las llamadas de los últimos 90 días. Se puede apretar más de una vez: no duplica.",
+      "recoverDone": "Listo: {n} llamadas recuperadas.",
+      "recoverError": "No se pudo recuperar. Probá de nuevo."
     },
     "edson": {
       "title": "Bandeja Edson",

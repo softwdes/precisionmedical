@@ -37,6 +37,8 @@ import {
   RefreshCw,
   PhoneOff,
   SlidersHorizontal,
+  DownloadCloud,
+  Loader2,
 } from 'lucide-react';
 import {
   EmptyState,
@@ -132,6 +134,18 @@ export function CallHistoryDialog({
   const [data, setData]       = useState<CallLogsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState(false);
+  /**
+   * El rescate del historial desde Twilio.
+   *
+   * Vive en el VACÍO de esta pantalla y no en Configuración porque es acá
+   * donde se nota el problema: el 2026-10-07 la clínica vio cero llamadas
+   * teniendo semanas hechas. La tabla se había vaciado (39 insertadas
+   * alguna vez, 0 vivas) y Twilio conservaba su copia.
+   *
+   * Se puede apretar dos veces sin miedo: la ruta salta las que ya están.
+   */
+  const [rescatando, setRescatando] = useState(false);
+  const [rescate, setRescate] = useState<{ insertadas: number } | 'error' | null>(null);
 
   const filtered = outcome !== 'all' || period !== 0;
 
@@ -272,7 +286,54 @@ export function CallHistoryDialog({
                   title={t('emptyFilteredTitle')}
                   subtitle={t('emptyFilteredHint')}
                 />
-              : <EmptyState.Rich icon={PhoneOff} title={t('emptyTitle')} subtitle={t('emptyMine')} />
+              : (
+                <div className="space-y-3">
+                  <EmptyState.Rich icon={PhoneOff} title={t('emptyTitle')} subtitle={t('emptyMine')} />
+                  {/* Solo con el filtro en TODO: ofrecer rescatar mirando
+                      "Hoy" haría pensar que Twilio tampoco tiene nada. */}
+                  {period === 0 && (
+                    <div className="flex flex-col items-center gap-2">
+                      {rescate === 'error' ? (
+                        <p className="text-[11px] text-rose">{t('recoverError')}</p>
+                      ) : rescate ? (
+                        <p className="text-[11px] text-emerald">
+                          {t('recoverDone', { n: rescate.insertadas })}
+                        </p>
+                      ) : null}
+                      <button
+                        type="button"
+                        disabled={rescatando}
+                        onClick={async () => {
+                          setRescatando(true); setRescate(null);
+                          try {
+                            const res = await fetch('/api/admin/call-logs/recuperar', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({}),
+                            });
+                            if (!res.ok) throw new Error(String(res.status));
+                            const data = await res.json() as { insertadas: number };
+                            setRescate({ insertadas: data.insertadas });
+                            // Recargar para que se vean las que acaban de entrar.
+                            void load(0, outcome, period);
+                          } catch {
+                            setRescate('error');
+                          } finally {
+                            setRescatando(false);
+                          }
+                        }}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-brand/15 text-brand-text text-[11px] font-medium hover:bg-brand/25 disabled:opacity-50 transition-colors"
+                      >
+                        {rescatando
+                          ? <Loader2 className="w-3 h-3 animate-spin" />
+                          : <DownloadCloud className="w-3 h-3" />}
+                        {t('recoverFromTwilio')}
+                      </button>
+                      <p className="text-[10px] text-text-muted">{t('recoverHint')}</p>
+                    </div>
+                  )}
+                </div>
+              )
           ) : (
             <>
               {/* Desktop / tablet — tabla con la 1ra y la última columna fijas.

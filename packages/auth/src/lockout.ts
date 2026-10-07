@@ -303,9 +303,11 @@ const NEUTRO: ResultadoIntento = { intentos: 0, restantes: MAX_ATTEMPTS, locked:
 /**
  * Una IP echada no puede tocar el contador de nadie.
  *
- * Esto cubre el endpoint viejo `/api/auth/lockout`, que desde el 2026-10-06 ya
- * no lo llama ninguna pantalla pero SIGUE expuesto a internet y sigue pudiendo
- * escribir. Mientras exista, pasa por acá.
+ * Hoy el único camino es `iniciarSesionEnServidor`, que ya consulta la lista
+ * antes de llegar acá. Esta guarda es el cinturón: si mañana alguien vuelve a
+ * exponer un endpoint que registre intentos —como el viejo
+ * `/api/auth/lockout`, borrado el 2026-10-06 por quedar abierto a internet sin
+ * que lo llamara nadie— una IP echada tampoco va a poder tocar el contador.
  */
 async function puertaCerrada(ctx: Contexto): Promise<boolean> {
   if (!(await estaBloqueada(ctx.ip))) return false;

@@ -74,7 +74,11 @@ export const MODULOS = [
  *  · cabeceras → `next.config.mjs` de cada app (solo back-office las declara;
  *    `provider` sale del mismo build que `clinic`, así que las hereda)
  *  · 2FA → si la pantalla de login tiene el paso de MFA
- *  · freno y origen → `api/auth/lockout/route.ts`, desplegado en `e3ac5e57`
+ *  · freno y origen → `api/auth/login/route.ts` de cada app. La ruta vieja
+ *    `api/auth/lockout` se BORRÓ el 2026-10-06: ya no la llamaba ninguna
+ *    pantalla desde que el login pasó al servidor, y seguía expuesta a
+ *    internet pudiendo escribir en el candado. Era la misma que estuvo
+ *    abierta el 2026-10-05.
  */
 export const MEDIDO_EL = '2026-10-05';
 

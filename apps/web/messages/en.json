@@ -2480,7 +2480,7 @@
       },
       "origen": {
         "nombre": "Attempt endpoint closed",
-        "detalle": "Rejects anything that does not come from our own screens"
+        "detalle": "The login rejects anything not coming from our own screens, and the old attempts endpoint was removed"
       },
       "mfa": {
         "nombre": "Two-factor step",

@@ -2480,7 +2480,7 @@
       },
       "origen": {
         "nombre": "Endpoint de intentos cerrado",
-        "detalle": "Rechaza todo lo que no venga de nuestras propias pantallas"
+        "detalle": "El login rechaza lo que no venga de nuestras pantallas, y el endpoint viejo de intentos se eliminó"
       },
       "mfa": {
         "nombre": "Paso de doble factor",

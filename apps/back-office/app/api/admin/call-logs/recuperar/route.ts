@@ -108,6 +108,27 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
    */
   const padres = llamadas.filter((c) => !c.parentCallSid);
 
+  /**
+   * El tramo HIJO, que es el que sabe a quién llamamos.
+   *
+   * Marcar desde el navegador son dos tramos: el navegador llamando a Twilio
+   * —donde el destino está VACÍO, porque todavía no se decidió a quién— y
+   * Twilio marcando al paciente. Quedarse solo con el padre pierde el número.
+   *
+   * Lo pagué en la primera corrida: las 32 salientes entraron con `toNumber`
+   * en blanco, así que el historial no servía para lo único que Erick lo
+   * quería —saber si alguien ya le llamó a ese paciente— y ninguna quedó
+   * vinculada a una ficha.
+   *
+   * Del hijo salen el destino, la duración y el resultado: si el paciente
+   * atendió o no se decide en ESE tramo, no en el del navegador, que se da
+   * por contestado apenas conecta el micrófono.
+   */
+  const hijoDe = new Map<string, (typeof llamadas)[number]>();
+  for (const c of llamadas) {
+    if (c.parentCallSid && !hijoDe.has(c.parentCallSid)) hijoDe.set(c.parentCallSid, c);
+  }
+
   const nuestro = phoneKey(TWILIO_PHONE_NUMBER);
   const filas = padres.map((c) => {
     const from = c.from ?? '';
@@ -123,15 +144,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       : phoneKey(to) === nuestro ? 'INBOUND'
       : 'OUTBOUND';
 
-    const segundos = Number.parseInt(c.duration ?? '0', 10) || 0;
+    // El hijo manda cuando existe: ahí está el número del paciente.
+    const hijo = hijoDe.get(c.sid);
+    const real = hijo ?? c;
+    const segundos = Number.parseInt(real.duration ?? '0', 10) || 0;
     return {
       twilioCallSid: c.sid,
       direction,
       // En una saliente desde el navegador, el origen real es nuestro número:
       // guardar `client:user-<uuid>` deja un id donde va un teléfono.
       fromNumber: delNavegador ? TWILIO_PHONE_NUMBER : from,
-      toNumber:   to,
-      outcome:    resultado(c.status, segundos),
+      toNumber:   (real.to ?? to ?? '').trim(),
+      outcome:    resultado(real.status, segundos),
       durationSeconds: segundos || null,
       agentUserId: delNavegador ? userIdFromIdentity(from) : null,
       agentName:   null as string | null,
@@ -178,6 +202,33 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const res = await db.callLog.createMany({ data: filas, skipDuplicates: true });
 
+  /**
+   * Reparar las filas que YA existen con el destino en blanco.
+   *
+   * `skipDuplicates` protege de duplicar, pero también deja intacta una fila
+   * que se guardó incompleta — y la primera corrida de esta misma ruta
+   * guardó 32 así. Sin esto, el único camino para arreglarlas sería borrarlas
+   * y volver a importar, y borrar filas de `call_logs` es exactamente lo que
+   * ya nos pasó una vez.
+   *
+   * Solo toca las que tienen el número VACÍO: una fila con destino cargado no
+   * se pisa nunca, venga de donde venga.
+   */
+  let reparadas = 0;
+  for (const f of filas) {
+    if (!f.toNumber) continue;
+    const r = await db.callLog.updateMany({
+      where: { twilioCallSid: f.twilioCallSid, toNumber: '' },
+      data: {
+        toNumber: f.toNumber,
+        outcome: f.outcome,
+        durationSeconds: f.durationSeconds,
+        ...(f.patientId ? { patientId: f.patientId } : {}),
+      },
+    });
+    reparadas += r.count;
+  }
+
   const actor = await resolveActor(req.headers);
   await writeAuditLog(db, {
     actorType:   actor.actorType,
@@ -195,6 +246,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       vistas: llamadas.length,
       consideradas: filas.length,
       insertadas: res.count,
+      reparadas,
     } as Prisma.JsonValue,
   });
 
@@ -206,6 +258,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     consideradas: filas.length,
     /** Las que NO estaban y ahora sí. El resto ya existía. */
     insertadas: res.count,
+    /** Las que ya estaban pero sin número, y ahora lo tienen. */
+    reparadas,
     desde: desde.toISOString(),
   });
 }

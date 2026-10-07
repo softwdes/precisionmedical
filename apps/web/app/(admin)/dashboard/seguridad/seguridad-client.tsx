@@ -828,6 +828,9 @@ export function SeguridadClient({ datos, dias, mes, meses }: {
         </div>
       </section>
 
+      {/* ── Quién entró y desde dónde ─────────────────────────────────── */}
+      <QuienEntro eventos={eventos} ahora={ahora} idioma={idioma} />
+
       {/* ── Por módulo: acá se filtra todo ────────────────────────────── */}
       <section>
         <h2 className="mb-3 flex flex-wrap items-center gap-2 text-tiny font-bold uppercase tracking-widest text-text-muted">
@@ -1380,6 +1383,102 @@ function Desbloquear({ id, activo, onListo }: {
       <Unlock className="h-3 w-3" />
       {estado === 'yendo' ? tr('unlocking') : estado === 'hecho' ? tr('unlocked') : estado === 'error' ? tr('unlockFailed') : tr('unlock')}
     </button>
+  );
+}
+
+/**
+ * Quién entró, y desde dónde.
+ *
+ * ── Lo que esto SÍ dice, y lo que no ──────────────────────────────────────
+ *
+ * Dice el ÚLTIMO INGRESO de cada persona dentro de la ventana elegida, con su
+ * ubicación. **No dice quién tiene la sesión abierta ahora mismo**, y la
+ * diferencia importa: el sistema registra ingresos, no sesiones vivas. Alguien
+ * que entró a las 8 y cerró el navegador a las 9 sigue apareciendo como su
+ * último ingreso a las 8.
+ *
+ * Supabase guarda las sesiones activas en su esquema `auth`, que no se puede
+ * consultar por la API REST. Por eso el encabezado dice "último ingreso" y
+ * cada fila dice hace cuánto fue: así nadie lee una lista de presentes donde
+ * hay una lista de entradas.
+ *
+ * ── De dónde salen los datos ──────────────────────────────────────────────
+ *
+ * De `eventos`, que la pantalla ya tiene. Cero consultas nuevas: es la misma
+ * información mirada por persona en vez de por orden cronológico. Y respeta
+ * los filtros de módulo y de IP, como todo lo demás.
+ */
+function QuienEntro({ eventos, ahora, idioma }: {
+  eventos: Evento[]; ahora: number; idioma: string;
+}): React.ReactElement {
+  const tr = useTranslations('security');
+
+  /** El último ingreso de cada persona. Los eventos ya vienen de más nuevo a más viejo. */
+  const ultimos = React.useMemo(() => {
+    const porPersona = new Map<string, Evento>();
+    for (const e of eventos) {
+      if (e.accion !== 'LOGIN_SUCCESS' || !e.correo) continue;
+      if (!porPersona.has(e.correo)) porPersona.set(e.correo, e);
+    }
+    return [...porPersona.values()].sort((a, b) => (a.cuando < b.cuando ? 1 : -1));
+  }, [eventos]);
+
+  /**
+   * "hace 2 h". Solo después de montar: `ahora` nace en 0 y se llena en un
+   * efecto, porque calcular la hora durante el render haría que el servidor y
+   * el navegador escriban números distintos en el mismo lugar.
+   */
+  const desdeHace = (cuando: string): string | null => {
+    if (!ahora) return null;
+    const min = Math.round((ahora - new Date(cuando).getTime()) / 60_000);
+    if (min < 1) return tr('agoNow');
+    return min < 60 ? tr('agoMin', { n: min }) : tr('agoHour', { n: Math.round(min / 60) });
+  };
+
+  return (
+    <section>
+      <h2 className="mb-3 flex flex-wrap items-center gap-2 text-tiny font-bold uppercase tracking-widest text-text-muted">
+        {tr('whoTitle', { n: ultimos.length })}
+        <span className="normal-case tracking-normal font-medium text-text-3">· {tr('whoHint')}</span>
+      </h2>
+      <div className="overflow-x-auto rounded-lg bg-bg-1">
+        <table className="w-full min-w-[640px] text-small">
+          <thead>
+            <tr className="border-b border-row-sep">
+              {['whoCol', 'whoWhen', 'whoModule', 'whoWhere', 'whoIp'].map((k) => (
+                <th key={k} className="px-4 py-3 text-left text-tiny font-bold uppercase tracking-wider text-text-muted">
+                  {tr(k)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {ultimos.length === 0 && (
+              <tr><td colSpan={5} className="px-4 py-5 text-small text-text-3">{tr('whoEmpty')}</td></tr>
+            )}
+            {ultimos.map((e) => {
+              const donde = [e.ciudad, e.pais].filter(Boolean).join(', ');
+              const hace = desdeHace(e.cuando);
+              return (
+                <tr key={e.correo} className="border-b border-row-sep last:border-0">
+                  <td className="px-4 py-2.5 text-text-1">{e.correo}</td>
+                  <td className="whitespace-nowrap px-4 py-2.5 text-tiny text-text-3">
+                    {hora(e.cuando, idioma)}
+                    {hace && <span className="ml-1.5 text-text-muted">· {hace}</span>}
+                  </td>
+                  <td className="px-4 py-2.5 text-tiny text-text-2">{e.modulo ?? '—'}</td>
+                  {/* Sin ubicación no se inventa nada: se dice que no se sabe. */}
+                  <td className={cn('px-4 py-2.5 text-tiny', donde ? 'text-text-2' : 'text-text-3')}>
+                    {donde || tr('locationUnknown')}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-2.5 font-mono text-tiny text-text-3">{e.ip ?? '—'}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 

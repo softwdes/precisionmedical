@@ -47,11 +47,37 @@ export default function SecuritySettingsPage() {
     // We show the secret for manual entry instead of rendering a QR directly.
   }, [qrUri]);
 
+  /**
+   * Borra los factores a medio inscribir de esta persona.
+   *
+   * GoTrue no admite dos factores con el mismo `friendlyName`, y este
+   * archivo usa siempre el mismo. Quien empezaba y no terminaba de verificar
+   * dejaba uno en `unverified` y el siguiente intento moría con
+   * "a factor with the friendly name ... already exists" — sin forma de
+   * salir desde la pantalla, porque abajo solo se cuentan los `verified` y
+   * seguía diciendo "No configurado".
+   *
+   * Borrarlos es seguro: un factor sin verificar no protege nada, es un
+   * formulario sin terminar. Los VERIFICADOS no se tocan — esos se quitan a
+   * propósito con el botón de abajo, que pide confirmación.
+   */
+  async function limpiarColgados(): Promise<void> {
+    const { data } = await supabase.auth.mfa.listFactors();
+    const colgados = (data?.totp ?? []).filter((x) => x.status !== 'verified');
+    for (const x of colgados) {
+      await supabase.auth.mfa.unenroll({ factorId: x.id });
+    }
+  }
+
   // ── Start enrollment ─────────────────────────────────────────────────────────
   async function startEnroll() {
     setError('');
     setLoading(true);
     try {
+      // Primero el barrido: si quedó uno de un intento anterior, el enroll
+      // de abajo chocaría con él y la persona volvería a quedar trabada.
+      await limpiarColgados();
+
       const { data, error: err } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Authenticator App' });
       if (err || !data) { setError(err?.message ?? t('errEnroll')); return; }
 
@@ -88,6 +114,24 @@ export default function SecuritySettingsPage() {
     } catch {
       setError(t('errNetwork'));
     } finally {
+      setLoading(false);
+    }
+  }
+
+  /** Cancelar a mitad de camino: se deshace el factor que se acaba de crear. */
+  async function cancelarEnroll(): Promise<void> {
+    setLoading(true);
+    try {
+      if (factorId) await supabase.auth.mfa.unenroll({ factorId });
+    } catch {
+      // Si no se pudo borrar, el barrido del próximo intento lo agarra.
+    } finally {
+      setStep('idle');
+      setCode('');
+      setQrUri('');
+      setSecret('');
+      setFactorId('');
+      setError('');
       setLoading(false);
     }
   }
@@ -222,10 +266,18 @@ export default function SecuritySettingsPage() {
               >
                 {loading ? t('btnVerifying') : t('btnActivate')}
               </button>
+              {/*
+                Cancelar BORRA el factor recién creado.
+
+                Antes solo limpiaba la pantalla y dejaba el factor vivo en
+                `unverified`: este botón era la forma más común de quedar
+                trabado, y la persona pensaba que no había pasado nada.
+              */}
               <button
                 type="button"
-                onClick={() => { setStep('idle'); setCode(''); setQrUri(''); setSecret(''); }}
-                className="px-4 py-2 rounded-md border border-border text-text-muted text-sm"
+                disabled={loading}
+                onClick={() => { void cancelarEnroll(); }}
+                className="px-4 py-2 rounded-md border border-border text-text-muted text-sm disabled:opacity-50"
               >
                 {tc('cancel')}
               </button>

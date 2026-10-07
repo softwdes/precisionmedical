@@ -149,6 +149,67 @@ export function CallHistoryDialog({
 
   const filtered = outcome !== 'all' || period !== 0;
 
+  /**
+   * El rescate se ofrece en LOS DOS vacíos, con filtro y sin filtro.
+   *
+   * Primero lo puse solo en el vacío sin filtros, razonando que ofrecerlo
+   * mirando "Hoy" haría pensar que Twilio tampoco tiene nada. Me equivoqué al
+   * revés: el 2026-10-07 Erick tenía el filtro en "Contestada", cayó en el
+   * OTRO cartel —"Sin resultados para este filtro"— y el botón no estaba ahí.
+   * Buscó el historial y no lo encontró.
+   *
+   * Quien filtró hasta quedarse sin nada es exactamente quien necesita esto.
+   * Esconderlo detrás de "primero sacá los filtros" es pedirle que adivine un
+   * paso previo para llegar a la función que vino a buscar.
+   */
+  const bloqueDeRescate = (
+    <div className="flex flex-col items-center gap-2">
+      {rescate === 'error' ? (
+        <p className="text-[11px] text-rose">{t('recoverError')}</p>
+      ) : rescate ? (
+        <p className="text-[11px] text-emerald">{t('recoverDone', { n: rescate.insertadas })}</p>
+      ) : null}
+      <button
+        type="button"
+        disabled={rescatando}
+        onClick={async () => {
+          setRescatando(true); setRescate(null);
+          try {
+            const res = await fetch('/api/admin/call-logs/recuperar', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({}),
+            });
+            if (!res.ok) throw new Error(String(res.status));
+            const data = await res.json() as { insertadas: number };
+            setRescate({ insertadas: data.insertadas });
+            /**
+             * Se SACAN los filtros al terminar.
+             *
+             * El rescate trae 90 días siempre, sin mirar lo que diga la
+             * pantalla. Recargar con el filtro puesto podía dejar "recuperé 39"
+             * arriba de una lista vacía —porque ninguna de esas 39 era de hoy, o
+             * ninguna fue contestada— y eso se lee como que no funcionó.
+             */
+            setOutcome('all'); setPeriod(0); setPage(0);
+            void load(0, 'all', 0);
+          } catch {
+            setRescate('error');
+          } finally {
+            setRescatando(false);
+          }
+        }}
+        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-brand/15 text-brand-text text-[11px] font-medium hover:bg-brand/25 disabled:opacity-50 transition-colors"
+      >
+        {rescatando
+          ? <Loader2 className="w-3 h-3 animate-spin" />
+          : <DownloadCloud className="w-3 h-3" />}
+        {t('recoverFromTwilio')}
+      </button>
+      <p className="text-[10px] text-text-muted">{t('recoverHint')}</p>
+    </div>
+  );
+
   const load = useCallback(async (
     nextPage: number, nextOutcome: OutcomeFilter, nextPeriod: PeriodFilter,
   ) => {
@@ -156,7 +217,21 @@ export function CallHistoryDialog({
     setError(false);
     try {
       const params = new URLSearchParams({
-        scope: 'mine',
+        /**
+         * TODAS las llamadas del equipo, no solo las mías.
+         *
+         * Pedido de Erick el 2026-10-07, con el motivo que lo justifica: el
+         * historial sirve para que dos personas no le llamen al mismo paciente,
+         * y para eso hay que ver lo que hicieron los demás. Mostrando solo lo
+         * propio, cada uno ve su mitad y nadie ve el solapamiento.
+         *
+         * Se notó al recuperar el historial: entraron 58 llamadas y la pantalla
+         * decía "1 de 1", porque 57 eran de otras personas.
+         *
+         * La columna "Atendió" ya dice de quién es cada una, así que no se
+         * pierde el "cuáles son mías" — se gana el resto.
+         */
+        scope: 'all',
         page:  String(nextPage),
         size:  String(PAGE_SIZE),
       });
@@ -278,62 +353,26 @@ export function CallHistoryDialog({
               </button>
             </div>
           ) : calls.length === 0 ? (
-            // Con filtros puestos, "Sin llamadas todavía" miente: sí las hay,
-            // pero no en este recorte.
-            filtered
-              ? <EmptyState.Rich
+            /**
+             * Dos carteles distintos, el MISMO botón de rescate debajo.
+             *
+             * Con filtros puestos, "Sin llamadas todavía" mentiría: puede que
+             * sí haya, pero no en este recorte. Lo que NO cambia entre los dos
+             * casos es que la tabla puede estar vacía de verdad, y entonces el
+             * rescate es lo que la persona vino a buscar.
+             */
+            <div className="space-y-3">
+              {filtered ? (
+                <EmptyState.Rich
                   icon={SlidersHorizontal}
                   title={t('emptyFilteredTitle')}
                   subtitle={t('emptyFilteredHint')}
                 />
-              : (
-                <div className="space-y-3">
-                  <EmptyState.Rich icon={PhoneOff} title={t('emptyTitle')} subtitle={t('emptyMine')} />
-                  {/* Solo con el filtro en TODO: ofrecer rescatar mirando
-                      "Hoy" haría pensar que Twilio tampoco tiene nada. */}
-                  {period === 0 && (
-                    <div className="flex flex-col items-center gap-2">
-                      {rescate === 'error' ? (
-                        <p className="text-[11px] text-rose">{t('recoverError')}</p>
-                      ) : rescate ? (
-                        <p className="text-[11px] text-emerald">
-                          {t('recoverDone', { n: rescate.insertadas })}
-                        </p>
-                      ) : null}
-                      <button
-                        type="button"
-                        disabled={rescatando}
-                        onClick={async () => {
-                          setRescatando(true); setRescate(null);
-                          try {
-                            const res = await fetch('/api/admin/call-logs/recuperar', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({}),
-                            });
-                            if (!res.ok) throw new Error(String(res.status));
-                            const data = await res.json() as { insertadas: number };
-                            setRescate({ insertadas: data.insertadas });
-                            // Recargar para que se vean las que acaban de entrar.
-                            void load(0, outcome, period);
-                          } catch {
-                            setRescate('error');
-                          } finally {
-                            setRescatando(false);
-                          }
-                        }}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-brand/15 text-brand-text text-[11px] font-medium hover:bg-brand/25 disabled:opacity-50 transition-colors"
-                      >
-                        {rescatando
-                          ? <Loader2 className="w-3 h-3 animate-spin" />
-                          : <DownloadCloud className="w-3 h-3" />}
-                        {t('recoverFromTwilio')}
-                      </button>
-                      <p className="text-[10px] text-text-muted">{t('recoverHint')}</p>
-                    </div>
-                  )}
-                </div>
-              )
+              ) : (
+                <EmptyState.Rich icon={PhoneOff} title={t('emptyTitle')} subtitle={t('emptyMine')} />
+              )}
+              {bloqueDeRescate}
+            </div>
           ) : (
             <>
               {/* Desktop / tablet — tabla con la 1ra y la última columna fijas.

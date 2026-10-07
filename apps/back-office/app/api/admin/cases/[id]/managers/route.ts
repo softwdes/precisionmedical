@@ -17,6 +17,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, writeAuditLog, Prisma } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
+import { duennoDelCorreo } from '@/lib/duenno-del-correo';
 
 /**
  * Se puede asignar a alguien que ya existe (`lawyerId`) o escribir uno nuevo.
@@ -196,4 +197,122 @@ export async function DELETE(
   });
 
   return NextResponse.json({ ok: true, manager: closed });
+}
+
+/**
+ * PATCH — completar el CONTACTO de una persona del caso.
+ *
+ * ── Qué problema resuelve ───────────────────────────────────────────────────
+ *
+ * El panel de la columna Attorney muestra a quién escribirle, y para 13 de las
+ * 86 personas del catálogo no hay a dónde: no tienen correo. Hasta hoy el
+ * único lugar donde completarlo era Externos, que Edson no abre y para el que
+ * puede no tener permiso. Erick lo pidió el 2026-10-06: "en tracking, si no
+ * tiene todos los datos, que se pueda agregar desde ahí y que se vincule".
+ *
+ * Se vincula solo: escribe sobre la MISMA fila de `lawyers` que muestra
+ * Externos. No hay copia ni espejo.
+ *
+ * ── Por qué vive acá y no en `lawyers/members` ─────────────────────────────
+ *
+ * Por dos razones, y las dos importan:
+ *
+ *  1. El PATCH de `lawyers/members` PISA TODO lo que no se le manda — manda
+ *     `address: parsed.address ?? null` y así con cada campo. Un edit parcial
+ *     desde el panel le borraría a la persona la dirección, el rol y el número
+ *     de colegiatura, en silencio. Esta ruta toca DOS columnas y ninguna más.
+ *  2. `/api/admin/lawyers/*` lo gobierna el módulo `externals`, que Edson puede
+ *     no tener. Para entrar por ahí habría que sumar una tercera excepción al
+ *     regex del middleware, que ya se rompió dos veces. `/api/admin/cases/*`
+ *     está deliberadamente fuera del guard por módulo —es la ficha compartida
+ *     de la clínica— así que esto llega sin tocar nada.
+ *
+ * ── Lo que NO hace ──────────────────────────────────────────────────────────
+ *
+ * Solo correo y teléfono, y solo de alguien que YA está en ESTE caso: el
+ * `EXISTS` de abajo no es decoración. Sin él esto sería un editor de cualquier
+ * abogado del catálogo alcanzable desde cualquier caso.
+ */
+const ContactoSchema = z.object({
+  lawyerId: z.string().min(1),
+  email:    z.string().email().max(200).nullable().optional().or(z.literal('').transform(() => null)),
+  phone:    z.string().max(50).nullable().optional().or(z.literal('').transform(() => null)),
+});
+
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+): Promise<NextResponse> {
+  const { id } = await params;
+  const actor = await resolveActor(req.headers);
+
+  let parsed;
+  try {
+    parsed = ContactoSchema.parse(await req.json());
+  } catch (err) {
+    return NextResponse.json(
+      { error: 'INVALID_PAYLOAD', details: err instanceof z.ZodError ? err.flatten() : String(err) },
+      { status: 400 },
+    );
+  }
+
+  /*
+   * La persona tiene que estar EN ESTE CASO: o es su abogado, o es uno de sus
+   * encargados activos. Es lo único que impide que esto sea un editor abierto
+   * del catálogo entero.
+   */
+  const ligada = await db.case.findFirst({
+    where: {
+      id,
+      deletedAt: null,
+      OR: [
+        { attorneyId: parsed.lawyerId },
+        { caseManagers: { some: { lawyerId: parsed.lawyerId, removedAt: null } } },
+      ],
+    },
+    select: { id: true },
+  });
+  if (!ligada) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
+
+  const before = await db.lawyer.findUnique({ where: { id: parsed.lawyerId } });
+  if (!before || before.deletedAt) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
+
+  // Mismo criterio que el resto: el correo es unico en TODA la tabla y el
+  // cartel tiene que decir de quien es. Ver `lib/duenno-del-correo.ts`.
+  if (parsed.email && parsed.email !== before.email) {
+    const dup = await db.lawyer.findUnique({ where: { email: parsed.email } });
+    if (dup) {
+      return NextResponse.json(
+        { error: 'DUPLICATE_EMAIL', params: { email: parsed.email, duenno: duennoDelCorreo(dup) } },
+        { status: 409 },
+      );
+    }
+  }
+
+  const updated = await db.lawyer.update({
+    where: { id: parsed.lawyerId },
+    data: {
+      ...(parsed.email !== undefined ? { email: parsed.email } : {}),
+      ...(parsed.phone !== undefined ? { phone: parsed.phone } : {}),
+    },
+    select: { id: true, firstName: true, lastName: true, email: true, phone: true },
+  });
+
+  await writeAuditLog(db, {
+    actorType:   actor.actorType,
+    actorUserId: actor.actorUserId,
+    actorRole:   actor.actorRole,
+    action:      'UPDATE_LAWYER',
+    entityType:  'lawyers',
+    entityId:    updated.id,
+    ipAddress:   actor.ipAddress,
+    userAgent:   actor.userAgent,
+    // La via queda anotada: estos cambios salen del panel de un caso, no del
+    // catalogo, y conviene poder contarlos por separado.
+    metadata:    { via: 'seguimiento', caseId: id, fields: ['email', 'phone'] },
+    before:      { email: before.email, phone: before.phone } as unknown as Prisma.JsonValue,
+    after:       updated as unknown as Prisma.JsonValue,
+  });
+
+  return NextResponse.json({ ok: true, lawyer: updated });
 }

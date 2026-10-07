@@ -7174,7 +7174,9 @@
       "firmAdd": "Agregar bufete",
       "attorneyIsFirm": "Ese es el bufete, no una persona. El bufete va en la columna; acá va el abogado.",
       "attorneyRemove": "Quitar al abogado de este caso",
-      "managerIsCaseAttorney": "↑ Usar como abogado de este caso"
+      "managerIsCaseAttorney": "↑ Usar como abogado de este caso",
+      "contactAdd": "+ Agregar correo / teléfono",
+      "contactSave": "Guardar"
     },
     "online": {
       "badge": "Cita online",

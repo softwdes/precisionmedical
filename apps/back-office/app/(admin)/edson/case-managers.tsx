@@ -149,8 +149,106 @@ export function CopyLine({ icon, value, href }: { icon: React.ReactNode; value: 
   );
 }
 
-function ManagerCard({ m, onRemove, onUsarComoAbogado }: {
+/**
+ * Completar correo y teléfono de alguien del caso, desde el panel.
+ *
+ * Edson ve a quién escribirle y, para 13 de las 86 personas del catálogo, no
+ * hay a dónde. El único lugar donde completarlo era Externos, que él no abre.
+ * Pedido de Erick, 2026-10-06: "que se pueda agregar desde ahí y que se
+ * vincule con settings". Se vincula solo — escribe sobre la MISMA fila de
+ * `lawyers` que muestra Externos.
+ *
+ * Sale cerrado y como un renglón: el panel tiene 280px y esto es la excepción,
+ * no lo que se hace todos los días.
+ */
+function CompletarContacto({ caseId, lawyerId, email, phone, onHecho }: {
+  caseId: string;
+  lawyerId: string;
+  email: string | null;
+  phone: string | null;
+  onHecho: () => void;
+}) {
+  const t = useTranslations('phoenix.edsonTracking');
+  const serverError = useServerError();
+  const [error, setError] = useState('');
+  const [abierto, setAbierto] = useState(false);
+  const [correo, setCorreo]   = useState(email ?? '');
+  const [tel, setTel]         = useState(phone ?? '');
+  const [guardando, setGuardando] = useState(false);
+
+  if (!abierto) {
+    return (
+      <button
+        type="button"
+        onClick={() => setAbierto(true)}
+        className="mt-1 text-[11px] text-brand-text hover:underline"
+      >
+        {t('contactAdd')}
+      </button>
+    );
+  }
+
+  async function guardar() {
+    setGuardando(true); setError('');
+    try {
+      const res = await fetch(`/api/admin/cases/${caseId}/managers`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lawyerId, email: correo.trim() || null, phone: tel.trim() || null }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setError(serverError(json as ServerErrorBody, t('errSave')));
+        return;
+      }
+      setAbierto(false);
+      onHecho();
+    } catch {
+      setError(t('errSave'));
+    } finally { setGuardando(false); }
+  }
+
+  return (
+    <div className="mt-1.5 space-y-1">
+      <input
+        value={correo}
+        onChange={e => setCorreo(e.target.value)}
+        placeholder={t('managerEmail')}
+        className="w-full bg-bg-2 border border-border rounded px-2 py-1 text-[11px] text-text-1 focus:outline-none focus:border-brand"
+      />
+      <input
+        value={tel}
+        onChange={e => setTel(e.target.value)}
+        placeholder={t('managerPhone')}
+        className="w-full bg-bg-2 border border-border rounded px-2 py-1 text-[11px] text-text-1 focus:outline-none focus:border-brand"
+      />
+      {error && <p className="text-[10.5px] text-rose">{error}</p>}
+      <div className="flex gap-1">
+        <button
+          type="button"
+          disabled={guardando}
+          onClick={() => void guardar()}
+          className="flex-1 rounded bg-brand/15 px-2 py-1 text-[11px] text-brand-text font-medium disabled:opacity-50"
+        >
+          {guardando ? <Loader2 className="w-3 h-3 animate-spin inline" /> : t('contactSave')}
+        </button>
+        <button
+          type="button"
+          onClick={() => setAbierto(false)}
+          className="px-2 py-1 text-[11px] text-text-muted hover:text-text-1"
+        >
+          <X className="w-3 h-3" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ManagerCard({ m, onRemove, onUsarComoAbogado, caseId, onContactoHecho }: {
   m: Manager;
+  /** Con estos dos, la tarjeta puede completar el contacto que falte. */
+  caseId?: string;
+  onContactoHecho?: () => void;
   onRemove?: () => void;
   /**
    * Poner a ESTA persona como abogado del caso.
@@ -185,6 +283,17 @@ function ManagerCard({ m, onRemove, onUsarComoAbogado }: {
       <div className="mt-1 space-y-0.5">
         {d.email && <CopyLine icon={<Mail className="w-3 h-3" />} value={d.email} href={`mailto:${d.email}`} />}
         {d.phone && <CopyLine icon={<Phone className="w-3 h-3" />} value={d.phone} />}
+        {/* Solo si FALTA alguno y sabemos de qué caso es: completar es la
+            excepción, no el gesto de todos los días. */}
+        {caseId && m.lawyer?.id && (!d.email || !d.phone) && (
+          <CompletarContacto
+            caseId={caseId}
+            lawyerId={m.lawyer.id}
+            email={d.email}
+            phone={d.phone}
+            onHecho={() => onContactoHecho?.()}
+          />
+        )}
       </div>
       {onUsarComoAbogado && (
         <button
@@ -246,7 +355,7 @@ export function ManagersPopover({
   onUsarComoAbogado: (lawyerId: string, nombre: string) => void;
 }) {
   const t = useTranslations('phoenix.edsonTracking');
-  const { current, loading } = useManagers(caseId);
+  const { current, loading, reload: recargar } = useManagers(caseId);
   const [copiedAll, setCopiedAll] = useState(false);
 
   // Abogado primero y despues los encargados, que es el orden en que Edson los
@@ -384,6 +493,8 @@ export function ManagersPopover({
           <ManagerCard
             key={m.id}
             m={m}
+            caseId={caseId}
+            onContactoHecho={recargar}
             onUsarComoAbogado={ofrecer
               ? () => { onClose(); onUsarComoAbogado(m.lawyer!.id, d.name); }
               : undefined}

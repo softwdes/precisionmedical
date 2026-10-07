@@ -7174,7 +7174,9 @@
       "firmAdd": "Add law firm",
       "attorneyIsFirm": "That is the law firm, not a person. The firm goes in the column; this box is for the attorney.",
       "attorneyRemove": "Remove this attorney from the case",
-      "managerIsCaseAttorney": "↑ Set as the attorney for this case"
+      "managerIsCaseAttorney": "↑ Set as the attorney for this case",
+      "contactAdd": "+ Add email / phone",
+      "contactSave": "Save"
     },
     "online": {
       "badge": "Online visit",

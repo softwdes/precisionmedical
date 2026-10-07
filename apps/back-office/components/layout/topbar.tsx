@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { ZONA_CLINICA } from '@/lib/fechas';
-import { Search, Menu, User, KeyRound, LogOut, Eye, EyeOff, Copy, Zap, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Search, Menu, User, KeyRound, ShieldCheck, LogOut, Eye, EyeOff, Copy, Zap, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { CommandPalette } from './command-palette';
 import { useTransitionProgress } from './navigation-progress';
 import { ThemeSwitch } from './theme-switch';
@@ -469,6 +469,20 @@ export function Topbar({
                     <KeyRound className="w-3.5 h-3.5 shrink-0" style={{ color: AMBER }} />
                     {t('changePassword')}
                   </button>
+                  {/*
+                    El doble factor. Es un enlace y no un modal: la pantalla de
+                    `/settings/security` ya existe y guía paso a paso, lo único
+                    que le faltaba era una puerta. Estuvo meses sin estar
+                    enlazada desde ningún lado y la usaron 0 de 30 personas.
+                  */}
+                  <a
+                    href="/settings/security"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-text-2 hover:bg-surface hover:text-text-1 transition-colors text-left"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 shrink-0" style={{ color: AMBER }} />
+                    {t('twoFactor')}
+                  </a>
                   {/* Avisos al celular: es una preferencia del DISPOSITIVO, así
                       que vive donde ya viven idioma y tema. Acá está siempre —
                       en la barra solo aparece cuando hay algo que tocar. */}

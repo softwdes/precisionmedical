@@ -2372,7 +2372,8 @@
       "pushOnBody": "Este teléfono recibe los avisos aunque tengas la app cerrada. Si dejás de recibirlos, apagá y volvé a activar desde acá: eso rehace la suscripción.",
       "pushLater": "Más tarde",
       "pushBlockedTitle": "Los avisos están bloqueados",
-      "pushBlockedBody": "Este navegador tiene los avisos bloqueados para el sitio, y eso solo se cambia desde sus ajustes: tocá el candado en la barra de direcciones, entrá a los permisos del sitio y permití las notificaciones. Después volvé a activarlo desde acá."
+      "pushBlockedBody": "Este navegador tiene los avisos bloqueados para el sitio, y eso solo se cambia desde sus ajustes: tocá el candado en la barra de direcciones, entrá a los permisos del sitio y permití las notificaciones. Después volvé a activarlo desde acá.",
+      "twoFactor": "Doble factor"
     },
     "common": {
       "errorSave": "Error al guardar",

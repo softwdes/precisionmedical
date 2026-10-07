@@ -2372,7 +2372,8 @@
       "pushOnBody": "This phone receives alerts even with the app closed. If they stop arriving, turn them off and on again from here — that rebuilds the subscription.",
       "pushLater": "Later",
       "pushBlockedTitle": "Alerts are blocked",
-      "pushBlockedBody": "This browser blocks alerts for the site, and only its settings can change that: tap the lock in the address bar, open the site permissions, and allow notifications. Then turn it on again from here."
+      "pushBlockedBody": "This browser blocks alerts for the site, and only its settings can change that: tap the lock in the address bar, open the site permissions, and allow notifications. Then turn it on again from here.",
+      "twoFactor": "Two-factor"
     },
     "common": {
       "errorSave": "The changes could not be saved",

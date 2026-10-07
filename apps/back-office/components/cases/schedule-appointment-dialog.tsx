@@ -20,6 +20,7 @@ import {
   Label,
 } from '@precision/ui';
 import { TagPill, useToast } from '@/components/ui-phoenix';
+import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { useTranslations } from 'next-intl';
 import { describirAvisoCita } from '@/lib/enviar-portal';
 
@@ -116,6 +117,17 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /**
+   * El aviso que el servidor devolvió con 409, esperando que la persona decida.
+   * Este diálogo no sabía qué hacer con NINGÚN 409 con `canOverride`: el cruce
+   * de agenda, la franja llena y el aviso de agenda terminaban en un error sin
+   * salida aunque el servidor ya los marcaba como "avisar y dejar decidir". Cada
+   * aviso se acepta con SU bandera (misma regla que el diálogo de citas).
+   */
+  const [aviso, setAviso] = useState<{
+    titulo: string; mensaje: string; confirmar: string; cancelar: string;
+    bandera: 'allowOverlap' | 'allowBlocked' | 'allowOverbook';
+  } | null>(null);
   const [success, setSuccess] = useState<{
     appointmentId: string;
     scheduledFor: string;
@@ -177,7 +189,9 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
 
   if (!caseInfo) return null;
 
-  const handleSchedule = async () => {
+  const handleSchedule = () => { void enviar({}); };
+
+  const enviar = async (banderas: { allowOverlap?: boolean; allowBlocked?: boolean; allowOverbook?: boolean }) => {
     setError(null);
     if (!canSubmit) {
       return setError('Completá todos los campos requeridos');
@@ -196,10 +210,50 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
           durationMinutes: duration,
           type,
           notes: notes.trim() || undefined,
+          ...banderas,
         }),
       });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
+        const data = await res.json().catch(() => ({})) as ServerErrorBody & {
+          canOverride?: boolean; message?: string; conflictAt?: string; conflictPatient?: string | null;
+          ocupadas?: number; capacidad?: number; params?: { hora?: string; provider?: string };
+        };
+        if (res.status === 409 && data.canOverride) {
+          const hora = typeof data.conflictAt === 'string'
+            ? new Date(data.conflictAt).toLocaleTimeString(localeApp(), { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' })
+            : '';
+          if (data.error === 'PATIENT_SAME_DAY') {
+            setAviso({
+              titulo: t('patientSameDayTitle'),
+              mensaje: t('patientSameDayBody', { hora: data.params?.hora ?? '—', provider: data.params?.provider ?? '—' }),
+              confirmar: t('patientSameDayConfirm'), cancelar: t('patientSameDayCancel'), bandera: 'allowOverlap',
+            });
+            return;
+          }
+          if (data.error === 'SLOT_CONFLICT') {
+            setAviso({
+              titulo: t('overlapTitle'),
+              mensaje: data.conflictPatient ? t('overlapBody', { time: hora, patient: data.conflictPatient }) : t('overlapBodyAnon', { time: hora }),
+              confirmar: t('overlapConfirm'), cancelar: t('overlapCancel'), bandera: 'allowOverlap',
+            });
+            return;
+          }
+          if (data.error === 'CAPACITY_WARNING') {
+            setAviso({
+              titulo: t('capacityTitle'),
+              mensaje: t('capacityBody', { ocupadas: data.ocupadas ?? 0, capacidad: data.capacidad ?? 0 }),
+              confirmar: t('overlapConfirm'), cancelar: t('overlapCancel'), bandera: 'allowOverbook',
+            });
+            return;
+          }
+          if (data.error === 'BLOCKED_SLOT') {
+            setAviso({
+              titulo: t('blockedSlotTitle'), mensaje: data.message ?? '',
+              confirmar: t('overlapConfirm'), cancelar: t('overlapCancel'), bandera: 'allowBlocked',
+            });
+            return;
+          }
+        }
         throw new Error(serverError(data as ServerErrorBody));
       }
       const data = await res.json();
@@ -262,6 +316,7 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
 
   // ─── Schedule form ────────────────────────────────────────────────────────
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
@@ -461,5 +516,21 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    {/* Fuera del Dialog para que el aviso quede por encima. */}
+    <ConfirmDialog
+      open={!!aviso}
+      variant="warning"
+      title={aviso?.titulo ?? ''}
+      description={aviso?.mensaje ?? ''}
+      confirmLabel={aviso?.confirmar ?? ''}
+      cancelLabel={aviso?.cancelar ?? ''}
+      onConfirm={() => {
+        const a = aviso;
+        setAviso(null);
+        if (a) void enviar({ [a.bandera]: true });
+      }}
+      onCancel={() => setAviso(null)}
+    />
+    </>
   );
 }

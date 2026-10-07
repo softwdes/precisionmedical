@@ -96,6 +96,73 @@ export async function findBlocksCovering(opts: {
  */
 const MAX_APPOINTMENT_MINUTES = 480;
 
+/**
+ * ── El MISMO PACIENTE el MISMO DIA con OTRO provider ───────────────────────
+ *
+ * El chequeo de cruce mira la agenda del PROVIDER; nadie miraba al paciente, así
+ * que agendarlo dos veces el mismo día con providers distintos no disparaba un
+ * aviso. Así nacieron las duplicadas del 22-sep (tres hermanos agendados dos
+ * veces, una hora después y con otro provider).
+ *
+ * AVISA y no BLOQUEA: medido el 2026-09-29, de 119 pares de citas vivas del mismo
+ * paciente el mismo día, 97 son del mismo caso (doctor y terapia, legítimas). El
+ * patrón sospechoso es angosto —provider DISTINTO el mismo día, 5 pares en toda
+ * la base— y por eso solo avisa en ese caso y deja seguir con `allowOverlap`.
+ *
+ * Vive acá porque lo necesitan los tres endpoints que guardan una cita (crear,
+ * mover y agendar desde el caso): copiado en cada uno es como se desalinea.
+ * Las canceladas y los no-show no cuentan: ya no ocupan el día.
+ */
+export interface CitaDelMismoDia {
+  id: string;
+  /** "10:30 AM", en hora de la clínica. */
+  hora: string;
+  provider: string | null;
+}
+
+export async function citaDelPacienteElMismoDia(opts: {
+  patientId: string;
+  start: Date;
+  providerId: string | null;
+  /** La cita que se está moviendo: sin esto chocaría consigo misma. */
+  excludeAppointmentId?: string;
+}): Promise<CitaDelMismoDia | null> {
+  // El día en hora de CLÍNICA, no en UTC: una cita de las 18:00 de Denver ya es
+  // del día siguiente en UTC y se escaparía del rango.
+  const diaClinica = opts.start.toLocaleDateString('en-CA', { timeZone: TIMEZONE });
+  const excluir = opts.excludeAppointmentId ?? null;
+  const filas = await db.$queryRaw<Array<{ id: string; hora: string; provider: string | null }>>`
+    SELECT a."id",
+           to_char(a."scheduledFor" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Denver', 'HH12:MI AM') AS hora,
+           NULLIF(TRIM(CONCAT(COALESCE(pr."firstName", ''), ' ', COALESCE(pr."lastName", ''))), '') AS provider
+      FROM appointments a
+      LEFT JOIN providers pr ON pr."id" = a."providerId"
+     WHERE a."patientId" = ${opts.patientId}
+       AND a."deletedAt" IS NULL
+       AND a."status"::text NOT IN ('CANCELLED', 'NO_SHOW')
+       AND (a."scheduledFor" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Denver')::date = ${diaClinica}::date
+       AND a."providerId" IS DISTINCT FROM ${opts.providerId}
+       AND (${excluir}::text IS NULL OR a."id" <> ${excluir}::text)
+     ORDER BY a."scheduledFor"
+     LIMIT 1
+  `;
+  return filas[0] ?? null;
+}
+
+/**
+ * El 409 que viaja al cliente. El código y los datos van aparte del texto: la
+ * pantalla arma la frase con next-intl, para que el cartel no salga mitad en
+ * inglés y mitad en castellano.
+ */
+export function cuerpoMismoDia(c: CitaDelMismoDia) {
+  return {
+    error: 'PATIENT_SAME_DAY' as const,
+    params: { hora: c.hora, provider: c.provider ?? '—' },
+    conflictAppointmentId: c.id,
+    canOverride: true as const,
+  };
+}
+
 export interface OverlappingAppointment {
   id: string;
   scheduledFor: Date;

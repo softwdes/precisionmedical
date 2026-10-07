@@ -493,6 +493,8 @@ interface RespuestaDeCruce {
   conflictAt?: string;
   conflictPatient?: string | null;
   overlapCount?: number;
+  /** PATIENT_SAME_DAY: a qué hora y con quién tiene la otra cita del día. */
+  params?: { hora?: string; provider?: string };
 }
 
 // ─── FilterChip ───────────────────────────────────────────────────────────────
@@ -1104,7 +1106,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId, initialPr
   // confirmada por Erick 2026-08-05). Guarda el destino para poder reintentar
   // con allowOverlap si el usuario elige solapar igual.
   const [overlapPrompt, setOverlapPrompt] = useState<
-    { apptId: string; targetIso: string; message: string } | null
+    { apptId: string; targetIso: string; message: string; codigo?: 'PATIENT_SAME_DAY' } | null
   >(null);
 
   /**
@@ -1126,6 +1128,10 @@ export function CalendarClient({ clinics, providers, lockedProviderId, initialPr
    * se traducen.
    */
   const textoDelCruce = (data: RespuestaDeCruce): string => {
+    // El mismo paciente el mismo día con otro provider: el servidor manda los datos, la frase se arma acá.
+    if (data.error === 'PATIENT_SAME_DAY') {
+      return t('patientSameDayBody', { hora: data.params?.hora ?? '—', provider: data.params?.provider ?? '—' });
+    }
     if (data.error !== 'SLOT_CONFLICT' || !data.conflictAt) return serverError(data as ServerErrorBody);
     const hora = new Date(data.conflictAt).toLocaleTimeString(localeApp(), {
       hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
@@ -1160,7 +1166,10 @@ export function CalendarClient({ clinics, providers, lockedProviderId, initialPr
       const data = await res.json() as RespuestaDeCruce;
       // Cruce que el usuario puede decidir: en vez de rechazar, se le pregunta.
       if (res.status === 409 && data.canOverride) {
-        setOverlapPrompt({ apptId, targetIso, message: textoDelCruce(data) });
+        setOverlapPrompt({
+          apptId, targetIso, message: textoDelCruce(data),
+          codigo: data.error === 'PATIENT_SAME_DAY' ? 'PATIENT_SAME_DAY' : undefined,
+        });
         return;
       }
       // Se muestra el mensaje REAL del servidor. Antes el toast renderizaba una
@@ -1606,10 +1615,10 @@ export function CalendarClient({ clinics, providers, lockedProviderId, initialPr
       <ConfirmDialog
         open={!!overlapPrompt}
         variant="warning"
-        title={t('overlapTitle')}
+        title={overlapPrompt?.codigo === 'PATIENT_SAME_DAY' ? t('patientSameDayTitle') : t('overlapTitle')}
         description={overlapPrompt?.message ?? ''}
-        confirmLabel={t('overlapConfirm')}
-        cancelLabel={t('overlapCancel')}
+        confirmLabel={overlapPrompt?.codigo === 'PATIENT_SAME_DAY' ? t('patientSameDayConfirm') : t('overlapConfirm')}
+        cancelLabel={overlapPrompt?.codigo === 'PATIENT_SAME_DAY' ? t('patientSameDayCancel') : t('overlapCancel')}
         onConfirm={() => {
           const p = overlapPrompt;
           setOverlapPrompt(null);

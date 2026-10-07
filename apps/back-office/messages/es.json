@@ -4462,7 +4462,11 @@
       "blockFieldClinic": "Sede (opcional)",
       "blockClinicAllOption": "Todas las sedes",
       "blockClinicAll": "Sin sede: el aviso vale para todas.",
-      "blockClinicOne": "Solo en esta sede."
+      "blockClinicOne": "Solo en esta sede.",
+      "patientSameDayTitle": "Este paciente ya tiene otra cita ese día",
+      "patientSameDayBody": "Ya tiene una cita ese día a las {hora} con {provider}. ¿Querés agendar otra igual?",
+      "patientSameDayConfirm": "Agendar igual",
+      "patientSameDayCancel": "Revisar la agenda"
     },
     "caseDetail": {
       "statusNewReferral": "Nuevo paciente",

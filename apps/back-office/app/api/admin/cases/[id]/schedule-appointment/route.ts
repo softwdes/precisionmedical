@@ -17,7 +17,7 @@ import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { enviarRecordatorioDeCita } from '@/lib/recordatorio-cita';
 import { DURACION_CITA_POR_DEFECTO } from '@/lib/duracion-cita';
-import { isWeekendInDenver, horarioYaPaso, findOverlappingAppointments, describeOverlap, overlapDetails, medirSobrecarga, findBlocksCovering, describeBlocks } from '@/lib/scheduling-rules';
+import { isWeekendInDenver, horarioYaPaso, findOverlappingAppointments, describeOverlap, overlapDetails, medirSobrecarga, findBlocksCovering, describeBlocks, citaDelPacienteElMismoDia, cuerpoMismoDia } from '@/lib/scheduling-rules';
 
 const InputSchema = z.object({
   clinicId: z.string().min(1),
@@ -231,6 +231,17 @@ async function agendarDesdeElCaso(
         { status: 409 },
       );
     }
+  }
+
+  // El mismo paciente el mismo día con OTRO provider (ver lib/scheduling-rules).
+  // Es el tercer camino que guarda una cita y era el único sin este aviso.
+  if (!parsed.allowOverlap) {
+    const otra = await citaDelPacienteElMismoDia({
+      patientId:  caseRecord.patientId,
+      start:      scheduledForDate,
+      providerId: parsed.providerId ?? null,
+    });
+    if (otra) return NextResponse.json(cuerpoMismoDia(otra), { status: 409 });
   }
 
   /**

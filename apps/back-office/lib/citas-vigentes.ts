@@ -29,6 +29,28 @@ const ESTADOS_CON_DESENLACE = new Set([
   'COMPLETED', 'NO_SHOW', 'IN_PROGRESS',
 ]);
 
+/**
+ * ¿Esta visita se CARGÓ A MANO y nunca pasó por la clínica?
+ *
+ * `COMPLETED` con los tres sellos de reloj en null es la firma exacta de una
+ * visita retroactiva: el alta no los inventa a propósito (ver el POST de
+ * appointments). Si alguno tiene hora, la visita ocurrió de verdad.
+ *
+ * Vive acá y se exporta porque la usan DOS reglas distintas —si se puede
+ * eliminar y si se puede editar— y la definición tiene que ser una sola. Cada
+ * llamador le suma sus propias condiciones: eliminar mira además la penalidad,
+ * editar mira además que no haya nota ni cargos.
+ */
+export function nuncaPasoPorLaClinica(cita: {
+  status: string;
+  checkedInAt: Date | null;
+  admittedAt: Date | null;
+  checkedOutAt: Date | null;
+}): boolean {
+  return cita.status === 'COMPLETED'
+    && !cita.checkedInAt && !cita.admittedAt && !cita.checkedOutAt;
+}
+
 export type MotivoNoEliminable =
   | 'CARGOS'          // tiene servicios o cobros
   | 'NOTA'            // tiene nota de visita
@@ -95,11 +117,7 @@ export async function porQueNoSePuedeEliminar(
    * chequeando más abajo. Erick lo encontró el 28-sep-2026 intentando borrar su
    * propia cita de prueba.
    */
-  const nuncaPasoPorLaClinica =
-    cita.status === 'COMPLETED'
-    && !cita.checkedInAt && !cita.admittedAt && !cita.checkedOutAt;
-
-  if (ESTADOS_CON_DESENLACE.has(cita.status) && !nuncaPasoPorLaClinica) return 'ESTADO';
+  if (ESTADOS_CON_DESENLACE.has(cita.status) && !nuncaPasoPorLaClinica(cita)) return 'ESTADO';
   // La cancelación del MISMO DÍA conserva servicios y admite penalidad: es
   // plata en juego, no un registro sobrante (ver `cancelledSameDay`).
   if (cita.cancelledSameDay)      return 'PENALIDAD';
@@ -114,4 +132,55 @@ export async function porQueNoSePuedeEliminar(
   if (servicios > 0 || cobros > 0) return 'CARGOS';
 
   return null;
+}
+
+/**
+ * ¿Se puede EDITAR una cita ya atendida?
+ *
+ * Por defecto no: una visita atendida es un hecho, y el PATCH solo le deja
+ * tocar los cargos. Pero la visita RETROACTIVA **nace** `COMPLETED`, así que
+ * nacía inmutable: un dedazo en la sede o en la hora no se podía corregir
+ * nunca, ni un segundo después de cargarla.
+ *
+ * Erick lo encontró el 2026-10-07 cargando a Jenna Schnackenberg en Pleasant
+ * Grove cuando era Provo. Es el mismo hueco que tenía el borrado, y se tapa con
+ * la misma firma.
+ *
+ * Se abre solo si la visita no dejó NINGÚN rastro propio: sin sellos de reloj,
+ * sin firma de asistencia, sin nota y sin un peso cargado. En cuanto hay
+ * cualquiera de esas cosas vuelve a ser inmutable — ahí ya no es una fila mal
+ * tipeada, es una consulta que ocurrió.
+ */
+export async function sePuedeEditarAunqueEsteAtendida(
+  appointmentId: string,
+): Promise<boolean> {
+  const cita = await db.appointment.findUnique({
+    where:  { id: appointmentId },
+    select: {
+      status: true,
+      checkedInAt: true,
+      admittedAt: true,
+      checkedOutAt: true,
+      attendanceSignedAt: true,
+      plannedServiceCodes: true,
+      visitNote: { select: { id: true } },
+    },
+  });
+  if (!cita) return false;
+  if (!nuncaPasoPorLaClinica(cita)) return false;
+  if (cita.attendanceSignedAt) return false;
+  if (cita.visitNote) return false;
+
+  // Los cargos PLANEADOS también cuentan: son el trabajo de facturación que
+  // alguien ya hizo sobre esta fila.
+  const planeados = Array.isArray(cita.plannedServiceCodes)
+    ? cita.plannedServiceCodes.length
+    : 0;
+  if (planeados > 0) return false;
+
+  const [servicios, cobros] = await Promise.all([
+    db.appointmentService.count({ where: { appointmentId } }),
+    db.appointmentBilling.count({ where: { appointmentId } }),
+  ]);
+  return servicios === 0 && cobros === 0;
 }

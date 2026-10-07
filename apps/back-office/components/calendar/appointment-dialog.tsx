@@ -373,7 +373,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   const [overlapPrompt,  setOverlapPrompt]  = useState<{
     pending: PendingSubmit;
     message: string;
-    codigo: 'SLOT_CONFLICT' | 'BLOCKED_SLOT' | 'CAPACITY_WARNING';
+    codigo: 'SLOT_CONFLICT' | 'BLOCKED_SLOT' | 'CAPACITY_WARNING' | 'PATIENT_SAME_DAY';
   } | null>(null);
 
   // Prevents the clinic/provider change effect from clearing the pre-populated slot
@@ -1215,6 +1215,16 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
               capacidad: (data.capacidad as number | undefined) ?? 0,
             });
           }
+          /**
+           * El mismo paciente el mismo día con otro provider. El servidor manda el
+           * código y los datos, NO el texto. Antes este caso caía en el cartel de
+           * "Se cruza con otra cita" con el cuerpo VACÍO —no traía `message`—, y
+           * la frase buena (`srvPATIENT_SAME_DAY`) nunca llegaba a mostrarse.
+           */
+          if (data.error === 'PATIENT_SAME_DAY') {
+            const p = (data.params ?? {}) as { hora?: string; provider?: string };
+            cuerpo = t('patientSameDayBody', { hora: p.hora ?? '—', provider: p.provider ?? '—' });
+          }
           if (esCruce && typeof data.conflictAt === 'string') {
             const hora = new Date(data.conflictAt).toLocaleTimeString(localeApp(), {
               hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
@@ -1230,6 +1240,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
             message: cuerpo,
             codigo:  data.error === 'BLOCKED_SLOT'     ? 'BLOCKED_SLOT'
                    : data.error === 'CAPACITY_WARNING' ? 'CAPACITY_WARNING'
+                   : data.error === 'PATIENT_SAME_DAY' ? 'PATIENT_SAME_DAY'
                    : 'SLOT_CONFLICT',
           });
           return;
@@ -2166,10 +2177,11 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
       variant="warning"
       title={overlapPrompt?.codigo === 'BLOCKED_SLOT'     ? t('blockedSlotTitle')
            : overlapPrompt?.codigo === 'CAPACITY_WARNING' ? t('capacityTitle')
+           : overlapPrompt?.codigo === 'PATIENT_SAME_DAY' ? t('patientSameDayTitle')
            : t('overlapTitle')}
       description={overlapPrompt?.message ?? ''}
-      confirmLabel={t('overlapConfirm')}
-      cancelLabel={t('overlapCancel')}
+      confirmLabel={overlapPrompt?.codigo === 'PATIENT_SAME_DAY' ? t('patientSameDayConfirm') : t('overlapConfirm')}
+      cancelLabel={overlapPrompt?.codigo === 'PATIENT_SAME_DAY' ? t('patientSameDayCancel') : t('overlapCancel')}
       onConfirm={() => {
         const p = overlapPrompt;
         setOverlapPrompt(null);

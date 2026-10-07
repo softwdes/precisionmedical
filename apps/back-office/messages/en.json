@@ -4462,7 +4462,11 @@
       "blockFieldClinic": "Location (optional)",
       "blockClinicAllOption": "All locations",
       "blockClinicAll": "No location: the note applies to all of them.",
-      "blockClinicOne": "Only at this location."
+      "blockClinicOne": "Only at this location.",
+      "patientSameDayTitle": "This patient already has another appointment that day",
+      "patientSameDayBody": "They already have an appointment that day at {hora} with {provider}. Do you want to book another one anyway?",
+      "patientSameDayConfirm": "Book anyway",
+      "patientSameDayCancel": "Check the schedule"
     },
     "caseDetail": {
       "statusNewReferral": "New Referral",

@@ -12,10 +12,10 @@ import { z } from 'zod';
 import { db, Prisma, writeAuditLog } from '@precision-medical/database';
 import { avisarReprogramacion, avisarCancelacion } from '@/lib/recordatorio-cita';
 import { resolveActor } from '@/lib/actor';
-import { isWeekendInDenver, findOverlappingAppointments, describeOverlap, overlapDetails, findBlocksCovering, describeBlocks } from '@/lib/scheduling-rules';
+import { isWeekendInDenver, findOverlappingAppointments, describeOverlap, overlapDetails, findBlocksCovering, describeBlocks, citaDelPacienteElMismoDia, cuerpoMismoDia } from '@/lib/scheduling-rules';
 import { pagadoPorCodigoCpt, respuestaYaPagado } from '@/lib/charge-payments';
 import { puedeEscribirLaCita } from '@/lib/appointment-scope';
-import { porQueNoSePuedeEliminar } from '@/lib/citas-vigentes';
+import { porQueNoSePuedeEliminar, sePuedeEditarAunqueEsteAtendida } from '@/lib/citas-vigentes';
 
 export async function GET(
   _req: NextRequest,
@@ -108,7 +108,7 @@ export async function PATCH(
 
   const existing = await db.appointment.findUnique({
     where: { id },
-    select: { id: true, status: true, caseId: true, providerId: true, scheduledFor: true, durationMinutes: true, clinicId: true, isOnline: true },
+    select: { id: true, status: true, caseId: true, patientId: true, providerId: true, scheduledFor: true, durationMinutes: true, clinicId: true, isOnline: true },
   });
   if (!existing) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
 
@@ -199,11 +199,29 @@ export async function PATCH(
     }, { status: 409 });
   }
 
-  // COMPLETED appointments: only plannedServiceCodes may be updated (Step 4 billing happens post-visit)
+  /**
+   * ─── Una cita ATENDIDA solo deja tocar los cargos… salvo una ─────────────
+   *
+   * La regla de fondo no cambia: una visita que ocurrió es un hecho, y
+   * reescribirle la sede o la hora sería falsear lo que pasó. Lo único que
+   * sigue abierto es la facturación, que es trabajo posterior a la visita.
+   *
+   * **La excepción es la visita cargada a mano.** Nace `COMPLETED` (ver el
+   * POST de appointments), así que nacía inmutable: un dedazo en la sede no se
+   * podía corregir nunca, ni un segundo después de haberla creado. Erick lo
+   * encontró el 2026-10-07 cargando a una paciente en Pleasant Grove cuando
+   * era Provo — el botón Editar abría, dejaba elegir, y el servidor decía que
+   * no al guardar.
+   *
+   * `sePuedeEditarAunqueEsteAtendida` (lib/citas-vigentes) la abre SOLO si la
+   * fila no dejó ningún rastro propio: sin sellos de reloj, sin firma, sin nota
+   * y sin un peso cargado. Es la misma firma con la que ya se destrabó el
+   * borrado, y por eso el predicado del reloj vive en un solo lugar.
+   */
   if (existing.status === 'COMPLETED') {
     const keys = Object.keys(parsed);
     const onlyServices = keys.length === 1 && keys[0] === 'plannedServiceCodes';
-    if (!onlyServices) {
+    if (!onlyServices && !(await sePuedeEditarAunqueEsteAtendida(id))) {
       return NextResponse.json({ error: 'IMMUTABLE' }, { status: 422 });
     }
   }
@@ -286,6 +304,26 @@ export async function PATCH(
         }, { status: 409 });
       }
     }
+  }
+
+  /**
+   * El MISMO PACIENTE el mismo día con otro provider, al MOVER la cita.
+   *
+   * Crear ya avisaba (POST) pero mover no: pasar una cita al día en que el
+   * paciente ya tiene otra con otro provider —arrastrándola en el calendario o
+   * cambiándole la fecha— entraba sin un aviso. Solo corre si cambia la FECHA y
+   * no cuando se asigna el provider en el check-in: eso no agrega un día nuevo.
+   * Una cita cancelada o no-show no se mueve a ningún día, así que no cuenta.
+   */
+  if (parsed.scheduledFor !== undefined && !parsed.allowOverlap
+      && existing.status !== 'CANCELLED' && existing.status !== 'NO_SHOW') {
+    const otra = await citaDelPacienteElMismoDia({
+      patientId:  existing.patientId,
+      start:      new Date(parsed.scheduledFor),
+      providerId: parsed.providerId !== undefined ? parsed.providerId : existing.providerId,
+      excludeAppointmentId: id,
+    });
+    if (otra) return NextResponse.json(cuerpoMismoDia(otra), { status: 409 });
   }
 
   /**

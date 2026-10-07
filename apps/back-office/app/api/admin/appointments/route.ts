@@ -19,7 +19,7 @@ import { z } from 'zod';
 import { db, Prisma, writeAuditLog, VIGENTES } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { DURACION_CITA_POR_DEFECTO } from '@/lib/duracion-cita';
-import { isWeekendInDenver, horarioYaPaso, findOverlappingAppointments, describeOverlap, overlapDetails, medirSobrecarga, findBlocksCovering, describeBlocks } from '@/lib/scheduling-rules';
+import { isWeekendInDenver, horarioYaPaso, findOverlappingAppointments, describeOverlap, overlapDetails, medirSobrecarga, findBlocksCovering, describeBlocks, citaDelPacienteElMismoDia, cuerpoMismoDia } from '@/lib/scheduling-rules';
 import { COVERAGE_FIELDS, resolveCoverage, serializeCoverage } from '@/lib/coverage';
 import { enviarRecordatorioDeCita } from '@/lib/recordatorio-cita';
 
@@ -629,38 +629,12 @@ async function crearCita(req: NextRequest): Promise<NextResponse> {
    * pueda decir a que hora y con quien, no solo "ya tiene una".
    */
   if (!parsed.allowOverlap && caseRecord.patientId) {
-    const inicio = new Date(parsed.scheduledFor);
-    // El dia en hora de CLINICA, no en UTC: una cita de las 18:00 de Denver ya
-    // es del dia siguiente en UTC y se escaparia del rango.
-    const diaClinica = inicio.toLocaleDateString('en-CA', { timeZone: 'America/Denver' });
-    const mismasDelDia = await db.$queryRaw<Array<{
-      id: string; hora: string; provider: string | null;
-    }>>`
-      SELECT a."id",
-             to_char(a."scheduledFor" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Denver', 'HH12:MI AM') AS hora,
-             NULLIF(TRIM(CONCAT(COALESCE(pr."firstName", ''), ' ', COALESCE(pr."lastName", ''))), '') AS provider
-        FROM appointments a
-        LEFT JOIN providers pr ON pr."id" = a."providerId"
-       WHERE a."patientId" = ${caseRecord.patientId}
-         AND a."deletedAt" IS NULL
-         AND a."status"::text NOT IN ('CANCELLED', 'NO_SHOW')
-         AND (a."scheduledFor" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Denver')::date = ${diaClinica}::date
-         AND a."providerId" IS DISTINCT FROM ${parsed.providerId ?? null}
-       ORDER BY a."scheduledFor"
-       LIMIT 1
-    `;
-    if (mismasDelDia.length > 0) {
-      const otra = mismasDelDia[0]!;
-      return NextResponse.json(
-        {
-          error: 'PATIENT_SAME_DAY',
-          params: { hora: otra.hora, provider: otra.provider ?? '—' },
-          conflictAppointmentId: otra.id,
-          canOverride: true,
-        },
-        { status: 409 },
-      );
-    }
+    const otra = await citaDelPacienteElMismoDia({
+      patientId:  caseRecord.patientId,
+      start:      new Date(parsed.scheduledFor),
+      providerId: parsed.providerId ?? null,
+    });
+    if (otra) return NextResponse.json(cuerpoMismoDia(otra), { status: 409 });
   }
 
   if (!parsed.allowOverlap && parsed.providerId) {

@@ -33,7 +33,8 @@ import { DatePicker }   from '@/components/ui-phoenix/date-picker';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { AppointmentSignQrDialog } from '@/components/calendar/appointment-sign-qr-dialog';
 import { ChargePickerDialog, type BillableItem } from '@/components/visit/charge-picker-dialog';
-import { busquedaDePenalidad } from '@/lib/penalidad';
+import { busquedaDePenalidad, itemDePenalidad } from '@/lib/penalidad';
+import { PenaltyDialog } from '@/components/visit/penalty-dialog';
 import { conCasoAbierto } from '@/lib/case-modal-url';
 import { agregarCargo, leerCargos, mapaDeCargos, type PlannedService, type CargoEfectivo } from '@/lib/charges';
 import type { CoverageDTO } from '@/lib/coverage';
@@ -692,6 +693,14 @@ export function AdmissionClient() {
     case?: { id: string; caseType: string } | null;
   };
   const [cargoTarget, setCargoTarget] = useState<CitaParaCargo | null>(null);
+  /**
+   * Con qué se asienta la penalidad. 'penalidad' = el diálogo corto, con el monto
+   * propuesto según el tipo de caso (MVA $100, general $50) y editable;
+   * 'picker' = el catálogo entero, para cobrar con otro código. Se arranca SIEMPRE
+   * en el corto: era el catálogo entero lo que hacía que 41 de 78 desenlaces
+   * quedaran sin cargo.
+   */
+  const [cargoModo, setCargoModo] = useState<'penalidad' | 'picker'>('penalidad');
 
   /**
    * Las penalidades sin asentar de días ANTERIORES.
@@ -842,6 +851,7 @@ export function AdmissionClient() {
       setCargosActuales(await leerCargos(appt.id));
       setCargosEfectivo([]);
       setCargoError(null);
+      setCargoModo('penalidad');
       setCargoTarget(appt);
     } finally {
       setSellando(false);
@@ -888,6 +898,7 @@ export function AdmissionClient() {
     setCargosActuales(await leerCargos(appt.id));
     setCargosEfectivo([]);
     setCargoError(null);
+    setCargoModo('penalidad');
     setCargoTarget(appt);
   }, []);
 
@@ -897,9 +908,9 @@ export function AdmissionClient() {
   }, [router, pathname, searchParams]);
 
   /** Agrega el código elegido y deja la deuda creada (ver lib/charges). */
-  async function onAgregarCargo(item: BillableItem) {
+  async function onAgregarCargo(item: BillableItem): Promise<boolean> {
     const appt = cargoTarget;
-    if (!appt) return;
+    if (!appt) return false;
     const r = await agregarCargo({
       appointmentId: appt.id,
       caseId:        appt.case?.id,
@@ -920,6 +931,7 @@ export function AdmissionClient() {
     if (r.ok) await load(selectedDate, true);
     // El atraso solo se achica cuando alguien cobra: este es ese momento.
     if (r.ok) await cargarPendientes();
+    return r.ok;
   }
 
   async function handleCheckIn(apptId: string) {
@@ -1594,7 +1606,15 @@ export function AdmissionClient() {
 
         {/* El modal de servicios, ahí mismo. Es el MISMO picker que usa el tab de
             Servicios de la consulta — el encargado elige el código y listo. */}
-        {cargoTarget && (
+        {cargoTarget && cargoModo === 'penalidad' && itemDePenalidad(cargoTarget) && (
+          <PenaltyDialog
+            cita={cargoTarget}
+            onAdd={onAgregarCargo}
+            onOtherCode={() => setCargoModo('picker')}
+            onClose={() => { setCargoTarget(null); setCargoError(null); }}
+          />
+        )}
+        {cargoTarget && (cargoModo === 'picker' || !itemDePenalidad(cargoTarget)) && (
           <ChargePickerDialog
             coverage={coberturaDelCargo(cargoTarget.case?.caseType)}
             /* El picker indexa por `item.key`, que para el circuito de seguro es
@@ -1608,7 +1628,7 @@ export function AdmissionClient() {
             busquedaInicial={busquedaDePenalidad(cargoTarget)}
           bloquearRepetidos
             onClose={() => { setCargoTarget(null); setCargoError(null); }}
-            onAdd={onAgregarCargo}
+            onAdd={async (it) => { await onAgregarCargo(it); }}
           />
         )}
         {cargoError && (

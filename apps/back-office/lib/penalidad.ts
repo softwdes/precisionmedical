@@ -56,3 +56,64 @@ export function busquedaDePenalidad(a: ConDesenlace): string | undefined {
   if (a.status === 'CANCELLED' && a.cancelledSameDay === true) return 'Cancel Same Day';
   return undefined;
 }
+
+// ─── Cuánto se cobra ──────────────────────────────────────────────────────────
+
+/**
+ * El monto con el que arranca la penalidad, según el tipo de caso.
+ *
+ * Regla de Erick (2026-10-07): una cita MVA que no vino —o que se canceló el
+ * mismo día— son **$100**; una de medicina general (GM), **$50**. En los dos
+ * casos el monto es EDITABLE: esto es lo que se propone, no lo que se impone.
+ *
+ * ── Por qué vive acá y no en el catálogo ───────────────────────────────────
+ *
+ * El tarifario NO sabe esto. El código de seguro "No show appointment" cuesta
+ * $100 y no tiene segundo precio de medicina general (`feeGeneral` es null), y
+ * del lado del efectivo "No Show" y "Cancel Same Day" cuestan $50 los dos. Medido
+ * el 2026-10-07 sobre 120 días: el no-show MVA salió a $100 en 27 de 28 cargos
+ * —alguien editaba el monto a mano—, y los 4 no-show GM que se cobraron salieron
+ * a $50, $0, $166 y $0: no había una regla, había un lápiz.
+ *
+ * Cambiar el catálogo es una decisión de la clínica con su propio rastro de
+ * verificación (`priceVerifiedAt/By`); esto es la regla de Admisión y se puede
+ * mover al tarifario cuando la clínica lo decida, sin tocar la pantalla.
+ *
+ * Workers' comp y nursing home cotizan como MVA, igual que en el resto del
+ * picker (`precioDeCargo`): solo medicina general tiene el precio chico.
+ *
+ * `null` = el caso no tiene tipo: no hay monto que proponer y se pide.
+ */
+export const PENALIDAD_MVA = 100;
+export const PENALIDAD_GENERAL = 50;
+
+export function precioDePenalidad(caseType: string | null | undefined): number | null {
+  if (caseType === 'GENERAL') return PENALIDAD_GENERAL;
+  if (caseType === 'MVA' || caseType === 'WORKERS_COMP' || caseType === 'NURSING_HOME') return PENALIDAD_MVA;
+  return null;
+}
+
+/**
+ * El ítem del catálogo de EFECTIVO que carga cada desenlace.
+ *
+ * Es el único circuito que tiene los DOS: del lado del seguro no existe ningún
+ * código para la cancelación del mismo día. Y es el camino que ya usaba cobranza
+ * para el no-show MVA. El monto lo manda la pantalla (ver `precioDePenalidad`),
+ * así que el precio del catálogo ($50) solo es el de respaldo.
+ *
+ * Son los códigos reales de `catalog_items`; si la clínica los renombra, el
+ * diálogo avisa que no los encontró y deja elegir otro.
+ */
+export function itemDePenalidad(a: ConDesenlace): { code: string; busqueda: string } | undefined {
+  if (a.status === 'NO_SHOW') return { code: 'PM-2233', busqueda: 'No Show' };
+  if (a.status === 'CANCELLED' && a.cancelledSameDay === true) return { code: 'PM-11', busqueda: 'Cancel Same Day' };
+  return undefined;
+}
+
+/** ¿El monto escrito sirve? Mayor que cero, con a lo sumo dos decimales. */
+export function montoValido(texto: string): number | null {
+  const limpio = texto.trim();
+  if (!/^\d{1,6}(\.\d{1,2})?$/.test(limpio)) return null;
+  const n = Number(limpio);
+  return n > 0 ? n : null;
+}

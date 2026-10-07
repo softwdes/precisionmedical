@@ -1,5 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@precision-medical/auth/admin';
+import { bloquearIp, estaBloqueada } from '@precision-medical/auth/ips-bloqueadas';
+import { candidatasDeBloqueo, type Candidata } from './bloqueo';
 import { sendSecurityAlertEmail } from '@precision-medical/api';
 
 /**
@@ -92,6 +94,35 @@ const ROLES_AVISADOS = ['SUPER_ADMIN', 'ADMIN'];
  */
 const DIAS_DE_BASE = 14;
 
+/**
+ * ⚠️ EL BLOQUEO AUTOMÁTICO NACE APAGADO, y así tiene que quedarse hasta que
+ * Erick vea una semana de simulación.
+ *
+ * Mientras está en `false` el cron calcula igual a quién echaría y lo cuenta
+ * —en su respuesta y en una frase pegada al aviso de esa misma dirección—,
+ * pero no toca `blocked_ips`.
+ *
+ * Por qué tanto cuidado: echar una dirección por error deja a gente afuera
+ * de un sistema médico, y la salida a internet de la clínica junta los
+ * tipeos de TODO el personal en una sola IP. El día que se encienda, el
+ * primer error se paga en recepción con pacientes esperando.
+ */
+const BLOQUEO_AUTOMATICO = false;
+
+/** Para echar hacen falta más fallos que para avisar. Avisar es barato. */
+const FALLOS_PARA_ECHAR = 8;
+
+/**
+ * Cuántas cuentas distintas tiene que haber probado.
+ *
+ * Una persona equivocándose ocho veces con su PROPIA contraseña es un mal
+ * día. Dos correos distintos desde la misma dirección ya no se explica así.
+ */
+const CUENTAS_PARA_ECHAR = 2;
+
+/** Cuánto dura la echada. Vence sola: una lista que nadie limpia crece para siempre. */
+const DIAS_DE_ECHADA = 7;
+
 const ZONA = 'America/Denver';
 
 /** Postgres devuelve `timestamp` sin zona; sin la `Z` el servidor la lee mal. */
@@ -119,6 +150,25 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const params = new URL(req.url).searchParams;
   const simular = params.get('simular') === '1';
   const minutos = Number(params.get('minutos')) || VENTANA_MIN;
+
+  /*
+   * Umbrales bajables SOLO en simulación, para el control que DEBE sonar.
+   *
+   * Un detector que nunca encuentra nada y uno que está roto se ven igual.
+   * Con `?simular=1&minutos=10080&umbral=1&cuentas=1` tiene que aparecer
+   * algo: si con el umbral en el piso sigue dando cero, el que falla es el
+   * código, no el mundo. Fuera de la simulación se ignoran.
+   */
+  const umbralFallos = simular ? (Number(params.get('umbral')) || FALLOS_PARA_ECHAR) : FALLOS_PARA_ECHAR;
+  const umbralCuentas = simular ? (Number(params.get('cuentas')) || CUENTAS_PARA_ECHAR) : CUENTAS_PARA_ECHAR;
+  /*
+   * El umbral del AVISO también baja en simulación, y esto es una corrección
+   * a mi propio control: bajar solo los dos de arriba no servía de nada,
+   * porque toda candidata tiene que pasar primero por el del aviso. Con la
+   * perilla que no llega a la puerta, el control daba cero siempre y parecía
+   * que el detector estaba mudo.
+   */
+  const umbralAviso = simular ? (Number(params.get('aviso')) || FALLOS_PARA_AVISAR) : FALLOS_PARA_AVISAR;
 
   const admin = createAdminClient();
   const desde = new Date(Date.now() - minutos * 60_000).toISOString();
@@ -159,20 +209,37 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   /* ── 2. IPs que solo fallan ──────────────────────────────────────────── */
-  const porIp = new Map<string, { fallos: number; exitos: number; pais: string | null; ciudad: string | null }>();
+  /**
+   * `cuentas`: correos distintos probados desde esa IP.
+   *
+   * OJO con lo que esto NO ve: un `LOGIN_FAILED` solo se registra cuando el
+   * correo EXISTE en el directorio. Quien pruebe `root@` o `admin@` contra
+   * cuentas inventadas no deja fila, así que el detector ve el relleno de
+   * credenciales contra gente real, no el barrido a ciegas.
+   */
+  const porIp = new Map<string, { fallos: number; exitos: number; cuentas: Set<string>; pais: string | null; ciudad: string | null }>();
   for (const e of eventos) {
     const ip = (e.ipAddress as string | null) ?? null;
     if (!ip) continue;
     const m = (e.metadata ?? {}) as Record<string, unknown>;
-    const x = porIp.get(ip) ?? { fallos: 0, exitos: 0, pais: null, ciudad: null };
-    if (e.action === 'LOGIN_FAILED') x.fallos++;
+    const x = porIp.get(ip) ?? { fallos: 0, exitos: 0, cuentas: new Set<string>(), pais: null, ciudad: null };
+    if (e.action === 'LOGIN_FAILED') {
+      x.fallos++;
+      if (typeof e.actorUserId === 'string') x.cuentas.add(e.actorUserId);
+    }
     if (e.action === 'LOGIN_SUCCESS') x.exitos++;
     x.pais ??= (m.pais as string) ?? null;
     x.ciudad ??= (m.ciudad as string) ?? null;
     porIp.set(ip, x);
   }
+  /**
+   * A quién se echaría. Se calcula SIEMPRE, se aplica solo si el
+   * interruptor está encendido y no es una simulación.
+   */
+  const candidatas: Candidata[] = [];
+
   for (const [ip, x] of porIp) {
-    if (x.fallos < FALLOS_PARA_AVISAR || x.exitos > 0) continue;
+    if (x.fallos < umbralAviso || x.exitos > 0) continue;
     const donde = [x.ciudad, x.pais].filter(Boolean).join(', ');
     avisos.push({
       clave: `ip:${ip}`,
@@ -180,6 +247,63 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       linea: `${ip}${donde ? ` (${donde})` : ''} lleva ${x.fallos} ${x.fallos === 1 ? 'intento fallido' : 'intentos fallidos'} y ningún ingreso `
            + `en los últimos ${minutos} minutos. Se puede bloquear desde el Centro de Seguridad.`,
     });
+
+  }
+
+  /*
+   * Las condiciones que se ven en los eventos, en `./bloqueo`.
+   *
+   * Está partido en su propio archivo para poder CORRERLO: el registro real
+   * nunca tuvo un ataque —los 10 fallos de toda la historia están en IPs que
+   * también tienen ingresos buenos—, así que con datos de producción esta
+   * decisión no se puede ejercitar ni bajando los umbrales al piso. Separada,
+   * se le dan eventos inventados y se la prueba de verdad.
+   */
+  candidatas.push(...candidatasDeBloqueo(eventos as never[], {
+    aviso: umbralAviso,
+    fallos: umbralFallos,
+    cuentas: umbralCuentas,
+  }));
+
+  /*
+   * Las dos condiciones que piden la base, una por candidata.
+   *
+   * La cara: que la IP NUNCA haya tenido un ingreso bueno. En la ventana ya
+   * se sabe que no; acá se pregunta por toda la historia, porque la salida a
+   * internet de la clínica tiene días malos y no por eso se echa.
+   */
+  const aEchar: Array<{ ip: string; motivo: string; pais: string | null; ciudad: string | null }> = [];
+
+  for (const c of candidatas) {
+    const { data: buenos } = await admin
+      .from('audit_logs')
+      .select('id')
+      .eq('action', 'LOGIN_SUCCESS')
+      .eq('ipAddress', c.ip)
+      .limit(1);
+    if (buenos && buenos.length > 0) continue;
+
+    if (await estaBloqueada(c.ip)) continue;
+
+    aEchar.push({
+      ip: c.ip,
+      motivo: `${c.fallos} intentos fallidos contra ${c.cuentas} cuentas y ningún ingreso bueno en toda la historia`,
+      pais: c.pais,
+      ciudad: c.ciudad,
+    });
+  }
+
+  /*
+   * Mientras el interruptor está apagado, lo que HARÍA se cuelga del aviso
+   * que esa misma dirección ya dispara — los umbrales se solapan, así que
+   * toda candidata ya pasó el de avisar. Sin avisos nuevos y queda escrito.
+   */
+  for (const e of aEchar) {
+    const aviso = avisos.find((a) => a.clave === `ip:${e.ip}`);
+    if (aviso === undefined) continue;
+    aviso.linea += BLOQUEO_AUTOMATICO
+      ? ` Se bloqueó sola por ${DIAS_DE_ECHADA} días: ${e.motivo}.`
+      : ` Con el bloqueo automático encendido se habría echado ${DIAS_DE_ECHADA} días: ${e.motivo}.`;
   }
 
   /* ── 3. ingresos desde un país nuevo ─────────────────────────────────── */
@@ -267,8 +391,33 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       eventos: eventos.length,
       avisos: unicos.length,
       repetidosEnElLote: avisos.length - unicos.length,
+      sinBase,
+      bloqueoAutomatico: BLOQUEO_AUTOMATICO,
+      umbrales: { aviso: umbralAviso, fallos: umbralFallos, cuentas: umbralCuentas },
+      candidatas: candidatas.length,
+      seEcharian: aEchar,
       detalle: unicos.map((a) => ({ titulo: a.titulo, linea: a.linea })),
     });
+  }
+
+  /* ── echar, si el interruptor está encendido ─────────────────────────── */
+  //
+  // Va DESPUÉS del corte de simulación: una simulación no escribe nunca.
+  //
+  // Si `bloquearIp` falla no se corta el cron: los avisos ya están armados y
+  // mandarlos importa más que la echada, que se reintenta en 15 minutos.
+  const echadas: string[] = [];
+  if (BLOQUEO_AUTOMATICO) {
+    for (const e of aEchar) {
+      const ok = await bloquearIp(e.ip, {
+        motivo: `Automático: ${e.motivo}`,
+        hasta: new Date(Date.now() + DIAS_DE_ECHADA * 86_400_000).toISOString(),
+        pais: e.pais,
+        ciudad: e.ciudad,
+      });
+      if (ok) echadas.push(e.ip);
+      else console.error('[cron seguridad] no se pudo echar', e.ip);
+    }
   }
 
   /* ── el silencio: no repetir lo mismo ────────────────────────────────── */
@@ -351,5 +500,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     callados: unicos.length - nuevos.length,
     campana: filas.length,
     correos: enviados,
-  });
+      echadas,
+    seEcharian: BLOQUEO_AUTOMATICO ? [] : aEchar.map((e) => e.ip),
+    sinBase,
+});
 }

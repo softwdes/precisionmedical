@@ -5,8 +5,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { Badge, cn } from '@precision/ui';
 import {
-  Ban, Building2, Clock, Gavel, KeyRound, Mail, PowerOff, Printer, RefreshCw,
-  ShieldAlert, ShieldCheck, Stethoscope, Unlock,
+  Ban, Bell, Building2, Clock, Gavel, KeyRound, Lock, Mail, PowerOff, Printer,
+  RefreshCw, ShieldAlert, ShieldCheck, Stethoscope, Unlock,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { api as trpc } from '@/lib/trpc/client';
@@ -886,6 +886,14 @@ export function SeguridadClient({ datos, dias, mes, meses }: {
   const [pestana, setPestana] = React.useState<Pestana>('protecciones');
 
   /*
+   * Las incidencias abiertas. Misma ruta que alimenta el número del sidebar,
+   * para que los dos digan siempre lo mismo.
+   */
+  const { data: incidencias } = trpc.seguridad.incidencias.useQuery(undefined, {
+    refetchInterval: 60_000,
+  });
+
+  /*
    * De quién es cada dirección. Sobre los eventos SIN filtrar: la referencia
    * de "país conocido" no puede encogerse por el filtro de módulo (ver
    * `senasPorIp`).
@@ -1092,6 +1100,50 @@ export function SeguridadClient({ datos, dias, mes, meses }: {
         * del radar y del medidor se repintan por animación y seguirían
         * corriendo invisibles.
         */}
+      {/*
+        * Qué hay sin cerrar, antes de las pestañas.
+        *
+        * Va arriba de la barra porque es de la PÁGINA, no de una pestaña: se
+        * ve estés donde estés. Cada ficha lleva a donde se cierra eso.
+        */}
+      {incidencias !== undefined && (
+        incidencias.total === 0 ? (
+          <div className="flex items-center gap-2 rounded-lg border border-emerald/25 bg-emerald/[0.07] px-3 py-2 text-small text-emerald">
+            <ShieldCheck className="h-4 w-4 shrink-0" />
+            {tr('incNone')}
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {([
+              { n: incidencias.trabadas,      Icono: Lock,        clave: 'incLocked', va: 'cuentas' as Pestana },
+              { n: incidencias.ipsSoloFallos, Icono: ShieldAlert, clave: 'incIps',    va: 'accesos' as Pestana },
+              { n: incidencias.avisosSinLeer, Icono: Bell,        clave: 'incAlerts', va: null },
+            ]).filter((x) => x.n > 0).map(({ n, Icono, clave, va }) => {
+              const dentro = (
+                <>
+                  <Icono className="h-4 w-4 shrink-0 text-rose" />
+                  <span className="text-base font-bold tabular-nums text-text-1">{n}</span>
+                  <span className="text-small text-text-2">{tr(clave, { n })}</span>
+                </>
+              );
+              const caja = 'flex items-center gap-2 rounded-lg border border-rose/25 bg-rose/[0.07] px-3 py-2';
+              return va === null
+                ? <div key={clave} className={caja}>{dentro}</div>
+                : (
+                  <button
+                    key={clave}
+                    type="button"
+                    onClick={() => setPestana(va)}
+                    className={caja + ' transition-colors hover:bg-rose/[0.12]'}
+                  >
+                    {dentro}
+                  </button>
+                );
+            })}
+          </div>
+        )
+      )}
+
       <div role="tablist" aria-label={tr('title')} className="flex gap-1 overflow-x-auto border-b border-row-sep">
         {PESTANAS.map((p) => (
           <button

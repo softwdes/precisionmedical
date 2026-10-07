@@ -40,7 +40,8 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { db, type MessageStatus } from '@precision-medical/database';
+import { db } from '@precision-medical/database';
+import { PISA_CORREO } from '@/lib/estado-correo';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,21 +81,13 @@ function mapear(evento: string | undefined): 'SENT' | 'DELIVERED' | 'UNDELIVERED
 }
 
 /**
- * Qué estados puede PISAR cada evento.
+ * La tabla de precedencia vive en `lib/estado-correo.ts`.
  *
- * Los eventos llegan fuera de orden —un `processed` después de un `delivered`
- * es normal— así que cada uno solo puede avanzar sobre los estados menos
- * definitivos que él. `DELIVERED` es terminal: nada lo baja.
- *
- * Se escribe como lista explícita y no derivada de un ranking numérico porque
- * es lo que Prisma necesita tipado, y porque leerla contesta de una la
- * pregunta que importa: «¿este evento puede cambiar esta fila?».
+ * Dos caminos escriben el estado de un correo —este webhook y la consulta
+ * por operación del cron, que es la que hoy trae los datos— y dos copias de
+ * esta tabla terminan discrepando el día que se toca una sola.
  */
-const PISA: Record<'SENT' | 'DELIVERED' | 'UNDELIVERED', MessageStatus[]> = {
-  SENT:        ['QUEUED'],
-  UNDELIVERED: ['QUEUED', 'SENT'],
-  DELIVERED:   ['QUEUED', 'SENT', 'UNDELIVERED'],
-};
+const PISA = PISA_CORREO;
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {

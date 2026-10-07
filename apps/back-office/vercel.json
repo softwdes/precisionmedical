@@ -16,6 +16,10 @@
     {
       "path": "/api/cron/recordatorio-cita",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/estado-correos",
+      "schedule": "20 * * * *"
     }
   ]
 }

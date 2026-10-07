@@ -118,6 +118,11 @@ export interface CitaDelMismoDia {
   /** "10:30 AM", en hora de la clínica. */
   hora: string;
   provider: string | null;
+  /**
+   * `true` si la otra cita es a la MISMA hora (casi seguro la misma visita cargada
+   * dos veces); `false` si solo es el mismo día con otro provider.
+   */
+  mismaHora: boolean;
 }
 
 export async function citaDelPacienteElMismoDia(opts: {
@@ -131,6 +136,27 @@ export async function citaDelPacienteElMismoDia(opts: {
   // del día siguiente en UTC y se escaparía del rango.
   const diaClinica = opts.start.toLocaleDateString('en-CA', { timeZone: TIMEZONE });
   const excluir = opts.excludeAppointmentId ?? null;
+  /**
+   * Primero la MISMA HORA, con cualquier provider (o ninguno): es el duplicado de
+   * verdad. El cruce de agenda solo lo ve si hay provider y es el mismo; dos citas
+   * del mismo paciente a la misma hora SIN provider, o con providers distintos,
+   * pasaban sin un aviso que dijera "es el mismo paciente".
+   */
+  const iso = opts.start.toISOString();
+  const misma = await db.$queryRaw<Array<{ id: string; hora: string; provider: string | null }>>`
+    SELECT a."id",
+           to_char(a."scheduledFor" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Denver', 'HH12:MI AM') AS hora,
+           NULLIF(TRIM(CONCAT(COALESCE(pr."firstName", ''), ' ', COALESCE(pr."lastName", ''))), '') AS provider
+      FROM appointments a
+      LEFT JOIN providers pr ON pr."id" = a."providerId"
+     WHERE a."patientId" = ${opts.patientId}
+       AND a."deletedAt" IS NULL
+       AND a."status"::text NOT IN ('CANCELLED', 'NO_SHOW')
+       AND date_trunc('minute', a."scheduledFor") = date_trunc('minute', ${iso}::timestamptz AT TIME ZONE 'UTC')
+       AND (${excluir}::text IS NULL OR a."id" <> ${excluir}::text)
+     LIMIT 1
+  `;
+  if (misma[0]) return { ...misma[0], mismaHora: true };
   const filas = await db.$queryRaw<Array<{ id: string; hora: string; provider: string | null }>>`
     SELECT a."id",
            to_char(a."scheduledFor" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Denver', 'HH12:MI AM') AS hora,
@@ -146,7 +172,7 @@ export async function citaDelPacienteElMismoDia(opts: {
      ORDER BY a."scheduledFor"
      LIMIT 1
   `;
-  return filas[0] ?? null;
+  return filas[0] ? { ...filas[0], mismaHora: false } : null;
 }
 
 /**
@@ -157,7 +183,7 @@ export async function citaDelPacienteElMismoDia(opts: {
 export function cuerpoMismoDia(c: CitaDelMismoDia) {
   return {
     error: 'PATIENT_SAME_DAY' as const,
-    params: { hora: c.hora, provider: c.provider ?? '—' },
+    params: { hora: c.hora, provider: c.provider ?? '—', mismaHora: c.mismaHora },
     conflictAppointmentId: c.id,
     canOverride: true as const,
   };

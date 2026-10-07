@@ -494,7 +494,7 @@ interface RespuestaDeCruce {
   conflictPatient?: string | null;
   overlapCount?: number;
   /** PATIENT_SAME_DAY: a qué hora y con quién tiene la otra cita del día. */
-  params?: { hora?: string; provider?: string };
+  params?: { hora?: string; provider?: string; mismaHora?: boolean };
 }
 
 // ─── FilterChip ───────────────────────────────────────────────────────────────
@@ -1130,7 +1130,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId, initialPr
   const textoDelCruce = (data: RespuestaDeCruce): string => {
     // El mismo paciente el mismo día con otro provider: el servidor manda los datos, la frase se arma acá.
     if (data.error === 'PATIENT_SAME_DAY') {
-      return t('patientSameDayBody', { hora: data.params?.hora ?? '—', provider: data.params?.provider ?? '—' });
+      return t(data.params?.mismaHora ? 'patientSameTimeBody' : 'patientSameDayBody', { hora: data.params?.hora ?? '—', provider: data.params?.provider ?? '—' });
     }
     if (data.error !== 'SLOT_CONFLICT' || !data.conflictAt) return serverError(data as ServerErrorBody);
     const hora = new Date(data.conflictAt).toLocaleTimeString(localeApp(), {

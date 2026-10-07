@@ -4466,7 +4466,8 @@
       "patientSameDayTitle": "Este paciente ya tiene otra cita ese día",
       "patientSameDayBody": "Ya tiene una cita ese día a las {hora} con {provider}. ¿Querés agendar otra igual?",
       "patientSameDayConfirm": "Agendar igual",
-      "patientSameDayCancel": "Revisar la agenda"
+      "patientSameDayCancel": "Revisar la agenda",
+      "patientSameTimeBody": "Ya tiene una cita a esa misma hora ({hora}) con {provider}. Casi seguro es la misma visita: ¿querés agendar otra igual?"
     },
     "caseDetail": {
       "statusNewReferral": "Nuevo paciente",
@@ -7463,16 +7464,18 @@
       "kpiOpen": "Abiertos",
       "kpiDup": "Citas duplicadas",
       "kpiMsg": "Mensajes fallidos",
-      "kpiCierre": "Citas sin cerrar",
+      "kpiCierre": "Citas por completar",
       "filterAll": "Todos",
       "filterDup": "Citas duplicadas",
       "filterMsg": "Mensajes",
-      "filterCierre": "Sin cerrar",
+      "filterCierre": "Por completar",
       "tipo": {
         "CITA_DUPLICADA": "Cita duplicada",
         "SMS_FALLIDO": "SMS no entregado",
         "CORREO_FALLIDO": "Correo rechazado",
-        "CITA_SIN_CERRAR": "Cita sin cerrar"
+        "CITA_SIN_CERRAR": "Cita sin cerrar",
+        "CITA_SIN_PROVIDER": "Cita sin provider",
+        "MENSAJE_DUPLICADO": "Mensaje repetido"
       },
       "motivo": {
         "MISMA_HORA": "Hay otra cita de este paciente a la misma hora (viene de la migración). Dejá la correcta y eliminá la repetida con el motivo «Duplicate».",
@@ -7482,7 +7485,9 @@
         "NUMERO_INEXISTENTE": "El número no existe o está apagado. Confirmalo con el paciente.",
         "SMS_OTRO": "El operador no entregó el mensaje. Revisá el número del paciente y volvé a enviarlo.",
         "CORREO_RECHAZADO": "El correo no se pudo enviar. Revisá la dirección en la ficha del paciente y volvé a enviarlo.",
-        "PASADA_SIN_ESTADO": "La cita ya pasó y sigue «{estado}». Abrila y marcala como atendida, no-show o cancelada."
+        "PASADA_SIN_ESTADO": "La cita ya pasó y sigue «{estado}». Abrila y marcala como atendida, no-show o cancelada.",
+        "SIN_PROVIDER": "La visita ya pasó y quedó sin provider. Abrila y asigná quién atendió al paciente.",
+        "MENSAJE_REPETIDO": "Le mandaste el mismo mensaje dos veces en menos de una hora. Revisá el hilo del paciente para no repetirlo."
       },
       "estadoCita": {
         "SCHEDULED": "Agendada",

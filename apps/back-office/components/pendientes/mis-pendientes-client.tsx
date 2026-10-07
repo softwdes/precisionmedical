@@ -14,7 +14,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { CalendarClock, CheckCircle2, CopyX, MailWarning, MessageSquareWarning, RefreshCw } from 'lucide-react';
+import { CalendarClock, CheckCircle2, CopyX, MailWarning, MessageSquareWarning, RefreshCw, UserX } from 'lucide-react';
 import { cn } from '@precision/ui';
 import { EmptyState, FilterPill, KpiCard, PageHeader, Skeleton, TagPill } from '@/components/ui-phoenix';
 import { fechaCorta, hora } from '@/lib/fechas';
@@ -34,6 +34,8 @@ const COLOR_TIPO: Record<PendienteTipo, string> = {
   SMS_FALLIDO: 'bg-rose/15 text-rose border-rose/30',
   CORREO_FALLIDO: 'bg-rose/15 text-rose border-rose/30',
   CITA_SIN_CERRAR: 'bg-cyan/15 text-cyan border-cyan/30',
+  CITA_SIN_PROVIDER: 'bg-cyan/15 text-cyan border-cyan/30',
+  MENSAJE_DUPLICADO: 'bg-amber/15 text-amber border-amber/30',
 };
 
 const ICONO_TIPO: Record<PendienteTipo, React.ElementType> = {
@@ -41,13 +43,15 @@ const ICONO_TIPO: Record<PendienteTipo, React.ElementType> = {
   SMS_FALLIDO: MessageSquareWarning,
   CORREO_FALLIDO: MailWarning,
   CITA_SIN_CERRAR: CalendarClock,
+  CITA_SIN_PROVIDER: UserX,
+  MENSAJE_DUPLICADO: CopyX,
 };
 
 const FILTRO_DE: Record<Filtro, (t: PendienteTipo) => boolean> = {
   todos: () => true,
   citas: (t) => t === 'CITA_DUPLICADA',
-  mensajes: (t) => t === 'SMS_FALLIDO' || t === 'CORREO_FALLIDO',
-  cierre: (t) => t === 'CITA_SIN_CERRAR',
+  mensajes: (t) => t === 'SMS_FALLIDO' || t === 'CORREO_FALLIDO' || t === 'MENSAJE_DUPLICADO',
+  cierre: (t) => t === 'CITA_SIN_CERRAR' || t === 'CITA_SIN_PROVIDER',
 };
 
 export function MisPendientesClient(): React.ReactElement {
@@ -87,7 +91,7 @@ export function MisPendientesClient(): React.ReactElement {
 
   /** A dónde lleva "corregir". El calendario abre el caso con la cita filtrada. */
   const destino = (p: Pendiente): string => {
-    if (p.tipo === 'CITA_DUPLICADA' || p.tipo === 'CITA_SIN_CERRAR') {
+    if (p.tipo === 'CITA_DUPLICADA' || p.tipo === 'CITA_SIN_CERRAR' || p.tipo === 'CITA_SIN_PROVIDER') {
       if (base === '' && p.caseId) {
         const q = new URLSearchParams({ case: p.caseId });
         if (p.appointmentId) q.set('visit', p.appointmentId);
@@ -97,7 +101,7 @@ export function MisPendientesClient(): React.ReactElement {
     return p.patientId ? `${base}/patients/${p.patientId}` : `${base || ''}/`;
   };
 
-  const esCita = (tipo: PendienteTipo) => tipo === 'CITA_DUPLICADA' || tipo === 'CITA_SIN_CERRAR';
+  const esCita = (tipo: PendienteTipo) => tipo === 'CITA_DUPLICADA' || tipo === 'CITA_SIN_CERRAR' || tipo === 'CITA_SIN_PROVIDER';
 
   const textoMotivo = (p: Pendiente): string => {
     if (p.motivo === 'MISMA_HORA') {
@@ -146,7 +150,8 @@ export function MisPendientesClient(): React.ReactElement {
 
   const d = estado.data;
   const visibles = d.items.filter((i) => FILTRO_DE[filtro](i.tipo));
-  const nMensajes = d.counts.SMS_FALLIDO + d.counts.CORREO_FALLIDO;
+  const nMensajes = d.counts.SMS_FALLIDO + d.counts.CORREO_FALLIDO + d.counts.MENSAJE_DUPLICADO;
+  const nCierre = d.counts.CITA_SIN_CERRAR + d.counts.CITA_SIN_PROVIDER;
 
   return (
     <div className="flex flex-col gap-5">
@@ -174,14 +179,14 @@ export function MisPendientesClient(): React.ReactElement {
         />
         <KpiCard label={t('kpiDup')} value={d.counts.CITA_DUPLICADA} icon={CopyX} iconBg="bg-amber/10" iconColor="text-amber" />
         <KpiCard label={t('kpiMsg')} value={nMensajes} icon={MessageSquareWarning} iconBg="bg-rose/10" iconColor="text-rose" />
-        <KpiCard label={t('kpiCierre')} value={d.counts.CITA_SIN_CERRAR} icon={CalendarClock} iconBg="bg-cyan/10" iconColor="text-cyan" />
+        <KpiCard label={t('kpiCierre')} value={nCierre} icon={CalendarClock} iconBg="bg-cyan/10" iconColor="text-cyan" />
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
         <FilterPill active={filtro === 'todos'} onClick={() => setFiltro('todos')} label={t('filterAll')} count={d.counts.total} />
         <FilterPill active={filtro === 'citas'} onClick={() => setFiltro('citas')} label={t('filterDup')} count={d.counts.CITA_DUPLICADA} />
         <FilterPill active={filtro === 'mensajes'} onClick={() => setFiltro('mensajes')} label={t('filterMsg')} count={nMensajes} />
-        <FilterPill active={filtro === 'cierre'} onClick={() => setFiltro('cierre')} label={t('filterCierre')} count={d.counts.CITA_SIN_CERRAR} />
+        <FilterPill active={filtro === 'cierre'} onClick={() => setFiltro('cierre')} label={t('filterCierre')} count={nCierre} />
       </div>
 
       {visibles.length === 0 ? (

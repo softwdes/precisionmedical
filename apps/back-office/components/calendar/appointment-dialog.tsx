@@ -1222,8 +1222,8 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
            * la frase buena (`srvPATIENT_SAME_DAY`) nunca llegaba a mostrarse.
            */
           if (data.error === 'PATIENT_SAME_DAY') {
-            const p = (data.params ?? {}) as { hora?: string; provider?: string };
-            cuerpo = t('patientSameDayBody', { hora: p.hora ?? '—', provider: p.provider ?? '—' });
+            const p = (data.params ?? {}) as { hora?: string; provider?: string; mismaHora?: boolean };
+            cuerpo = t(p.mismaHora ? 'patientSameTimeBody' : 'patientSameDayBody', { hora: p.hora ?? '—', provider: p.provider ?? '—' });
           }
           if (esCruce && typeof data.conflictAt === 'string') {
             const hora = new Date(data.conflictAt).toLocaleTimeString(localeApp(), {

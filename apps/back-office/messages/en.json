@@ -4466,7 +4466,8 @@
       "patientSameDayTitle": "This patient already has another appointment that day",
       "patientSameDayBody": "They already have an appointment that day at {hora} with {provider}. Do you want to book another one anyway?",
       "patientSameDayConfirm": "Book anyway",
-      "patientSameDayCancel": "Check the schedule"
+      "patientSameDayCancel": "Check the schedule",
+      "patientSameTimeBody": "They already have an appointment at that same time ({hora}) with {provider}. It is almost certainly the same visit: do you want to book another one anyway?"
     },
     "caseDetail": {
       "statusNewReferral": "New Referral",
@@ -7463,16 +7464,18 @@
       "kpiOpen": "Open",
       "kpiDup": "Duplicate appointments",
       "kpiMsg": "Failed messages",
-      "kpiCierre": "Appointments not closed",
+      "kpiCierre": "Appointments to complete",
       "filterAll": "All",
       "filterDup": "Duplicate appointments",
       "filterMsg": "Messages",
-      "filterCierre": "Not closed",
+      "filterCierre": "To complete",
       "tipo": {
         "CITA_DUPLICADA": "Duplicate appointment",
         "SMS_FALLIDO": "SMS not delivered",
         "CORREO_FALLIDO": "Email rejected",
-        "CITA_SIN_CERRAR": "Appointment not closed"
+        "CITA_SIN_CERRAR": "Appointment not closed",
+        "CITA_SIN_PROVIDER": "Appointment without provider",
+        "MENSAJE_DUPLICADO": "Repeated message"
       },
       "motivo": {
         "MISMA_HORA": "There is another appointment for this patient at the same time (it comes from the migration). Keep the right one and delete the repeated one with the reason “Duplicate”.",
@@ -7482,7 +7485,9 @@
         "NUMERO_INEXISTENTE": "The number does not exist or is switched off. Confirm it with the patient.",
         "SMS_OTRO": "The carrier did not deliver the message. Check the patient's number and send it again.",
         "CORREO_RECHAZADO": "The email could not be sent. Check the address on the patient record and send it again.",
-        "PASADA_SIN_ESTADO": "The appointment is past and still “{estado}”. Open it and mark it attended, no-show or cancelled."
+        "PASADA_SIN_ESTADO": "The appointment is past and still “{estado}”. Open it and mark it attended, no-show or cancelled.",
+        "SIN_PROVIDER": "The visit already happened and has no provider. Open it and assign who saw the patient.",
+        "MENSAJE_REPETIDO": "You sent the same message twice in under an hour. Check the patient thread so it is not repeated."
       },
       "estadoCita": {
         "SCHEDULED": "Scheduled",

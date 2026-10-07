@@ -216,7 +216,7 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
       if (!res.ok) {
         const data = await res.json().catch(() => ({})) as ServerErrorBody & {
           canOverride?: boolean; message?: string; conflictAt?: string; conflictPatient?: string | null;
-          ocupadas?: number; capacidad?: number; params?: { hora?: string; provider?: string };
+          ocupadas?: number; capacidad?: number; params?: { hora?: string; provider?: string; mismaHora?: boolean };
         };
         if (res.status === 409 && data.canOverride) {
           const hora = typeof data.conflictAt === 'string'
@@ -225,7 +225,7 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
           if (data.error === 'PATIENT_SAME_DAY') {
             setAviso({
               titulo: t('patientSameDayTitle'),
-              mensaje: t('patientSameDayBody', { hora: data.params?.hora ?? '—', provider: data.params?.provider ?? '—' }),
+              mensaje: t(data.params?.mismaHora ? 'patientSameTimeBody' : 'patientSameDayBody', { hora: data.params?.hora ?? '—', provider: data.params?.provider ?? '—' }),
               confirmar: t('patientSameDayConfirm'), cancelar: t('patientSameDayCancel'), bandera: 'allowOverlap',
             });
             return;

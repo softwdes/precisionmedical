@@ -25,7 +25,9 @@
 
 import { db, Prisma } from '@precision-medical/database';
 
-export type PendienteTipo = 'CITA_DUPLICADA' | 'SMS_FALLIDO' | 'CORREO_FALLIDO' | 'CITA_SIN_CERRAR';
+export type PendienteTipo =
+  | 'CITA_DUPLICADA' | 'SMS_FALLIDO' | 'CORREO_FALLIDO' | 'CITA_SIN_CERRAR'
+  | 'CITA_SIN_PROVIDER' | 'MENSAJE_DUPLICADO';
 
 /** El porqué, en clave: la pantalla lo traduce (es/en), el servidor no escribe frases. */
 export type PendienteMotivo =
@@ -35,7 +37,9 @@ export type PendienteMotivo =
   | 'NUMERO_INEXISTENTE'
   | 'SMS_OTRO'
   | 'CORREO_RECHAZADO'
-  | 'PASADA_SIN_ESTADO';
+  | 'PASADA_SIN_ESTADO'
+  | 'SIN_PROVIDER'
+  | 'MENSAJE_REPETIDO';
 
 export interface Pendiente {
   id: string;
@@ -100,7 +104,7 @@ export function motivoDeMensaje(channel: string, code: number | null, msg: strin
 }
 
 export async function misPendientes(userId: string): Promise<ResultadoPendientes> {
-  const [dups, mensajes, abiertas] = await Promise.all([
+  const [dups, mensajes, abiertas, sinProv, repetidos] = await Promise.all([
     // 1 · Cita duplicada: yo soy la REPETIDA (la creé después de la otra).
     db.$queryRaw<FilaCita[]>(Prisma.sql`
       SELECT a.id, a."patientId", a."caseId", a."scheduledFor", a.status::text AS status,
@@ -160,6 +164,47 @@ export async function misPendientes(userId: string): Promise<ResultadoPendientes
         AND a."scheduledFor" >= now() - make_interval(days => ${DIAS_SIN_CERRAR}::int)
       ORDER BY a."scheduledFor" DESC
       LIMIT ${TOPE_POR_TIPO}`),
+
+    // 4 · Citas mías YA PASADAS que nunca tuvieron provider. Una cita FUTURA sin
+    //     provider no es un error: el provider se asigna en el check-in. Lo que
+    //     sí es un hueco es la visita que ya ocurrió y quedó sin nadie.
+    db.$queryRaw<FilaCita[]>(Prisma.sql`
+      SELECT a.id, a."patientId", a."caseId", a."scheduledFor", a.status::text AS status,
+             p."firstName", p."lastName",
+             COALESCE(p."firstName" ~* ${PRUEBA_NOMBRE} OR p."lastName" ~* ${PRUEBA_NOMBRE}, false) AS prueba
+      FROM appointments a
+      JOIN patients p ON p.id = a."patientId"
+      WHERE a."createdByUserId" = ${userId}
+        AND a."deletedAt" IS NULL
+        AND a."providerId" IS NULL
+        AND a.status::text NOT IN ('CANCELLED', 'NO_SHOW')
+        AND a."scheduledFor" < now()
+        AND a."scheduledFor" >= now() - make_interval(days => ${DIAS_SIN_CERRAR}::int)
+      ORDER BY a."scheduledFor" DESC
+      LIMIT ${TOPE_POR_TIPO}`),
+
+    // 5 · El mismo mensaje, al mismo paciente por el mismo canal, dentro de la hora.
+    //     Solo la REPETIDA (la segunda) es mía.
+    db.$queryRaw<FilaMensaje[]>(Prisma.sql`
+      SELECT m.id, m.channel::text AS channel, NULL::int AS code, NULL::text AS msg, m."createdAt",
+             m."patientId", m."caseId", p."firstName", p."lastName",
+             ( COALESCE(p."firstName" ~* ${PRUEBA_NOMBRE} OR p."lastName" ~* ${PRUEBA_NOMBRE}, false)
+               OR COALESCE(m."toAddress" ~* '(@test[.]|example[.]com|[.]local$|@no-email)', false)
+               OR regexp_replace(COALESCE(m."toAddress", ''), '[^0-9]', '', 'g') ~ '(1234567|0000000|1111111|^1?555)'
+             ) AS prueba
+      FROM message_logs m
+      LEFT JOIN patients p ON p.id = m."patientId"
+      WHERE m."sentByUserId" = ${userId}
+        AND m."patientId" IS NOT NULL
+        AND COALESCE(m.body, '') <> ''
+        AND m."createdAt" >= now() - make_interval(days => ${DIAS_MENSAJES}::int)
+        AND EXISTS (
+          SELECT 1 FROM message_logs o
+          WHERE o."patientId" = m."patientId" AND o.channel = m.channel AND o.body = m.body
+            AND o.id <> m.id AND o."createdAt" < m."createdAt"
+            AND m."createdAt" - o."createdAt" < interval '1 hour')
+      ORDER BY m."createdAt" DESC
+      LIMIT ${TOPE_POR_TIPO}`),
   ]);
 
   const items: Pendiente[] = [];
@@ -194,7 +239,28 @@ export async function misPendientes(userId: string): Promise<ResultadoPendientes
     });
   }
 
-  const counts = { total: items.length, CITA_DUPLICADA: 0, SMS_FALLIDO: 0, CORREO_FALLIDO: 0, CITA_SIN_CERRAR: 0 };
+  for (const r of sinProv) {
+    if (r.prueba) { ocultas++; continue; }
+    items.push({
+      id: `prov:${r.id}`, tipo: 'CITA_SIN_PROVIDER', motivo: 'SIN_PROVIDER',
+      paciente: abreviar(r.firstName, r.lastName), patientId: r.patientId, caseId: r.caseId, appointmentId: r.id,
+      cuando: r.scheduledFor.toISOString(), otraCreadaPor: null, estado: r.status,
+    });
+  }
+
+  for (const r of repetidos) {
+    if (r.prueba) { ocultas++; continue; }
+    items.push({
+      id: `rep:${r.id}`, tipo: 'MENSAJE_DUPLICADO', motivo: 'MENSAJE_REPETIDO',
+      paciente: abreviar(r.firstName, r.lastName), patientId: r.patientId, caseId: r.caseId, appointmentId: null,
+      cuando: r.createdAt.toISOString(), otraCreadaPor: null, estado: null,
+    });
+  }
+
+  const counts = {
+    total: items.length, CITA_DUPLICADA: 0, SMS_FALLIDO: 0, CORREO_FALLIDO: 0, CITA_SIN_CERRAR: 0,
+    CITA_SIN_PROVIDER: 0, MENSAJE_DUPLICADO: 0,
+  };
   for (const i of items) counts[i.tipo]++;
   return { items, counts, ocultas };
 }

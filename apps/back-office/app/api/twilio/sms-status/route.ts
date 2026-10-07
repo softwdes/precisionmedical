@@ -16,7 +16,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import twilio from 'twilio';
 import { db, type MessageStatus } from '@precision-medical/database';
-import { mapTwilioStatus } from '@/lib/sms';
+import { mapTwilioStatus, sendSms } from '@/lib/sms';
+import { soloDigitos } from '@/lib/telefono-paciente';
 
 export const dynamic = 'force-dynamic';
 
@@ -125,9 +126,88 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         sid, status, errCode ?? '-', form.get('ErrorMessage') ?? '');
     }
 
+    /**
+     * El fijo que no recibe SMS: reintentar en el CELULAR.
+     *
+     * Erick, 2026-10-07. El caso que lo pidió: Gretchen George (P-4879)
+     * tiene un fijo como principal y su celular cargado en la ficha, sin
+     * usar — porque el envío siempre prefiere el principal. Twilio nos venía
+     * diciendo con todas las letras que ese número no puede recibir SMS, y
+     * nadie leía el mensaje.
+     *
+     * ── Por qué SOLO el 30006 ──────────────────────────────────────────
+     *
+     * Es el único código que habla del NÚMERO y no del momento:
+     *   30006 — el destino no puede recibir SMS (un fijo). Estructural: va a
+     *           fallar siempre, probar otro número es lo correcto.
+     *   30003 — el teléfono está apagado o fuera de red. TEMPORAL: el número
+     *           está bien y mañana funciona. Mandarle el aviso a otro
+     *           teléfono por eso sería desviar un mensaje con datos del
+     *           paciente por una condición que se arregla sola.
+     *   30005 — el número no existe. Suena parecido, pero puede ser un dedazo
+     *           al cargarlo, y el segundo campo suele tener el mismo error.
+     *
+     * Empezar por el caso inequívoco. Medido sobre el histórico: esto habría
+     * disparado en 1 mensaje de 486, y en ninguno de los 421 entregados.
+     *
+     * ── Los tres frenos ────────────────────────────────────────────────
+     *
+     * 1. Tiene que haber un celular DISTINTO. Comparado por dígitos, porque
+     *    el mismo número escrito de dos formas no es un segundo teléfono: de
+     *    1.252 fichas con los dos campos llenos, solo 239 difieren de verdad.
+     * 2. El mensaje que falló NO puede ser ya el del celular. Sin esto, el
+     *    reintento que también falla dispara otro, y otro.
+     * 3. Si algo acá se rompe, el webhook responde 200 igual. Twilio reintenta
+     *    cuando no ve un 2xx, y un reintento suyo volvería a entrar por acá:
+     *    romper la entrega de ESTADOS por un reenvío es peor que no reenviar.
+     */
+    if (errCode === '30006' && res.count > 0) {
+      try { await reintentarEnElCelular(sid); }
+      catch (e) { console.error('[twilio/sms-status] el reintento falló, sigo:', e); }
+    }
+
     return ok();
   } catch (err) {
     console.error('[twilio/sms-status] error:', err);
     return ok();
   }
+}
+
+/**
+ * Reenvía al celular un mensaje que murió contra un fijo.
+ *
+ * Separado del handler a propósito: el webhook tiene que terminar en 200 pase
+ * lo que pase acá, y mezclar las dos cosas invita a que un `throw` de esto se
+ * lleve puesto el registro del estado.
+ */
+async function reintentarEnElCelular(sid: string): Promise<void> {
+  const fallado = await db.messageLog.findFirst({
+    where: { providerMessageId: sid },
+    select: {
+      id: true, body: true, toAddress: true, patientId: true, caseId: true,
+      patient: { select: { phone: true, phone2: true } },
+    },
+  });
+  if (!fallado?.patient) return;              // sin ficha no hay segundo número
+
+  const celular = (fallado.patient.phone2 ?? '').trim();
+  if (!celular) return;
+
+  const dCel = soloDigitos(celular);
+  // Freno 1: tiene que ser OTRO número, no el mismo escrito distinto.
+  if (dCel === soloDigitos(fallado.patient.phone)) return;
+  // Freno 2: si lo que falló YA era el celular, no hay a dónde reintentar.
+  if (dCel === soloDigitos(fallado.toAddress)) return;
+
+  console.warn('[twilio/sms-status] %s murió contra un fijo; reenviando al celular', sid);
+
+  await sendSms({
+    to: celular,
+    body: fallado.body,
+    patientId: fallado.patientId ?? undefined,
+    caseId: fallado.caseId ?? undefined,
+    // Sin `sentByName`: no lo escribió una persona. Queda como automático,
+    // igual que un recordatorio, y así el historial no le atribuye a nadie
+    // un mensaje que mandó el sistema.
+  });
 }

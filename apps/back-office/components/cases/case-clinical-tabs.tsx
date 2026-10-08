@@ -43,6 +43,7 @@ import { LabOrderDialog } from '@/components/visit/lab-order-dialog';
 import { LabOrderPrintDialog } from '@/components/visit/lab-order-print-dialog';
 import { BracePickerDialog, type CatalogBrace, type Side as BraceSide } from '@/components/visit/brace-picker-dialog';
 import { ChargePickerDialog, type BillableItem } from '@/components/visit/charge-picker-dialog';
+import { ImportedLabsPanel } from '@/components/cases/imported-labs-panel';
 import { PatientDemographicsDialog, type CampoFaltante } from '@/components/visit/patient-demographics-dialog';
 import { DrugHistoryConsentDialog } from '@/components/visit/drug-history-consent-dialog';
 import type { CoverageDTO } from '@/lib/coverage';
@@ -497,6 +498,15 @@ export function CaseLabsTab({ caseId, patientId, clinical, visitId }: ClinicalTa
         </div>
       )}
 
+
+      {/* Resultados traídos de MEDUSA. Van ABAJO de las órdenes nuestras y en su
+          propia tarjeta, no mezclados: son de otro sistema, nadie los pidió desde
+          acá y no se pueden resultar ni anular. Mezclarlos haría creer que son
+          órdenes que alguien de la clínica sigue.
+
+          Es del PACIENTE, no del caso ni de la visita: la historia de
+          laboratorios es una sola aunque tenga tres casos abiertos. */}
+      <ImportedLabsPanel patientId={patientId} />
 
       {/* Nueva orden — el mismo formulario de la consulta, directo */}
       {latestVisit && (

@@ -882,6 +882,8 @@ model Patient {
   callLogs       CallLog[]
   messageLogs    MessageLog[]
   messageThreads MessageThread[]   @relation("PatientMessageThreads")
+  /// Resultados traídos de afuera (CCD de MEDUSA) — ver ImportedLabResult
+  importedLabs   ImportedLabResult[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1820,6 +1822,102 @@ model LabOrder {
   @@index([visitNoteId])
   @@index([groupId])
   @@map("lab_orders")
+}
+
+/// De dónde salió un resultado importado. Hoy hay una sola fuente; el enum
+/// existe para que la segunda no obligue a migrar la tabla.
+enum ImportedLabSource {
+  /// CCD exportado de MEDUSA/MedPrime antes del apagón del 31-dic-2026
+  MEDUSA_CCD
+}
+
+/// Cómo se codificó el análisis en el archivo de origen.
+///
+/// ⚠️ `LABCORP` existe porque el CCD de MEDUSA **miente**: declara sus códigos
+/// con el OID de LOINC (`2.16.840.1.113883.6.1`) y después manda códigos de
+/// pedido de LabCorp de seis dígitos (`005025`). De las 152 observaciones del
+/// archivo medido el 2026-10-08, CERO tenían forma de LOINC.
+///
+/// Por eso el código NO se guarda en una columna llamada `loincCode`: sería una
+/// afirmación falsa que no falla hasta que alguien cruza contra un catálogo y no
+/// encuentra nada.
+enum ImportedLabCodeSystem {
+  LABCORP
+  LOINC
+  DESCONOCIDO
+}
+
+/// Un resultado de laboratorio traído de OTRO sistema.
+///
+/// ## Por qué no entra en LabOrder
+///
+/// `LabOrder` es una orden que la clínica EMITE: exige `appointmentId`, tiene
+/// estado de pedido y guarda el resultado como un PDF más notas libres. Estos
+/// son resultados HISTÓRICOS de visitas que nunca ocurrieron acá —no hay cita a
+/// la cual colgarlos— y vienen con valor, unidad y fecha, que es justo lo que
+/// `LabOrder` no sabe guardar. Forzarlos ahí obligaría a inventar citas.
+///
+/// ## Qué NO garantiza
+///
+/// El archivo no trae rangos de referencia, así que no se puede decir si un
+/// valor es normal. Tampoco trae quién lo pidió. Lo que hay es: qué se midió,
+/// cuánto dio, cuándo y qué laboratorio lo hizo.
+///
+/// Ver `apps/back-office/lib/ccd-labs.ts` para el lector y la ficha
+/// `ccd-de-muestra-medido` para la medición del archivo real.
+model ImportedLabResult {
+  id        String  @id @default(cuid())
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  /// Nombre legible ("WBC", "Hemoglobin"). Viene de la tabla narrativa del CCD:
+  /// las entradas estructuradas NO traen `displayName`, ni una.
+  name String
+
+  /// El código tal como vino. **No es LOINC** — ver `ImportedLabCodeSystem`.
+  sourceCode       String?
+  sourceCodeSystem ImportedLabCodeSystem @default(DESCONOCIDO)
+
+  /// Siempre texto: hay resultados que no son números ("<0.2", "TNP").
+  value String
+  /// El mismo valor como número cuando se puede. `null` en los de texto.
+  valueNumeric Decimal? @db.Decimal(18, 6)
+  unit         String?
+
+  /// Fecha de la observación. El CCD trae el día, sin hora.
+  observedAt DateTime
+
+  /// Panel que lo agrupa ("CBC With Differential/Platelet").
+  panelName String?
+  panelCode String?
+
+  /// Laboratorio que lo hizo ("LabCorp Phoenix"), de la narrativa.
+  performedBy String?
+  /// `completed`, `Final`… tal como lo manda el archivo, sin normalizar.
+  status String?
+
+  source ImportedLabSource @default(MEDUSA_CCD)
+
+  /// Llave estable para no duplicar al reimportar el mismo archivo o uno que se
+  /// solape: paciente + código + fecha + valor. Dos resultados del mismo día con
+  /// valores distintos son dos tomas y entran los dos; con el mismo valor son el
+  /// mismo resultado. La arma `claveDeResultado()` en `lib/ccd-labs.ts`.
+  sourceKey String
+
+  /// Tanda de importación, para poder mirar —o deshacer— una sola.
+  importId String
+
+  /// Archivo del que salió, para rastrear. Solo el nombre, nunca el contenido:
+  /// el CCD es PHI y no se guarda acá.
+  sourceFileName String?
+
+  importedAt     DateTime @default(now())
+  importedByName String?
+
+  @@unique([patientId, sourceKey])
+  @@index([patientId, observedAt])
+  @@index([importId])
+  @@map("imported_lab_results")
 }
 
 /// La REQUISICIÓN: la hoja que el paciente lleva al laboratorio.

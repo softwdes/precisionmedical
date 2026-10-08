@@ -67,6 +67,11 @@ const anio = z.string().trim().regex(/^\d{4}$/).refine((v) => {
   return n >= 1900 && n <= new Date().getFullYear();
 }, 'anioRango');
 
+/** Un estudio de detección: cuándo, dónde y si salió anormal. */
+const tamizaje = z.object({
+  date: fechaClinica.optional(), location: corto.optional(), abnormal: z.boolean().optional(),
+}).strict();
+
 const condicion = z.object({
   id: z.string(),
   condition: corto,
@@ -84,6 +89,8 @@ const medicamento = z.object({
   quantity: z.number().nonnegative().max(10_000).optional(),
   unit: corto.optional(),
   refills: corto.optional(),
+  /** Cuántas veces al día — la columna del cuestionario Health History. */
+  timesDaily: corto.optional(),
   startDate: fechaClinica.optional(),
   autoExpire: z.boolean().optional(),
   autoRenew: z.boolean().optional(),
@@ -111,6 +118,8 @@ const SECCIONES = {
   }).strict() },
   healthInfo: { valor: z.object({
     goals: largo.optional(),
+    /** Revisión de sistemas: libras ganadas o perdidas (Health History). */
+    reviewWeightLbs: corto.optional(),
     // 1–10: la escala que muestra el formulario
     selfRating: z.number().int().min(1).max(10).nullable().optional(),
   }).strict() },
@@ -137,6 +146,8 @@ const SECCIONES = {
   }), max: 200 },
   providers: { fila: z.object({
     id: z.string(), name: corto, specialty: corto.optional(), notes: largo.optional(),
+    /** Fecha o año de la última visita (columna del Health History). */
+    lastVisit: corto.optional(),
   }), max: 100 },
   vaccines: { valor: z.array(corto).max(100) },
   cognitiveStatus: { valor: z.array(z.object({ name: corto, status: corto })).max(100) },
@@ -146,6 +157,22 @@ const SECCIONES = {
   healthExams: { valor: z.object({
     bloodTestDate: fechaClinica.optional(), normalResults: z.boolean().optional(),
     colonoscopyYear: anio.optional(), abnormal: z.boolean().optional(),
+    /** Health History: ¿están disponibles los resultados del análisis de sangre? */
+    resultsAvailable: z.boolean().optional(),
+    colonoscopyLocation: corto.optional(),
+  }).strict() },
+  /** Solo mujeres (Health History): mamografía, Papanicolaou, densidad ósea. */
+  screenings: { valor: z.object({
+    mammogram: tamizaje.optional(), pap: tamizaje.optional(), boneDensity: tamizaje.optional(),
+  }).strict() },
+  /** Salud de la mujer (Health History, página 4). */
+  womensHealth: { valor: z.object({
+    pregnancies: corto.optional(), births: corto.optional(), miscarriages: corto.optional(),
+    menarcheAge: corto.optional(), menopauseAge: corto.optional(),
+    notApplicable: z.boolean().optional(), periodConcerns: z.boolean().optional(),
+    periodEveryDays: corto.optional(), periodLastDays: corto.optional(),
+    periodFlow: z.enum(['LIGHT', 'NORMAL', 'HEAVY']).optional(),
+    periodIrregular: z.boolean().optional(), periodPattern: corto.optional(),
   }).strict() },
   /**
    * El consumo va como VOCABULARIO, no texto libre.
@@ -177,6 +204,18 @@ const SECCIONES = {
     tobaccoNote: largo.optional(), alcoholNote: largo.optional(), drugsNote: largo.optional(),
     /** El comentario general de la sección — el que no es de ningún campo. */
     notes: largo.optional(),
+    // ── Health History: el detalle que pide el cuestionario ─────────────────
+    workStatus: z.enum(['NO', 'FULL', 'PART']).optional(),
+    tobaccoTypes: z.array(corto).max(8).optional(),
+    packsPerDay: corto.optional(), tobaccoYears: corto.optional(),
+    quitDate: fechaClinica.optional(),
+    secondhandSmoke: z.boolean().optional(), readyToQuit: z.boolean().optional(),
+    drinksPerWeek: corto.optional(), alcoholTypes: z.array(corto).max(8).optional(),
+    drugType: corto.optional(),
+    sexual: z.enum(['CURRENT', 'NOT_CURRENT', 'NEVER']).optional(),
+    sexualWith: z.enum(['MALE', 'FEMALE', 'BOTH']).optional(),
+    birthControl: z.array(corto).max(8).optional(), birthControlOther: corto.optional(),
+    military: z.boolean().optional(), school: z.boolean().optional(),
   }).strict() },
   comments: { fila: z.object({
     id: z.string(), date: z.string(), text: largo, author: corto.optional(),

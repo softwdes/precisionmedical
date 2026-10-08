@@ -22,6 +22,7 @@ import { CoverageChip } from '@/components/coverage/coverage-chip';
 import type { CoverageDTO } from '@/lib/coverage';
 import { PatientEditDialog, type EditablePatient } from './patient-edit-dialog';
 import { MedicalHistoryDialog } from './medical-history-dialog';
+import { HealthHistoryDialog } from './health-history-dialog';
 import { CaseWizardDialog } from '@/components/cases/case-wizard-dialog';
 import { NewCaseDialog, type NewCaseInitialState } from '@/components/cases/new-case-dialog';
 import { lugarDelAccidente, notasDelReferido, type ReferidoParaWizard } from '@/lib/referidos/referido';
@@ -1356,6 +1357,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
   const [qrPatientTarget,    setQrPatientTarget]    = useState<PatientRow | null>(null);
   const [archivosTarget,     setArchivosTarget]     = useState<PatientRow | null>(null);
   const [medHistoryTarget,   setMedHistoryTarget]   = useState<PatientRow | null>(null);
+  const [healthHistoryTarget, setHealthHistoryTarget] = useState<PatientRow | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   /** El botón de la fila abierta. Se asigna al abrir: hay uno por fila. */
   const menuAnchor = useRef<HTMLElement | null>(null);
@@ -3030,6 +3032,15 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
         />
       )}
 
+      {/* ─── Health History (cuestionario imprimible, guarda en el Historial Médico) ── */}
+      {healthHistoryTarget && (
+        <HealthHistoryDialog
+          patient={healthHistoryTarget}
+          open={true}
+          onClose={() => setHealthHistoryTarget(null)}
+        />
+      )}
+
       {/* ─── Menú de acciones de la fila ──────────────────────────────────────
           Va por `FloatingPanel`: portalea (escapa el overflow de la tabla) y
           además VOLTEA hacia arriba si abajo no entra. Antes se calculaba
@@ -3071,6 +3082,10 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
             <button onClick={() => { setMedHistoryTarget(p); setOpenMenuId(null); }}
               className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left">
               <FileText className="w-3.5 h-3.5 text-text-muted shrink-0" /> {t('menuMedicalHistory')}
+            </button>
+            <button onClick={() => { setHealthHistoryTarget(p); setOpenMenuId(null); }}
+              className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left">
+              <Stethoscope className="w-3.5 h-3.5 text-text-muted shrink-0" /> {t('menuHealthHistory')}
             </button>
             {/* Deshabilitado pero explicado: estaba en gris, sin cartel, y la
                 única lectura posible era "algo se rompió". Ver

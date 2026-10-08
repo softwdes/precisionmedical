@@ -30,7 +30,7 @@ export type MedicalHistoryData = {
     referredBy?: string; mainReason?: string; otherConcerns?: string;
     noCurrentMeds?: boolean; broughtMedList?: boolean; noSignificantHistory?: boolean;
   };
-  healthInfo?:       { goals?: string; selfRating?: number | null };
+  healthInfo?:       { goals?: string; selfRating?: number | null; reviewWeightLbs?: string };
   allergies?:        string;
   /** Confirmado por el personal que NO tiene. `null` = desmarcado. Ver lib/revision-historial. */
   noKnownAllergies?:     { at: string; by?: string } | null;
@@ -40,7 +40,7 @@ export type MedicalHistoryData = {
   medications?:      Array<{
     id: string; name: string; status: 'IN_USE' | 'HISTORY';
     dose?: string; instructions?: string;
-    quantity?: number; unit?: string; refills?: string;
+    quantity?: number; unit?: string; refills?: string; timesDaily?: string;
     startDate?: string; autoExpire?: boolean; autoRenew?: boolean;
     prescribedBy?: string; diagnosisCode?: string; diagnosisLabel?: string;
     pharmacy?: string; pharmacyNote?: string;
@@ -50,7 +50,7 @@ export type MedicalHistoryData = {
   }>;
   surgeries?:        Array<{ id: string; procedure: string; date?: string; notes?: string }>;
   familyHistory?:    Array<{ id: string; relation: string; condition: string; notes?: string }>;
-  providers?:        Array<{ id: string; name: string; specialty?: string; notes?: string }>;
+  providers?:        Array<{ id: string; name: string; specialty?: string; notes?: string; lastVisit?: string }>;
   vaccines?:         string[];
   cognitiveStatus?:  Array<{ name: string; status: string }>;
   functionalStatus?: Array<{ name: string; status: string }>;
@@ -59,6 +59,14 @@ export type MedicalHistoryData = {
   healthExams?:      {
     bloodTestDate?: string; normalResults?: boolean;
     colonoscopyYear?: string; abnormal?: boolean;
+    resultsAvailable?: boolean; colonoscopyLocation?: string;
+  };
+  /** Health History (solo mujeres). */
+  screenings?:       Partial<Record<'mammogram' | 'pap' | 'boneDensity', { date?: string; location?: string; abnormal?: boolean }>>;
+  womensHealth?:     {
+    pregnancies?: string; births?: string; miscarriages?: string; menarcheAge?: string; menopauseAge?: string;
+    notApplicable?: boolean; periodConcerns?: boolean; periodEveryDays?: string; periodLastDays?: string;
+    periodFlow?: 'LIGHT' | 'NORMAL' | 'HEAVY'; periodIrregular?: boolean; periodPattern?: string;
   };
   socialHistory?:    {
     work?: string; children?: string; tobacco?: string; alcohol?: string; drugs?: string;
@@ -66,6 +74,14 @@ export type MedicalHistoryData = {
     workNote?: string; childrenNote?: string;
     tobaccoNote?: string; alcoholNote?: string; drugsNote?: string;
     notes?: string;
+    // Health History
+    workStatus?: 'NO' | 'FULL' | 'PART';
+    tobaccoTypes?: string[]; packsPerDay?: string; tobaccoYears?: string; quitDate?: string;
+    secondhandSmoke?: boolean; readyToQuit?: boolean;
+    drinksPerWeek?: string; alcoholTypes?: string[]; drugType?: string;
+    sexual?: 'CURRENT' | 'NOT_CURRENT' | 'NEVER'; sexualWith?: 'MALE' | 'FEMALE' | 'BOTH';
+    birthControl?: string[]; birthControlOther?: string;
+    military?: boolean; school?: boolean;
   };
   comments?:         Array<{ id: string; date: string; text: string; author?: string }>;
 };

@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="es" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Plan: Health History (formulario imprimible)</title>
+<style>
+:root{--bg:#0f1320;--bg1:#171c2e;--bg2:#1f2540;--fg:#e8ecf3;--mut:#93a0b8;--line:#2a3150;--brand:#6366f1;--cyan:#22d3ee;--em:#34d399;--amber:#fbbf24;--rose:#fb7185;--violet:#a78bfa}
+[data-theme=light]{--bg:#f6f7fb;--bg1:#fff;--bg2:#eef1f8;--fg:#1c2330;--mut:#5b6678;--line:#dde2ea;--brand:#4f46e5;--cyan:#0891b2;--em:#059669;--amber:#b45309;--rose:#e11d48;--violet:#7c3aed}
+*{box-sizing:border-box;scrollbar-width:thin;scrollbar-color:rgba(99,102,241,.4) transparent}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 system-ui,sans-serif}
+header{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.hin{max-width:1060px;margin:0 auto;padding:12px 16px 0}
+h1{font-size:20px;margin:0}.sub{color:var(--mut);font-size:12.5px}
+.tabs{display:flex;gap:4px;overflow-x:auto;margin-top:10px;scrollbar-width:none}
+.tab{appearance:none;border:0;background:none;color:var(--mut);font:inherit;font-size:14px;padding:9px 14px;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;border-radius:8px 8px 0 0}
+.tab:hover{color:var(--fg);background:var(--bg2)}.tab[aria-selected=true]{color:var(--fg);border-bottom-color:var(--brand);font-weight:600}
+main{max-width:1060px;margin:0 auto;padding:22px 16px 80px}
+section[hidden]{display:none}
+h2{font-size:21px;margin:0 0 6px}h3{font-size:16px;margin:22px 0 6px}p{margin:8px 0}.mut{color:var(--mut)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin:14px 0}
+.card{background:var(--bg1);border-radius:12px;padding:14px 16px}.card h4{margin:0 0 4px;font-size:15px}
+.note{border-left:3px solid var(--amber);background:var(--bg1);padding:10px 14px;border-radius:0 10px 10px 0;margin:14px 0}
+.ok{border-left-color:var(--em)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;display:block;overflow-x:auto}th,td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}th{background:var(--bg2);white-space:nowrap}
+.pill{display:inline-block;font-size:11px;padding:1px 8px;border-radius:99px;font-weight:600}
+.p-sys{background:rgba(52,211,153,.15);color:var(--em)}.p-int{background:rgba(34,211,238,.15);color:var(--cyan)}.p-new{background:rgba(251,191,36,.15);color:var(--amber)}.p-gap{background:rgba(251,113,133,.15);color:var(--rose)}
+.step{display:flex;gap:12px;margin:10px 0}.step b.n{flex:none;width:28px;height:28px;border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;font-size:13px}
+/* ===== mockups: estilo de la app ===== */
+.app{background:#0b0f1c;border:1px solid var(--line);border-radius:12px;padding:18px;margin:14px 0;color:#e8ecf3;font-size:13px}
+.mock-label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);margin-top:18px}
+.menu{width:230px;background:#141a2e;border:1px solid #2a3150;border-radius:10px;padding:4px 0;font-size:13px}
+.menu div{padding:8px 14px;color:#b9c2d6;display:flex;gap:10px;align-items:center}
+.menu .hl{background:rgba(99,102,241,.18);color:#fff;outline:1px dashed var(--amber);outline-offset:-2px}
+.menu .sep{border-top:1px solid #2a3150;padding:0;margin:4px 0}
+.menu .dis{opacity:.4}.menu .del{color:#fb7185}
+.modal{background:#121830;border:1px solid #2a3150;border-radius:14px;overflow:hidden}
+.mh{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #2a3150}
+.mh b{font-size:15px}.mh span{color:#93a0b8;font-size:12px}
+.mbody{display:grid;grid-template-columns:170px 1fr;min-height:420px}
+.nav{border-right:1px solid #2a3150;padding:8px}
+.nav div{padding:7px 10px;border-radius:8px;color:#93a0b8;font-size:12.5px;display:flex;justify-content:space-between}
+.nav .on{background:rgba(99,102,241,.2);color:#fff}
+.nav i{font-style:normal;font-size:10px;padding:0 6px;border-radius:99px;background:#1f2540}
+.nav i.w{background:rgba(251,191,36,.2);color:#fbbf24}.nav i.g{background:rgba(52,211,153,.2);color:#34d399}
+.form{padding:14px 18px}
+.fld{margin-bottom:12px}.fld label{display:flex;gap:8px;align-items:center;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#93a0b8;margin-bottom:4px}
+.in{background:#0b0f1c;border:1px solid #2a3150;border-radius:8px;padding:7px 10px;min-height:32px;color:#e8ecf3}
+.in.pre{border-color:rgba(52,211,153,.5)}.in.int{border-color:rgba(34,211,238,.5)}.in.empty{border-style:dashed;color:#5b6678}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.chk{display:inline-flex;gap:6px;align-items:center;margin:2px 10px 2px 0}.box{width:13px;height:13px;border:1.5px solid #5b6678;border-radius:3px;display:inline-grid;place-items:center;font-size:10px;line-height:1}.box.x{background:#6366f1;border-color:#6366f1;color:#fff}
+.mf{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-top:1px solid #2a3150;background:#0f1428}
+.btn{padding:6px 14px;border-radius:8px;font-size:12.5px;background:#1f2540;color:#e8ecf3;border:1px solid #2a3150}.btn.pri{background:#6366f1;border-color:#6366f1;color:#fff}.btn.em{background:#10b981;border-color:#10b981;color:#fff}
+.cond{display:grid;grid-template-columns:1fr 70px 70px 1.2fr;gap:6px;align-items:center;padding:5px 0;border-bottom:1px solid #1f2540;font-size:12.5px}
+.cond.h{color:#93a0b8;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em}
+/* visor */
+.viewer{background:#2b2f3a;border-radius:12px;padding:14px;display:grid;grid-template-columns:90px 1fr;gap:14px}
+.thumbs{display:flex;flex-direction:column;gap:8px}.thumbs div{background:#fff;height:100px;border-radius:3px;opacity:.55;color:#333;font-size:10px;display:grid;place-items:end center}.thumbs .on{opacity:1;outline:2px solid #6366f1}
+.paper{background:#fff;color:#111;border-radius:2px;padding:30px 38px;font:12px/1.5 Arial,Helvetica,sans-serif;box-shadow:0 4px 24px rgba(0,0,0,.5);max-width:620px;margin:0 auto;width:100%}
+.paper .hd{display:flex;justify-content:space-between;border-bottom:2px solid #1d4ed8;padding-bottom:6px;margin-bottom:10px}
+.paper .hd b{color:#1d4ed8;font-size:13px}.paper .hd small{font-size:9px;color:#444;text-align:right;display:block}
+.paper h5{margin:10px 0 4px;font-size:13px;text-align:center}
+.paper .ln{border-bottom:1px solid #111;display:inline-block;min-width:140px;padding:0 4px;font-weight:600;color:#0b3d91}
+.paper .ln.blank{color:transparent}
+.paper table{display:table;font-size:11px;margin:4px 0}.paper th,.paper td{border:1px solid #888;padding:3px 6px;background:#fff;color:#111}.paper th{background:#eee}
+.paper .cb{display:inline-block;width:10px;height:10px;border:1px solid #111;vertical-align:-1px;margin-right:3px;text-align:center;line-height:9px;font-size:9px}
+.vtool{display:flex;gap:8px;justify-content:space-between;align-items:center;margin-bottom:10px;color:#cbd2e0;font-size:12px}
+@media(max-width:700px){.mbody{grid-template-columns:1fr}.nav{display:none}.viewer{grid-template-columns:1fr}.thumbs{display:none}}
+</style></head><body>
+<header><div class="hin">
+<h1>Plan: Health History</h1>
+<div class="sub">Nuevo ítem del menú de 3 puntos en Pacientes · formulario del PDF "Comprehensive Adult New Patient Health History Questionnaire" · 8-oct-2026</div>
+<div class="tabs" role="tablist">
+<button class="tab" aria-selected="true" data-t="resumen">Resumen y etapas</button>
+<button class="tab" aria-selected="false" data-t="menu">1 · Menú</button>
+<button class="tab" aria-selected="false" data-t="modal">2 · Modal de llenado</button>
+<button class="tab" aria-selected="false" data-t="visor">3 · Visor previo</button>
+<button class="tab" aria-selected="false" data-t="datos">Mapa de datos</button>
+<button class="tab" aria-selected="false" data-t="preg">Decisiones</button>
+</div></div></header>
+<main>
+
+<section id="resumen">
+<h2>Qué se construye</h2>
+<p>Un ítem <b>Health History</b> en los 3 puntos de cada paciente. Al hacer clic abre un modal con el formulario del PDF <b>pre-llenado</b> con lo que ya hay del paciente (ficha, Historial Médico, intake). Lo que falte queda <b>habilitado</b> para que la clínica lo complete. Un botón abre el <b>visor previo</b> con el PDF idéntico al original, listo para imprimir.</p>
+<div class="note ok"><b>Buena noticia:</b> el esquema de <code>Patient.medicalHistory</code> ya calca el 80 % del formulario. No es una captura nueva: es una <b>vista de edición + impresión</b> del mismo dato.</div>
+<h3>Etapas</h3>
+<div class="step"><b class="n">1</b><div><b>Esquema</b> — ampliar <code>lib/medical-history-schema.ts</code> con lo que falta: salud de la mujer, mamografía/Pap/densidad ósea, historia social completa (tabaco detallado, tragos/semana, sexual, anticonceptivo, militar, estudia), vacunas con las 4 del PDF, "veces al día" en medicamentos. Sin migración de tablas: es el JSON existente, con validación.</div></div>
+<div class="step"><b class="n">2</b><div><b>Pre-llenado</b> — una función única que fusiona ficha del paciente + <code>medicalHistory</code> + registro de salud del intake, y marca de dónde vino cada dato (Sistema / Intake / Falta).</div></div>
+<div class="step"><b class="n">3</b><div><b>Modal</b> — 7 secciones con las 4 páginas del PDF; guarda en <code>Patient.medicalHistory</code> con la misma action <code>updateMedicalHistory</code> (así el Historial Médico y este formulario nunca se desfasan).</div></div>
+<div class="step"><b class="n">4</b><div><b>PDF + visor</b> — con <code>@react-pdf/renderer</code> (ya en uso en <code>intake-pdf.tsx</code>), mismo patrón de visor que <code>visit-note-print-dialog</code>. 4 páginas, mismo orden, textos y casillas del original, con el membrete de Precision Medical.</div></div>
+<div class="step"><b class="n">5</b><div><b>Verificar en pantalla</b> con un paciente real (lleno y vacío) y comparar página por página contra el PDF.</div></div>
+<h3>Riesgos</h3>
+<div class="grid">
+<div class="card"><h4>Dos fuentes de verdad</h4><p class="mut">El intake guarda salud en un registro aparte (texto libre). Hay que fusionarlo sin pisar lo que ya editó la clínica.</p></div>
+<div class="card"><h4>46 condiciones fijas</h4><p class="mut">El PDF tiene filas fijas; nuestro historial es lista libre. Se cruzan por nombre y lo no reconocido va a "Other".</p></div>
+<div class="card"><h4>Privacidad</h4><p class="mut">Mismo control de acceso que el Historial Médico (<code>checkPatientAccess</code>). El visor no guarda copia en disco.</p></div>
+</div>
+</section>
+
+<section id="menu" hidden>
+<h2>1 · El ítem en el menú</h2>
+<p>Va justo debajo de "Medical history", con el mismo estilo de los demás. Mismo menú en el portal médico.</p>
+<div class="app"><div class="menu">
+<div>✎ Edit</div><div>🛡 Insurance</div><div>▦ Patient QR</div><div>📁 Personal files</div>
+<div>📄 Medical history</div>
+<div class="hl">🩺 Health History <span class="pill p-new" style="margin-left:auto">nuevo</span></div>
+<div class="dis">⟲ Audit history</div><div class="sep"></div><div class="del">🗑 Delete</div>
+</div></div>
+<div class="note">Para no confundirlos: "Medical history" = la ficha clínica viva del paciente. "Health History" = el cuestionario formal imprimible. Los dos leen y escriben el mismo dato.</div>
+</section>
+
+<section id="modal" hidden>
+<h2>2 · Modal de llenado</h2>
+<p>Navegación lateral con las 4 páginas del PDF partidas en 7 secciones. Cada una muestra cuántos campos faltan. Verde = ya viene del sistema, cian = lo llenó el paciente en el intake, punteado = vacío y editable.</p>
+<div class="mock-label">Sección: Visita y medicamentos (página 1)</div>
+<div class="app"><div class="modal">
+<div class="mh"><div><b>Health History · Sherey Deamers</b> <span>P-6292 · 34 a · F</span></div><span>✕</span></div>
+<div class="mbody">
+<div class="nav">
+<div class="on">1 Visita <i class="w">2</i></div><div>2 Medicamentos y alergias <i class="g">✓</i></div><div>3 Estudios y vacunas <i class="w">6</i></div><div>4 Condiciones <i class="w">46</i></div><div>5 Cirugías y familia <i class="w">3</i></div><div>6 Revisión de sistemas <i class="w">1</i></div><div>7 Social y mujer <i class="w">12</i></div>
+</div>
+<div class="form">
+<div class="row2">
+<div class="fld"><label>Nombre <span class="pill p-sys">Sistema</span></label><div class="in pre">Sherey Deamers</div></div>
+<div class="fld"><label>Fecha de nacimiento <span class="pill p-sys">Sistema</span></label><div class="in pre">03/14/1992</div></div>
+</div>
+<div class="fld"><label>¿Quién lo refirió? <span class="pill p-sys">Sistema</span></label><div class="in pre">Facebook</div></div>
+<div class="fld"><label>Motivo principal de la visita <span class="pill p-int">Intake</span></label><div class="in int">Dolor de cuello y espalda tras accidente del 28-sep</div></div>
+<div class="fld"><label>Otras preocupaciones</label><div class="in empty">Sin llenar — clic para escribir</div></div>
+<div class="fld"><label>Metas de salud</label><div class="in empty">Sin llenar — clic para escribir</div></div>
+<div class="fld"><label>¿Cómo califica su salud?</label>
+<span class="chk"><span class="box"></span>Excellent</span><span class="chk"><span class="box x">✓</span>Good</span><span class="chk"><span class="box"></span>Fair</span><span class="chk"><span class="box"></span>Poor</span></div>
+</div></div>
+<div class="mf"><span class="mut" style="font-size:12px">Guardado automático en el Historial Médico</span><div style="display:flex;gap:8px"><span class="btn">Cancelar</span><span class="btn pri">Guardar</span><span class="btn em">Ver / Imprimir PDF</span></div></div>
+</div></div>
+
+<div class="mock-label">Sección: Condiciones (páginas 2-3, Actual / Resuelto / comentarios)</div>
+<div class="app"><div class="form" style="padding:0">
+<div class="cond h"><span>Condición</span><span>Actual</span><span>Resuelto</span><span>Comentarios</span></div>
+<div class="cond"><span>Anxiety <span class="pill p-sys">Sistema</span></span><span class="chk"><span class="box x">✓</span></span><span class="chk"><span class="box"></span></span><span class="in pre">Desde 2023</span></div>
+<div class="cond"><span>Asthma</span><span class="chk"><span class="box"></span></span><span class="chk"><span class="box"></span></span><span class="in empty">—</span></div>
+<div class="cond"><span>Fractures (broken bones)</span><span class="chk"><span class="box"></span></span><span class="chk"><span class="box x">✓</span></span><span class="in pre">Muñeca izq., 2019 <span class="pill p-sys">Sistema</span></span></div>
+<div class="cond"><span>High Blood Pressure</span><span class="chk"><span class="box"></span></span><span class="chk"><span class="box"></span></span><span class="in empty">—</span></div>
+<div class="cond"><span>… 42 condiciones más</span><span></span><span></span><span></span></div>
+<div class="cond"><span>Other</span><span></span><span></span><span class="in pre">Migraña crónica <span class="pill p-sys">Sistema</span></span></div>
+<div style="padding:8px 0"><span class="chk"><span class="box"></span>El paciente no tiene historial de enfermedades significativas</span></div>
+</div></div>
+
+<div class="mock-label">Sección: Social y salud de la mujer (se muestra solo si sexo = F, ver Decisiones)</div>
+<div class="app"><div class="form" style="padding:0">
+<div class="row2">
+<div class="fld"><label>Estado civil <span class="pill p-sys">Sistema</span></label><div class="in pre">Casada</div></div>
+<div class="fld"><label>Tabaco</label><span class="chk"><span class="box"></span>Actual</span><span class="chk"><span class="box"></span>Anterior</span><span class="chk"><span class="box x">✓</span>Nunca</span></div>
+</div>
+<div class="row2">
+<div class="fld"><label>Embarazos / Partos / Abortos</label><div class="in empty">__ / __ / __</div></div>
+<div class="fld"><label>Edad primera menstruación</label><div class="in empty">__</div></div>
+</div>
+<div class="fld"><label>Mamografía · Pap · Densidad ósea</label><div class="in empty">Fecha · lugar · ¿anormal?  (3 filas)</div></div>
+</div></div>
+<div class="note">Cada campo vacío es editable ahí mismo. Los pre-llenados también se pueden corregir; al guardar quedan en el Historial Médico con quién y cuándo los cambió (audit log).</div>
+</section>
+
+<section id="visor" hidden>
+<h2>3 · Visor previo (formato del PDF)</h2>
+<p>Se abre sobre el modal. Es el PDF real de 4 páginas, igual al original: mismos títulos, orden y casillas. Lo pre-llenado sale en azul sobre la línea; lo vacío queda la línea en blanco para escribir a mano.</p>
+<div class="viewer">
+<div class="thumbs"><div class="on">1</div><div>2</div><div>3</div><div>4</div></div>
+<div>
+<div class="vtool"><span>Health History PMC · Página 1 de 4</span><span style="display:flex;gap:8px"><span class="btn">⤓ Descargar</span><span class="btn pri">🖨 Imprimir</span><span class="btn">← Volver a editar</span></span></div>
+<div class="paper">
+<div class="hd"><b>Precision Medical<br><span style="font-weight:400;font-size:10px">Urgent Care and Family Practice</span></b><small>75 South 200 East Suite 202<br>Provo, UT 84606 · (801) 375-2207</small></div>
+<div><b>Name:</b> <span class="ln">Sherey Deamers</span> &nbsp; <b>Date of Birth:</b> <span class="ln" style="min-width:90px">03 / 14 / 1992</span></div>
+<h5>Comprehensive Adult New Patient Health History Questionnaire</h5>
+<p style="font-size:10.5px">Your answers on this form will help your health care provider get an accurate history of your medical concerns and conditions. If you are a current patient there is a shorter update form you can use…</p>
+<p>Who referred you to our practice? <span class="ln" style="min-width:220px">Facebook</span></p>
+<p>Main reason for today's visit <span class="ln" style="min-width:300px">Dolor de cuello y espalda tras accidente</span></p>
+<p>Other concerns <span class="ln blank" style="min-width:380px">.</span></p>
+<p>What are your health goals? <span class="ln blank" style="min-width:320px">.</span></p>
+<p>How would you rate your health? <span class="cb"></span>Excellent <span class="cb">✓</span>Good <span class="cb"></span>Fair <span class="cb"></span>Poor</p>
+<p><b>MEDICATIONS</b> <span style="font-size:10.5px">Please list all prescriptions and non-prescription medications…</span></p>
+<p><span class="cb"></span>Check box if you do not take any prescription or over the counter medications.</p>
+<table style="width:100%"><tr><th>Medication</th><th>Dose (e.g. mg)</th><th>How many times daily?</th><th>Need refills?</th></tr>
+<tr><td style="color:#0b3d91;font-weight:600">Meloxicam</td><td style="color:#0b3d91;font-weight:600">15 mg</td><td style="color:#0b3d91;font-weight:600">1</td><td style="color:#0b3d91;font-weight:600">Yes</td></tr>
+<tr><td>&nbsp;</td><td></td><td></td><td></td></tr></table>
+<p><b>ALLERGIES</b> or intolerance to medications? <span class="ln" style="min-width:180px">Penicillin — rash</span> <span class="cb"></span>NONE</p>
+</div></div></div>
+<h3>Reglas del PDF</h3>
+<div class="grid">
+<div class="card"><h4>Fidelidad</h4><p class="mut">Mismas 4 páginas, tamaño carta, mismos textos en inglés, mismas tablas y casillas. Se compara página por página contra el original antes de dar por hecho.</p></div>
+<div class="card"><h4>Lo que sobra de filas</h4><p class="mut">Medicamentos, cirugías, familia y proveedores: si hay más que filas en la hoja, continúan en una hoja anexa "continued".</p></div>
+<div class="card"><h4>En blanco</h4><p class="mut">Botón "Imprimir formulario en blanco" para entregar en papel, sin datos del paciente.</p></div>
+</div>
+</section>
+
+<section id="datos" hidden>
+<h2>Mapa de datos: de dónde sale cada parte del PDF</h2>
+<table>
+<tr><th>Parte del PDF</th><th>Fuente actual</th><th>Estado</th></tr>
+<tr><td>Nombre, fecha de nacimiento</td><td><code>Patient</code></td><td><span class="pill p-sys">Existe</span></td></tr>
+<tr><td>Referido, motivo, otras preocupaciones, metas, autoevaluación</td><td><code>medicalHistory.visitInfo / healthInfo</code> + intake (motivo)</td><td><span class="pill p-sys">Existe</span></td></tr>
+<tr><td>Medicamentos (nombre, dosis, resurtido)</td><td><code>medicalHistory.medications</code> + intake texto libre</td><td><span class="pill p-int">Fusionar</span></td></tr>
+<tr><td>Medicamentos: veces al día</td><td>Dentro de <code>instructions</code> (texto)</td><td><span class="pill p-new">Campo nuevo</span></td></tr>
+<tr><td>Alergias</td><td><code>medicalHistory.allergies</code> + intake</td><td><span class="pill p-int">Fusionar</span></td></tr>
+<tr><td>Vacunas (Pneumovax, Meningitis, Zostavax, HPV)</td><td><code>vaccines</code> lista libre</td><td><span class="pill p-new">Mapear</span></td></tr>
+<tr><td>Sangre y colonoscopía</td><td><code>healthExams</code></td><td><span class="pill p-sys">Existe</span></td></tr>
+<tr><td>Mamografía, Pap, densidad ósea</td><td>—</td><td><span class="pill p-gap">Falta</span></td></tr>
+<tr><td>46 condiciones Actual/Resuelto</td><td><code>problems</code> (actual) e <code>history</code> (resuelto)</td><td><span class="pill p-int">Cruzar por nombre</span></td></tr>
+<tr><td>Cirugías, familia, otros proveedores</td><td><code>surgeries / familyHistory / providers</code></td><td><span class="pill p-sys">Existe</span></td></tr>
+<tr><td>Revisión de sistemas (45 síntomas)</td><td><code>systemsReview</code> lista de textos</td><td><span class="pill p-new">Normalizar lista</span></td></tr>
+<tr><td>Social: trabajo, hijos, tabaco, alcohol, drogas</td><td><code>socialHistory</code> (una palabra cada uno)</td><td><span class="pill p-new">Ampliar</span></td></tr>
+<tr><td>Social: estado civil</td><td><code>Patient.maritalStatus</code></td><td><span class="pill p-sys">Existe</span></td></tr>
+<tr><td>Social: sexual, anticonceptivo, militar, estudia</td><td>—</td><td><span class="pill p-gap">Falta</span></td></tr>
+<tr><td>Salud de la mujer (embarazos, menarquia, menopausia, períodos)</td><td>—</td><td><span class="pill p-gap">Falta</span></td></tr>
+</table>
+</section>
+
+<section id="preg" hidden>
+<h2>Decisiones antes de construir</h2>
+<p class="mut">Mi recomendación va primero. Si no contestas, construyo con ella.</p>
+<div class="grid">
+<div class="card"><h4>1 · ¿Dónde se guarda lo editado?</h4><p><b>Recomendado:</b> en el Historial Médico (<code>medicalHistory</code>). Un solo dato, sin desfases.</p></div>
+<div class="card"><h4>2 · Salud de la mujer</h4><p><b>Recomendado:</b> solo si sexo = F; en el PDF impreso la sección siempre sale (en blanco para hombres).</p></div>
+<div class="card"><h4>3 · ¿Reemplaza "Medical history"?</h4><p><b>Recomendado:</b> conviven. Son vistas distintas del mismo dato.</p></div>
+<div class="card"><h4>4 · Idioma</h4><p><b>Recomendado:</b> PDF en inglés como el original; el modal sigue el idioma de la interfaz (en/es). Versión en español del PDF, después.</p></div>
+<div class="card"><h4>5 · "Adult"</h4><p><b>Recomendado:</b> se ofrece a todos; en menores de 18 se avisa que el formulario es de adultos y se pide el tutor.</p></div>
+<div class="card"><h4>6 · Marca de origen</h4><p><b>Recomendado:</b> las etiquetas Sistema/Intake solo en pantalla, nunca en el PDF impreso.</p></div>
+</div>
+</section>
+</main>
+<script>
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{
+ document.querySelectorAll('.tab').forEach(x=>x.setAttribute('aria-selected',x===b));
+ document.querySelectorAll('main section').forEach(s=>s.hidden=s.id!==b.dataset.t);
+ scrollTo(0,0);});
+</script>
+</body></html>

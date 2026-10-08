@@ -825,7 +825,7 @@ export function ConsultationClient({
                 allergiesDeclared={patientContext.history.allergiesDeclared?.text ?? null}
                 medications={patientContext.history.medications}
               />
-              <MedicationHistory appointmentId={a.id} medications={patientContext.history.medications} />
+              <MedicationHistory appointmentId={a.id} medications={patientContext.history.medications} patientId={patientContext.id} />
             </div>
           )}
           {/* Servicios — mismo panel de Day Admission. El botón de pagos sale

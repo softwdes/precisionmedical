@@ -743,7 +743,8 @@
       "labOrder": "Lab order",
       "settlementReceipt": "Settlement",
       "rewards": "My rewards",
-      "pendientes": "My items to fix"
+      "pendientes": "My items to fix",
+      "medicationList": "Medication list"
     },
     "notFound": {
       "title": "We couldn't find this page",
@@ -2328,7 +2329,22 @@
       "rxNoPrescriber": "Prescribing without a visit requires being a provider: it is signed under your own name, and there is no encounter to take the prescriber from.",
       "rxMedDownloadHint": "What the patient picked up at any pharmacy, last 12 months",
       "rxConsentSinVisita": "The patient's consent to query pharmacies is recorded on a visit, and this case does not have one yet.",
-      "rxStatus_confirmed": "Confirmed by pharmacy"
+      "rxStatus_confirmed": "Confirmed by pharmacy",
+      "rxAllergiesHint": "This is the list ScriptSure checks against when prescribing",
+      "medHxPrint": "Print",
+      "mlTitle": "MEDICATION LIST",
+      "mlBarHint": "The patient's current list, with where each line came from",
+      "mlCurrent": "Current medication",
+      "mlPrevious": "Previous medication",
+      "mlEmptyCurrent": "No active medication on file.",
+      "mlColMedication": "Medication",
+      "mlColOrigin": "Source",
+      "mlOriginRx": "Prescribed here",
+      "mlOriginExternal": "Entered by hand",
+      "mlLegendRx": "sent as an electronic prescription from this clinic, and checked for interactions.",
+      "mlLegendExternal": "reported by the patient or prescribed elsewhere. Not checked for interactions.",
+      "mlNoKnownAllergies": "No known allergies (confirmed with the patient).",
+      "mlAllergiesUnknown": "Not recorded. This does not mean the patient has no allergies."
     },
     "topbar": {
       "search": "Search firms, services, diagnoses...",

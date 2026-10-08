@@ -35,7 +35,7 @@ import { Button } from '@precision/ui';
 import { EmptyState, TagPill, FileViewerDialog, useFileViewer } from '@/components/ui-phoenix';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import {
-  ScriptSureWidgetDialog, launchRefill, type WidgetStatus,
+  ScriptSureWidgetDialog, launchRefill, type WidgetStatus, type WidgetKind,
 } from '@/components/visit/scriptsure-widget-dialog';
 import { STATUS_KEY as RX_STATUS_KEY, STATUS_CLASS as RX_STATUS_CLASS, soloEntregadas } from '@/components/visit/rx-integration-status';
 import { MedicationHistory, type MedicationEntry } from '@/components/visit/medication-history';
@@ -551,7 +551,7 @@ export function CaseRxTab({ caseId, patientId, canPrescribe, clinical, visitId }
   const [widgetUrl, setWidgetUrl] = React.useState<string | null>(null);
   const [widgetError, setWidgetError] = React.useState<string | null>(null);
   /** Qué widget está abierto: cambia el título del modal y el reintento. */
-  const [widgetKind, setWidgetKind] = React.useState<'drug-list' | 'medicationdownload'>('drug-list');
+  const [widgetKind, setWidgetKind] = React.useState<WidgetKind>('drug-list');
   /** Cita cuyo permiso de historial de farmacia se está pidiendo. */
   const [consentPara, setConsentPara] = React.useState<string | null>(null);
   const [refillingId, setRefillingId] = React.useState<string | null>(null);
@@ -615,13 +615,13 @@ export function CaseRxTab({ caseId, patientId, canPrescribe, clinical, visitId }
   /**
    * Abre un widget de ScriptSure sobre este caso.
    *
-   * Una sola función para los DOS botones —recetar e historial de farmacia—
-   * porque el camino es idéntico salvo el widget que se pide: misma elección de
-   * ruta, mismos errores, mismo diálogo. Tenerlo dos veces es la receta para
-   * que mañana se arregle uno solo, que es justo lo que pasó con el formulario
-   * de dirección (tres botones, un remedio).
+   * Una sola función para los TRES botones —recetar, alergias e historial de
+   * farmacia— porque el camino es idéntico salvo el widget que se pide: misma
+   * elección de ruta, mismos errores, mismo diálogo. Tenerlo repetido es la
+   * receta para que mañana se arregle uno solo, que es justo lo que pasó con el
+   * formulario de dirección (tres botones, un remedio).
    */
-  const abrirWidget = async (kind: 'drug-list' | 'medicationdownload'): Promise<void> => {
+  const abrirWidget = async (kind: WidgetKind): Promise<void> => {
     setWidgetKind(kind);
     setWidgetOpen(true);
     setWidgetStatus('loading');
@@ -737,6 +737,32 @@ export function CaseRxTab({ caseId, patientId, canPrescribe, clinical, visitId }
             </div>
           </div>
           <ArrowRight className="relative w-5 h-5 text-white/80 shrink-0 transition-transform duration-200 group-hover:translate-x-1" />
+        </button>
+      )}
+
+      {/* Alergias — la MISMA lista contra la que ScriptSure cruza al recetar.
+          Vivía solo en la Consulta y en Day Admission; en el caso no estaba, y
+          el caso es donde se entra cuando no hay consulta abierta.
+
+          Devin (2026-10-08) lo pidió mirando MEDUSA, donde la alergia se carga
+          una sola vez DENTRO del proveedor de recetas y por eso el chequeo la
+          ve. Lo que se escribe en los otros campos de alergia de la ficha no
+          llega acá: son depósitos distintos, y el subtítulo lo dice en vez de
+          dejar que se descubra cuando no salte una interacción. */}
+      {canPrescribe && (
+        <button
+          type="button"
+          onClick={() => void abrirWidget('allergy')}
+          className="w-full flex items-center gap-3 text-left rounded-lg bg-bg-2/40 hover:bg-bg-2/60 px-4 py-3 transition-colors"
+        >
+          <div className="w-9 h-9 rounded-md bg-amber/10 border border-amber/25 flex items-center justify-center shrink-0">
+            <AlertTriangle className="w-4 h-4 text-amber" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-[13px] font-semibold text-text-1">{td('rxAllergies')}</div>
+            <div className="text-[11px] text-text-muted mt-0.5">{td('rxAllergiesHint')}</div>
+          </div>
+          <ArrowRight className="w-4 h-4 text-text-muted shrink-0" />
         </button>
       )}
 
@@ -862,7 +888,7 @@ export function CaseRxTab({ caseId, patientId, canPrescribe, clinical, visitId }
           Anterior / "No recetado por mí". El POST agrega al historial del
           paciente vía la cita más reciente del caso. */}
       {latestAppointmentId && (
-        <MedicationHistory appointmentId={latestAppointmentId} medications={medications} />
+        <MedicationHistory appointmentId={latestAppointmentId} medications={medications} patientId={patientId} caseId={caseId} />
       )}
       {/* Sin "Registros manuales" acá: la tabla de prescripciones manuales lee
           `patient.medicalHistory.medications`, que es EXACTAMENTE lo que ya
@@ -900,8 +926,11 @@ export function CaseRxTab({ caseId, patientId, canPrescribe, clinical, visitId }
           const pendiente = demogPara;
           setDemogPara(null);
           // Se retoma lo que se estaba haciendo, sin volver a buscarlo.
+          // `widgetKind` y no 'drug-list' en duro: desde que hay tres botones,
+          // el que chocó con la dirección puede ser cualquiera de ellos, y
+          // volver siempre a recetar manda a otro lado del que se pidió.
           if (pendiente?.rx) void startRefill(pendiente.rx, pendiente.appointmentId);
-          else if (pendiente) void abrirWidget('drug-list');
+          else if (pendiente) void abrirWidget(widgetKind);
         }}
       />
     </div>

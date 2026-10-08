@@ -743,7 +743,8 @@
       "labOrder": "Orden de laboratorio",
       "settlementReceipt": "Settlement",
       "rewards": "Mis premios",
-      "pendientes": "Mis pendientes"
+      "pendientes": "Mis pendientes",
+      "medicationList": "Lista de medicación"
     },
     "notFound": {
       "title": "No encontramos esta página",
@@ -2328,7 +2329,22 @@
       "rxNoPrescriber": "Para recetar sin una visita hace falta ser provider: la receta se firma a tu nombre y no hay consulta de la que tomar el médico.",
       "rxMedDownloadHint": "Lo que el paciente retiró en cualquier farmacia, últimos 12 meses",
       "rxConsentSinVisita": "El permiso del paciente para consultar las farmacias se registra en una visita, y este caso todavía no tiene ninguna.",
-      "rxStatus_confirmed": "Confirmada por la farmacia"
+      "rxStatus_confirmed": "Confirmada por la farmacia",
+      "rxAllergiesHint": "Es la lista contra la que ScriptSure cruza al recetar",
+      "medHxPrint": "Imprimir",
+      "mlTitle": "LISTA DE MEDICACIÓN",
+      "mlBarHint": "Lista vigente del paciente, con el origen de cada línea",
+      "mlCurrent": "Medicación actual",
+      "mlPrevious": "Medicación anterior",
+      "mlEmptyCurrent": "No hay medicación activa registrada.",
+      "mlColMedication": "Medicamento",
+      "mlColOrigin": "Origen",
+      "mlOriginRx": "Recetado acá",
+      "mlOriginExternal": "Cargado a mano",
+      "mlLegendRx": "salió por receta electrónica desde esta clínica y pasó por el control de interacciones.",
+      "mlLegendExternal": "lo informó el paciente o lo receta otro médico. No pasa por el control de interacciones.",
+      "mlNoKnownAllergies": "Sin alergias conocidas (confirmado con el paciente).",
+      "mlAllergiesUnknown": "Sin registrar. No significa que el paciente no tenga alergias."
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",

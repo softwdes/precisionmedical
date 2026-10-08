@@ -17,12 +17,15 @@
  * El botón "Imprimir" del navegador vive DENTRO de la hoja (ver el layout de
  * `doctor-print/`), así que el modal no necesita uno propio: el `iframe` trae el
  * suyo y el `Ctrl+P` del usuario imprime el documento enfocado.
+ *
+ * Hoy es un envoltorio de [PrintSheetDialog]: los tres visores de hoja eran el
+ * mismo componente repetido. Conserva su nombre y sus props para que ninguna
+ * pantalla tuviera que cambiar.
  */
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@precision/ui';
-import { Printer } from 'lucide-react';
+import { PrintSheetDialog } from './print-sheet-dialog';
 
 export function VisitNotePrintDialog({ appointmentId, onClose }: {
   /** Cita cuya nota se muestra — null cierra el visor */
@@ -30,23 +33,11 @@ export function VisitNotePrintDialog({ appointmentId, onClose }: {
   onClose: () => void;
 }): React.ReactElement | null {
   const t = useTranslations('phoenix.doctor');
-
-  if (!appointmentId) return null;
-
   return (
-    <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-4xl w-[96vw] p-0 overflow-hidden flex flex-col h-[92vh]">
-        <DialogHeader className="px-5 py-3 shrink-0 border-b border-border">
-          <DialogTitle className="text-[14px] flex items-center gap-2">
-            <Printer className="w-4 h-4 text-violet-text" /> {t('sumPrintNote')}
-          </DialogTitle>
-        </DialogHeader>
-        <iframe
-          src={`/doctor-print/visit-note/${appointmentId}`}
-          title={t('sumPrintNote')}
-          className="w-full flex-1 border-0 bg-white"
-        />
-      </DialogContent>
-    </Dialog>
+    <PrintSheetDialog
+      src={appointmentId ? `/doctor-print/visit-note/${appointmentId}` : null}
+      title={t('sumPrintNote')}
+      onClose={onClose}
+    />
   );
 }

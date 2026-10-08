@@ -26,7 +26,8 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@precision/ui';
-import { Pill, Plus, Loader2, Flag, AlertTriangle, ChevronDown } from 'lucide-react';
+import { Pill, Plus, Loader2, Flag, AlertTriangle, ChevronDown, Printer } from 'lucide-react';
+import { PrintSheetDialog } from './print-sheet-dialog';
 import { EmptyState, TagPill } from '@/components/ui-phoenix';
 import { fechaCorta } from '@/lib/fechas';
 import type { MedicationConDetalle, MedicationRxDetail } from '@/lib/medication-details';
@@ -50,6 +51,17 @@ export type MedicationEntry = MedicationConDetalle;
 interface Props {
   appointmentId: string;
   medications: MedicationEntry[];
+  /**
+   * Habilita "Imprimir la lista". Va aparte de `appointmentId` porque la hoja
+   * es del PACIENTE, no de la visita: la lista vive en su ficha y se imprime
+   * igual cuando no hay ninguna consulta abierta.
+   *
+   * Opcional para que el botón no aparezca donde todavía no se pasó el dato, en
+   * vez de romper la pantalla.
+   */
+  patientId?: string;
+  /** Solo decide el logo del membrete (MVA → Pain Management). */
+  caseId?: string | null;
 }
 
 /** Un grupo = un medicamento, con todos sus registros. */
@@ -105,7 +117,7 @@ function agrupar(items: MedicationEntry[]): Grupo[] {
   });
 }
 
-export function MedicationHistory({ appointmentId, medications }: Props): React.ReactElement {
+export function MedicationHistory({ appointmentId, medications, patientId, caseId }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   const router = useRouter();
 
@@ -119,6 +131,8 @@ export function MedicationHistory({ appointmentId, medications }: Props): React.
   const [sig, setSig] = React.useState('');
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  /** Visor de la hoja imprimible abierto. */
+  const [imprimiendo, setImprimiendo] = React.useState(false);
   /** Grupos con los registros anteriores desplegados. */
   const [abiertos, setAbiertos] = React.useState<Set<string>>(new Set());
 
@@ -185,14 +199,42 @@ export function MedicationHistory({ appointmentId, medications }: Props): React.
           />
         )}
         <span className="text-[10px] text-text-muted">{t('medHxCount', { count: items.length })}</span>
+        {/* Imprimir — Devin, 2026-10-08: *"ADD A PRINT OPTION TO PRINT/SAVE A
+            PATIENT'S CURRENT MEDICATION LIST"*.
+
+            Vive acá, en el encabezado del componente COMPARTIDO, y no en cada
+            pantalla: así sale en la consulta y en el caso de una sola vez. Las
+            últimas cuatro veces que el mismo arreglo se puso en un solo camino
+            hubo que volver a buscarlo en los otros.
+
+            Secundario, sin el violeta del principal: imprimir no compite con
+            agregar un medicamento. */}
+        {patientId && (
+          <button
+            type="button"
+            onClick={() => setImprimiendo(true)}
+            className="ml-auto inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-[11.5px] font-semibold text-text-2 bg-bg-2/60 hover:bg-bg-2 transition-colors"
+          >
+            <Printer className="w-3.5 h-3.5" /> {t('medHxPrint')}
+          </button>
+        )}
         <button
           type="button"
           onClick={() => setFormOpen(true)}
-          className="ml-auto inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-[11.5px] font-semibold text-violet-text bg-violet/10 hover:bg-violet/20 transition-colors"
+          className={`${patientId ? '' : 'ml-auto '}inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-[11.5px] font-semibold text-violet-text bg-violet/10 hover:bg-violet/20 transition-colors`}
         >
           <Plus className="w-3.5 h-3.5" /> {t('medHxAddShort')}
         </button>
       </div>
+
+      {/* Visor de la hoja — el mismo modal que la nota y la orden de laboratorio */}
+      <PrintSheetDialog
+        src={imprimiendo && patientId
+          ? `/doctor-print/medication-list/${patientId}${caseId ? `?case=${caseId}` : ''}`
+          : null}
+        title={t('medHxPrint')}
+        onClose={() => setImprimiendo(false)}
+      />
 
       <div className="p-4 flex flex-col gap-2">
         {grupos.length === 0 ? (

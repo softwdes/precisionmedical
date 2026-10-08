@@ -1421,11 +1421,27 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                         <Phone className="w-4 h-4" /> {t('actionCall')}
                       </button>
                     )}
+                    {/**
+                      * SMS abre el MISMO envío que el QR, no la app del aparato.
+                      *
+                      * Esto era `<a href="sms:...">`, que delega en el teléfono de
+                      * quien apreta: en una computadora no hace nada, y en el iPad
+                      * el paciente recibe un mensaje del número PERSONAL del
+                      * empleado — fuera de Twilio y sin quedar registrado en ningún
+                      * lado. Parecía que funcionaba y hacía otra cosa.
+                      *
+                      * Ahora abre el diálogo del link de confirmación, que manda
+                      * desde el número de la clínica, deja la fila en message_logs
+                      * y permite editar el texto antes (Erick, 2026-10-08).
+                      */}
                     {appt.patient.phone && (
-                      <a href={`sms:${appt.patient.phone}`}
-                        className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border hover:bg-white/5 text-text-2 hover:text-text-1 transition-colors text-[11px] font-medium">
+                      <button
+                        type="button"
+                        onClick={() => setQrOpen(true)}
+                        className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border hover:bg-white/5 text-text-2 hover:text-text-1 transition-colors text-[11px] font-medium"
+                      >
                         <MessageSquare className="w-4 h-4" /> {t('actionSms')}
-                      </a>
+                      </button>
                     )}
                     {appt.case && (
                       <button
@@ -1768,6 +1784,8 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
           appointmentId={appt.id}
           patientName={`${appt.patient.firstName} ${appt.patient.lastName}`}
           apptLabel={`${dt.dayName} ${dt.date} · ${dt.time}`}
+          patientPhone={appt.patient.phone}
+          patientEmail={appt.patient.email}
         />
       )}
 

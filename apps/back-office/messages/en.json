@@ -4502,7 +4502,21 @@
       "patientSameDayCancel": "Check the schedule",
       "patientSameTimeBody": "They already have an appointment at that same time ({hora}) with {provider}. It is almost certainly the same visit: do you want to book another one anyway?",
       "fieldLabsOnly": "Lab draw only",
-      "fieldLabsOnlyHint": "The patient comes only for the draw. The reminder tells them to arrive at the exact time, not 15 minutes early."
+      "fieldLabsOnlyHint": "The patient comes only for the draw. The reminder tells them to arrive at the exact time, not 15 minutes early.",
+      "qrSendTitle": "Send it to the patient",
+      "qrSendSms": "By SMS",
+      "qrSendEmail": "By email",
+      "qrSendNoChannel": "The patient does not have this on file",
+      "qrSend": "Send",
+      "qrSending": "Sending…",
+      "qrSendSubject": "Confirm your appointment — Precision Medical",
+      "qrSendDefaultText": "Precision Medical: confirm your appointment and review your information before you arrive: {enlace} — this link expires in 4 hours.",
+      "qrSendErr_SIN_TELEFONO": "This patient has no phone on file.",
+      "qrSendErr_SIN_EMAIL": "This patient has no usable email.",
+      "qrSendErr_DIO_DE_BAJA": "This patient replied STOP and does not receive texts.",
+      "qrSendErr_ALREADY_SIGNED": "This appointment is already signed.",
+      "qrSendErr_APPOINTMENT_NOT_SIGNABLE": "This appointment cannot be confirmed.",
+      "qrSendErr_ERROR": "It could not be sent."
     },
     "caseDetail": {
       "statusNewReferral": "New Referral",

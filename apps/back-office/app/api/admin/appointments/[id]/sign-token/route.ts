@@ -25,21 +25,16 @@
  * lugar queda el impreso (mismo comportamiento que el v2).
  */
 
-import { randomBytes } from 'crypto';
 import { NextResponse, type NextRequest } from 'next/server';
-import { db, writeAuditLog } from '@precision-medical/database';
 import { resolveActor } from '@/lib/actor';
 import { puedeEscribirLaCita } from '@/lib/appointment-scope';
+import { emitirTokenDeFirma } from '@/lib/sign-token';
 
-/** Ventana de validez del link. El v2 usa 4 h y alcanza: se firma en el mostrador. */
-const VALIDEZ_HORAS = 4;
-
-function baseFormsUrl(): string {
-  return process.env.PORTAL_URL
-    ?? process.env.NEXT_PUBLIC_FORMS_URL
-    ?? 'http://localhost:3004';
-}
-
+/**
+ * La emision vive en `lib/sign-token.ts` desde el 2026-10-08: ahora hay DOS
+ * puertas al mismo token —este modal y el envio por SMS/correo— y la ventana de
+ * validez tiene que ser una sola.
+ */
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -47,103 +42,39 @@ export async function POST(
   const { id } = await params;
 
   /**
-   * El token que emite esta ruta abre una página PÚBLICA con la ficha completa
-   * del paciente (DOB, dirección, seguros) — el propio encabezado lo dice. Sin
-   * guard, cualquier sesión con back-office podía emitirlo para CUALQUIER cita:
-   * un doctor se leía el expediente de un paciente ajeno sin tocar una sola
-   * pantalla que se lo ofreciera.
-   *
-   * Emitir el link no es "leer la cita", es abrirle la puerta a un tercero, así
-   * que se gobierna con el guard de escritura y no con el de lectura.
+   * El token abre una pagina PUBLICA con la ficha completa del paciente. Emitir
+   * el link no es "leer la cita", es abrirle la puerta a un tercero, asi que se
+   * gobierna con el guard de ESCRITURA y no con el de lectura.
    */
   if (!(await puedeEscribirLaCita(id))) {
     return NextResponse.json({ ok: false, error: 'FORBIDDEN' }, { status: 403 });
   }
 
   const actor = await resolveActor(req.headers);
+  const r = await emitirTokenDeFirma(id, actor);
 
-  const appt = await db.appointment.findUnique({
-    where: { id },
-    select: {
-      id:                 true,
-      status:             true,
-      scheduledFor:       true,
-      attendanceSignedAt: true,
-      signToken:          true,
-      signTokenExpiresAt: true,
-      patient: { select: { firstName: true, lastName: true } },
-      case:    { select: { caseCode: true } },
-    },
-  });
-
-  if (!appt) {
-    return NextResponse.json({ ok: false, error: 'APPOINTMENT_NOT_FOUND' }, { status: 404 });
-  }
-
-  // Ya firmada: no se emite otro link. El panel muestra el impreso, no el QR.
-  if (appt.attendanceSignedAt) {
+  if (!r.ok) {
+    if (r.motivo === 'APPOINTMENT_NOT_FOUND') {
+      return NextResponse.json({ ok: false, error: r.motivo }, { status: 404 });
+    }
+    if (r.motivo === 'ALREADY_SIGNED') {
+      return NextResponse.json(
+        { ok: false, error: r.motivo, signedAt: r.signedAt!.toISOString() },
+        { status: 409 },
+      );
+    }
     return NextResponse.json(
-      {
-        ok:       false,
-        error:    'ALREADY_SIGNED',
-        signedAt: appt.attendanceSignedAt.toISOString(),
-      },
+      { ok: false, error: r.motivo, status: r.status },
       { status: 409 },
     );
-  }
-
-  // Una cita cancelada no se confirma. No-show sí queda fuera por otra razón:
-  // el horario se consumió, ya no hay nada que confirmar.
-  if (appt.status === 'CANCELLED' || appt.status === 'NO_SHOW') {
-    return NextResponse.json(
-      { ok: false, error: 'APPOINTMENT_NOT_SIGNABLE', status: appt.status },
-      { status: 409 },
-    );
-  }
-
-  const ahora = new Date();
-  const vigente =
-    !!appt.signToken &&
-    !!appt.signTokenExpiresAt &&
-    appt.signTokenExpiresAt > ahora;
-
-  let token     = appt.signToken!;
-  let expiresAt = appt.signTokenExpiresAt!;
-
-  if (!vigente) {
-    token     = `st_${randomBytes(24).toString('base64url')}`;
-    expiresAt = new Date(ahora.getTime() + VALIDEZ_HORAS * 60 * 60 * 1000);
-
-    await db.appointment.update({
-      where: { id },
-      data:  { signToken: token, signTokenExpiresAt: expiresAt },
-    });
-
-    await writeAuditLog(db, {
-      actorType:   actor.actorType,
-      actorUserId: actor.actorUserId,
-      actorRole:   actor.actorRole,
-      action:      'GENERATE_APPOINTMENT_SIGN_TOKEN',
-      entityType:  'appointments',
-      entityId:    id,
-      ipAddress:   actor.ipAddress,
-      userAgent:   actor.userAgent,
-      metadata: {
-        expiresAt:    expiresAt.toISOString(),
-        validezHoras: VALIDEZ_HORAS,
-        caseCode:     appt.case?.caseCode ?? null,
-        patientName:  `${appt.patient.firstName} ${appt.patient.lastName}`.trim(),
-        scheduledFor: appt.scheduledFor.toISOString(),
-      },
-    });
   }
 
   return NextResponse.json({
     ok:        true,
-    signUrl:   `${baseFormsUrl()}/confirmar/${token}`,
+    signUrl:   r.token.signUrl,
     // El modal calcula lo que falta a partir de esto, no de la ventana de 4 h:
     // un token reusado se emitio antes y le queda menos.
-    expiresAt: expiresAt.toISOString(),
-    reused:    vigente,
+    expiresAt: r.token.expiresAt.toISOString(),
+    reused:    r.token.reused,
   });
 }

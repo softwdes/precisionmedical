@@ -20,7 +20,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import QRCode from 'qrcode';
-import { Check, Copy, Download, QrCode, RefreshCw, AlertCircle } from 'lucide-react';
+import { Check, Copy, Download, QrCode, RefreshCw, AlertCircle, Send } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '@precision/ui';
 
 interface Props {
@@ -31,10 +31,16 @@ interface Props {
   patientName: string;
   /** Fecha/hora de la cita ya formateada por el panel, que sabe su zona. */
   apptLabel: string;
+  /**
+   * Con qué se puede contactar al paciente. Sirven para APAGAR el canal que no
+   * existe, no para autorizarlo: el servidor vuelve a mirarlo antes de mandar.
+   */
+  patientPhone?: string | null;
+  patientEmail?: string | null;
 }
 
 export function AppointmentSignQrDialog({
-  open, onOpenChange, appointmentId, patientName, apptLabel,
+  open, onOpenChange, appointmentId, patientName, apptLabel, patientPhone, patientEmail,
 }: Props) {
   const t = useTranslations('phoenix.calendar');
   const locale = useLocale();
@@ -55,6 +61,25 @@ export function AppointmentSignQrDialog({
    */
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [copied,    setCopied]    = useState(false);
+
+  /**
+   * ── Enviarle el link al paciente ──────────────────────────────────────────
+   *
+   * El texto es SUELTO, no una plantilla guardada (Erick, 2026-10-08: "que sea
+   * suelto en el caso que necesiten editar algo; si no lo dejarán así en la
+   * mayoría de los casos"). Se arma uno por defecto y se manda tal cual salvo
+   * que alguien lo retoque.
+   *
+   * Lo que se ve en la caja es EXACTAMENTE lo que viaja: el servidor manda ese
+   * texto, no lo vuelve a armar. Es lo que evita la trampa del link del
+   * formulario, donde la vista previa se armaba acá y el servidor mandaba otra
+   * cosa.
+   */
+  const [via,      setVia]      = useState<'SMS' | 'EMAIL'>('SMS');
+  const [texto,    setTexto]    = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [enviado,  setEnviado]  = useState<string | null>(null);
+  const [errEnvio, setErrEnvio] = useState<string | null>(null);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const generar = useCallback(async () => {
@@ -104,6 +129,44 @@ export function AppointmentSignQrDialog({
   }, [signUrl]);
 
   useEffect(() => () => { if (copyTimer.current) clearTimeout(copyTimer.current); }, []);
+
+  /**
+   * El texto por defecto incluye la advertencia de las 4 horas por pedido
+   * explícito de Erick. Importa sobre todo en el correo: un SMS se lee en
+   * minutos, un correo puede leerse a la noche y el link ya no sirve.
+   *
+   * Se regenera cuando aparece el link o cambia el canal, pero NO pisa lo que
+   * alguien haya escrito: por eso compara contra el texto anterior.
+   */
+  const porDefecto = useCallback(
+    () => (signUrl ? t('qrSendDefaultText', { enlace: signUrl }) : ''),
+    [signUrl, t],
+  );
+  const textoPrevio = useRef('');
+  useEffect(() => {
+    const nuevo = porDefecto();
+    setTexto(actual => (actual === '' || actual === textoPrevio.current ? nuevo : actual));
+    textoPrevio.current = nuevo;
+  }, [porDefecto]);
+
+  async function enviar() {
+    if (!appointmentId || !texto.trim()) return;
+    setEnviando(true); setErrEnvio(null); setEnviado(null);
+    try {
+      const res = await fetch(`/api/admin/appointments/${appointmentId}/sign-token/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ via, texto, asunto: t('qrSendSubject') }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (res.ok && d.ok) setEnviado(d.to ?? '');
+      else setErrEnvio(String(d.error ?? 'ERROR'));
+    } catch {
+      setErrEnvio('ERROR');
+    } finally {
+      setEnviando(false);
+    }
+  }
 
   async function copiar() {
     if (!signUrl) return;
@@ -209,6 +272,57 @@ export function AppointmentSignQrDialog({
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border text-text-2 text-xs hover:bg-white/5 transition-colors disabled:opacity-40">
                   <Download className="w-3.5 h-3.5" /> {t('qrDownload')}
                 </button>
+              </div>
+
+              {/* ── Enviárselo al paciente ─────────────────────────────── */}
+              <div className="rounded-md bg-bg-2/40 p-3 space-y-2">
+                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
+                  {t('qrSendTitle')}
+                </div>
+
+                <div className="flex gap-2">
+                  {([['SMS', patientPhone], ['EMAIL', patientEmail]] as const).map(([canal, dato]) => (
+                    <button
+                      key={canal}
+                      type="button"
+                      disabled={!dato}
+                      onClick={() => setVia(canal)}
+                      title={dato ? undefined : t('qrSendNoChannel')}
+                      className={`flex-1 px-3 py-1.5 rounded-md border text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                        via === canal ? 'border-brand/50 bg-brand/10 text-brand' : 'border-border text-text-2 hover:bg-white/5'
+                      }`}
+                    >
+                      {canal === 'SMS' ? t('qrSendSms') : t('qrSendEmail')}
+                    </button>
+                  ))}
+                </div>
+
+                <textarea
+                  value={texto}
+                  onChange={e => setTexto(e.target.value)}
+                  rows={4}
+                  maxLength={800}
+                  className="w-full rounded-md bg-bg-1 border border-border px-2.5 py-2 text-[12.5px] text-text-1 resize-y focus:outline-none focus:border-brand/50"
+                />
+
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] text-text-muted">{texto.length}/800</span>
+                  <button
+                    type="button"
+                    onClick={() => void enviar()}
+                    disabled={enviando || !texto.trim() || (via === 'SMS' ? !patientPhone : !patientEmail)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-brand text-white text-xs font-medium hover:bg-brand/90 transition-colors disabled:opacity-40"
+                  >
+                    <Send className="w-3.5 h-3.5" /> {enviando ? t('qrSending') : t('qrSend')}
+                  </button>
+                </div>
+
+                {enviado !== null && (
+                  <p className="text-emerald text-[11px]">{t('qrSentTo', { destino: enviado })}</p>
+                )}
+                {errEnvio && (
+                  <p className="text-rose text-[11px]">{t(`qrSendErr_${errEnvio}` as 'qrSendErr_ERROR')}</p>
+                )}
               </div>
 
               {horaVence && (

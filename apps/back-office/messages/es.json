@@ -4502,7 +4502,21 @@
       "patientSameDayCancel": "Revisar la agenda",
       "patientSameTimeBody": "Ya tiene una cita a esa misma hora ({hora}) con {provider}. Casi seguro es la misma visita: ¿querés agendar otra igual?",
       "fieldLabsOnly": "Solo extracción de laboratorio",
-      "fieldLabsOnlyHint": "El paciente viene únicamente a que le saquen la muestra. Se le avisa que llegue a la hora exacta, no 15 minutos antes."
+      "fieldLabsOnlyHint": "El paciente viene únicamente a que le saquen la muestra. Se le avisa que llegue a la hora exacta, no 15 minutos antes.",
+      "qrSendTitle": "Enviárselo al paciente",
+      "qrSendSms": "Por SMS",
+      "qrSendEmail": "Por correo",
+      "qrSendNoChannel": "El paciente no tiene este dato cargado",
+      "qrSend": "Enviar",
+      "qrSending": "Enviando…",
+      "qrSendSubject": "Confirmación de su cita — Precision Medical",
+      "qrSendDefaultText": "Precision Medical: confirme su cita y revise sus datos antes de llegar: {enlace} — el enlace vence en 4 horas.",
+      "qrSendErr_SIN_TELEFONO": "Este paciente no tiene teléfono cargado.",
+      "qrSendErr_SIN_EMAIL": "Este paciente no tiene un correo usable.",
+      "qrSendErr_DIO_DE_BAJA": "Este paciente respondió STOP y no recibe SMS.",
+      "qrSendErr_ALREADY_SIGNED": "Esta cita ya está firmada.",
+      "qrSendErr_APPOINTMENT_NOT_SIGNABLE": "Esta cita no se puede confirmar.",
+      "qrSendErr_ERROR": "No se pudo enviar."
     },
     "caseDetail": {
       "statusNewReferral": "Nuevo paciente",

@@ -155,7 +155,7 @@ export function condicionDe(texto: string): number {
 export type Rating = 'EXCELLENT' | 'GOOD' | 'FAIR' | 'POOR';
 export type EstadoCondicion = 'CURRENT' | 'RESOLVED' | null;
 
-export type FilaMed   = { id: string; name: string; dose: string; timesDaily: string; refills: string; patientReported?: boolean };
+export type FilaMed   = { id: string; name: string; dose: string; timesDaily: string; refills: string; patientReported?: boolean; instructions?: string };
 export type FilaCirugia = { id: string; procedure: string; year: string; notes: string };
 export type FilaFamilia = { id: string; relation: string; condition: string };
 export type FilaProveedor = { id: string; name: string; specialty: string; lastVisit: string };
@@ -240,9 +240,24 @@ function fechaVista(iso: string | null): string {
 const tam = (t?: { date?: string; location?: string; abnormal?: boolean }): Tamizaje =>
   ({ date: t?.date ?? '', location: t?.location ?? '', abnormal: t?.abnormal ?? null });
 
-/** Líneas sueltas del texto libre del intake ("Ibuprofen 400mg; Lisinopril"). */
-function partirTextoLibre(txt: string | null | undefined): string[] {
-  return (txt ?? '').split(/[\n;]+/).map(s => s.trim()).filter(Boolean).slice(0, 20);
+/** Tope del nombre corto en el esquema (`corto` en medical-history-schema). */
+const TOPE_NOMBRE = 120;
+
+/**
+ * Líneas sueltas del texto libre del intake ("Ibuprofen 400mg; Lisinopril").
+ *
+ * El intake guarda ORACIONES ("Tuve un accidente en 2019 y me lastimé el
+ * cuello…"), y el nombre de una fila del historial tiene tope de 120: una línea
+ * larga hacía fallar el guardado entero con "The text is longer than allowed".
+ * Lo que no cabe en el título NO se recorta: pasa a `resto` (notas).
+ */
+function partirTextoLibre(txt: string | null | undefined): { titulo: string; resto: string }[] {
+  return (txt ?? '').split(/[\n;]+/).map(x => x.trim()).filter(Boolean).slice(0, 20).map(l => {
+    if (l.length <= TOPE_NOMBRE) return { titulo: l, resto: '' };
+    const corte = l.lastIndexOf(' ', TOPE_NOMBRE - 1);
+    const n = corte > 40 ? corte : TOPE_NOMBRE;
+    return { titulo: l.slice(0, n).trim(), resto: l.slice(n).trim().slice(0, 2000) };
+  });
 }
 
 export function armarVista({ patient, mh: mhIn, intake }: EntradaVista): FormView {
@@ -265,7 +280,7 @@ export function armarVista({ patient, mh: mhIn, intake }: EntradaVista): FormVie
   if (!medRows.length && intake?.hasMedications) {
     const lineas = partirTextoLibre(intake.medications);
     if (lineas.length) {
-      medRows = lineas.map(l => ({ id: nuevoId(), name: l, dose: '', timesDaily: '', refills: '', patientReported: true }));
+      medRows = lineas.map(l => ({ id: nuevoId(), name: l.titulo, dose: '', timesDaily: '', refills: '', patientReported: true, instructions: l.resto || undefined }));
       fromIntake.meds = true;
     }
   }
@@ -296,7 +311,7 @@ export function armarVista({ patient, mh: mhIn, intake }: EntradaVista): FormVie
     id: s.id, procedure: s.procedure, year: (s.date ?? '').slice(0, 4), notes: s.notes ?? '',
   }));
   if (!cirugias.length && intake?.hasPreviousInjuries && intake.previousInjuries?.trim()) {
-    cirugias = partirTextoLibre(intake.previousInjuries).map(l => ({ id: nuevoId(), procedure: l, year: '', notes: '' }));
+    cirugias = partirTextoLibre(intake.previousInjuries).map(l => ({ id: nuevoId(), procedure: l.titulo, year: '', notes: l.resto }));
     fromIntake.surgeries = cirugias.length > 0;
   }
 
@@ -439,7 +454,7 @@ export function armarPatch(v: FormView, mhIn: MedicalHistoryData | null): Partia
     return {
       ...(prev ?? {}),
       id: r.id, name: r.name.trim(), status: 'IN_USE' as const,
-      dose: r.dose.trim() || undefined, timesDaily: r.timesDaily.trim() || undefined, refills: r.refills.trim() || undefined,
+      dose: r.dose.trim() || undefined, instructions: r.instructions?.trim() || prev?.instructions || undefined, timesDaily: r.timesDaily.trim() || undefined, refills: r.refills.trim() || undefined,
       ...(prev ? {} : { externalPrescriber: true }),
     };
   });

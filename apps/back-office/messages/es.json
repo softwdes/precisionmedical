@@ -4484,7 +4484,9 @@
       "patientSameDayBody": "Ya tiene una cita ese día a las {hora} con {provider}. ¿Querés agendar otra igual?",
       "patientSameDayConfirm": "Agendar igual",
       "patientSameDayCancel": "Revisar la agenda",
-      "patientSameTimeBody": "Ya tiene una cita a esa misma hora ({hora}) con {provider}. Casi seguro es la misma visita: ¿querés agendar otra igual?"
+      "patientSameTimeBody": "Ya tiene una cita a esa misma hora ({hora}) con {provider}. Casi seguro es la misma visita: ¿querés agendar otra igual?",
+      "fieldLabsOnly": "Solo extracción de laboratorio",
+      "fieldLabsOnlyHint": "El paciente viene únicamente a que le saquen la muestra. Se le avisa que llegue a la hora exacta, no 15 minutos antes."
     },
     "caseDetail": {
       "statusNewReferral": "Nuevo paciente",

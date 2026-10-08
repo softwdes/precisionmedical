@@ -144,6 +144,7 @@ export interface EditAppointmentData {
   // pasara no fallaba el typecheck — y editar la cita apagaba la consulta en
   // línea y borraba el enlace en silencio. Ahora son parte del contrato.
   isOnline?: boolean;
+  soloLaboratorio?: boolean;
   meetingUrl?: string | null;
   clinicId: string;
   clinicName: string;
@@ -331,6 +332,8 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   const [type,          setType]          = useState<AppointmentType>('AUTO_ACCIDENT');
   const [notes,         setNotes]         = useState('');
   const [isOnline,      setIsOnline]      = useState(false);
+  /** Solo extraccion de laboratorio: cambia el SMS y el correo que recibe. */
+  const [soloLaboratorio, setSoloLaboratorio] = useState(false);
   const [meetingUrl,    setMeetingUrl]    = useState('');
 
   /**
@@ -553,6 +556,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
       setType(editAppointment.type as AppointmentType);
       setNotes(editAppointment.notes ?? '');
       setIsOnline(editAppointment.isOnline ?? false);
+      setSoloLaboratorio(editAppointment.soloLaboratorio ?? false);
       setMeetingUrl(editAppointment.meetingUrl ?? '');
       setSelectedPatient({
         id: editAppointment.patient.id,
@@ -604,6 +608,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
       setType(props.defaultType ?? 'AUTO_ACCIDENT');
       setNotes('');
       setIsOnline(false);
+      setSoloLaboratorio(false);
       setMeetingUrl('');
       setSelectedPatient(null);
     }
@@ -1133,6 +1138,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
         ...(type     !== base.type            && { type }),
         ...(nextNotes      !== (base.notes ?? null)      && { notes: nextNotes }),
         ...(isOnline       !== (base.isOnline ?? false)  && { isOnline }),
+        ...(soloLaboratorio !== (base.soloLaboratorio ?? false) && { soloLaboratorio }),
         ...(nextMeetingUrl !== (base.meetingUrl ?? null) && { meetingUrl: nextMeetingUrl }),
       };
 
@@ -1163,6 +1169,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
         type,
         notes: notes.trim() || undefined,
         isOnline,
+        soloLaboratorio,
         meetingUrl: isOnline ? (meetingUrl.trim() || undefined) : undefined,
         // Sin esta bandera el servidor rechaza cualquier fecha vieja, que es lo
         // que tiene que seguir haciendo cuando nadie la marcó a propósito.
@@ -2079,6 +2086,40 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                   }`}
                 >
                   <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform mt-px ${isOnline ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Solo extracción de laboratorio ──────────────────────────────
+               Al lado de Telemedicina porque las dos responden la misma
+               pregunta: qué clase de visita es ésta. Y no es un `type`: ese
+               campo decide el precio.
+
+               Lo que cambia de verdad está en el aviso al paciente — otra
+               plantilla y la hora EXACTA, sin los 15 minutos del registro.
+               Por eso el subtítulo lo dice: quien marca esto tiene que saber
+               que al paciente le va a llegar otro mensaje. */}
+          <div className="grid grid-cols-1">
+            <div className={`rounded-lg border p-3 transition-colors ${soloLaboratorio ? 'border-violet/40 bg-violet/5' : 'border-border bg-bg-2/30'}`}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🩸</span>
+                  <div>
+                    <div className="text-sm font-medium text-text-1">{t('fieldLabsOnly')}</div>
+                    <div className="text-[11px] text-text-muted">{t('fieldLabsOnlyHint')}</div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={soloLaboratorio}
+                  onClick={() => setSoloLaboratorio(v => !v)}
+                  className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 transition-colors focus:outline-none ${
+                    soloLaboratorio ? 'bg-violet border-violet/80' : 'bg-bg-2 border-border'
+                  }`}
+                >
+                  <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform mt-px ${soloLaboratorio ? 'translate-x-4' : 'translate-x-0.5'}`} />
                 </button>
               </div>
             </div>

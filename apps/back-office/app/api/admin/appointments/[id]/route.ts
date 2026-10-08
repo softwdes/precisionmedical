@@ -78,6 +78,7 @@ const PatchSchema = z.object({
   scheduledFor:         z.string().datetime().optional(),
   type:                 z.enum(['AUTO_ACCIDENT','FAMILY_PRACTICE','URGENT_CARE','FOLLOW_UP','CONSULTATION']).optional(),
   isOnline:             z.boolean().optional(),
+  soloLaboratorio:      z.boolean().optional(),
   meetingUrl:           z.string().url().nullable().optional(),
   /**
    * El cruce de horarios avisa y deja decidir, no bloquea (regla confirmada por
@@ -367,6 +368,7 @@ export async function PATCH(
         ...(parsed.scheduledFor         !== undefined && { scheduledFor:         new Date(parsed.scheduledFor) }),
         ...(parsed.type                 !== undefined && { type:                 parsed.type }),
         ...(parsed.isOnline             !== undefined && { isOnline:             parsed.isOnline }),
+        ...(parsed.soloLaboratorio      !== undefined && { soloLaboratorio:      parsed.soloLaboratorio }),
         ...(parsed.meetingUrl           !== undefined && { meetingUrl:           parsed.meetingUrl }),
       },
       select: { id: true, status: true, notes: true, durationMinutes: true, clinicId: true, providerId: true, scheduledFor: true, type: true },

@@ -128,6 +128,8 @@ export function buildAppointmentReminderSms(args: {
   cuando: string;
   /** Hora a la que tiene que llegar, 15 min antes: "3:45 PM". */
   horaLlegada: string;
+  /** Solo extraccion de laboratorio: cambia la instruccion de llegada. */
+  soloLaboratorio?: boolean;
   clinica: string;
   /** Sin cargar en algunas sedes: si falta, no se nombra. */
   direccion?: string | null;
@@ -147,12 +149,24 @@ export function buildAppointmentReminderSms(args: {
   /** El link de la videollamada. Suele faltar: ver el comentario de abajo. */
   enlace?: string | null;
 }): string {
-  const { lang, cuando, horaLlegada, clinica, direccion, telefono, nombrePaciente, enLinea, enlace } = args;
+  const { lang, cuando, horaLlegada, clinica, direccion, telefono, nombrePaciente, enLinea, enlace,
+          soloLaboratorio } = args;
 
   const es = lang === 'es';
-  const deQuien = nombrePaciente
-    ? (es ? `Cita de ${nombrePaciente}` : `Appointment for ${nombrePaciente}`)
-    : (es ? 'Su cita es' : 'Your appointment is');
+  /**
+   * La extraccion se nombra distinto desde la PRIMERA palabra.
+   *
+   * "Cita de Scott" y "Analisis de Scott" son dos mensajes distintos para el
+   * paciente, y el pedido era justamente ese: que sepa a que viene antes de
+   * leer el resto (Erick, 2026-10-08).
+   */
+  const deQuien = soloLaboratorio
+    ? (nombrePaciente
+        ? (es ? `Analisis de ${nombrePaciente}` : `Lab visit for ${nombrePaciente}`)
+        : (es ? 'Su analisis es' : 'Your lab visit is'))
+    : (nombrePaciente
+        ? (es ? `Cita de ${nombrePaciente}` : `Appointment for ${nombrePaciente}`)
+        : (es ? 'Su cita es' : 'Your appointment is'));
   const cierre = es
     ? 'Mensaje automatico, no responda. HELP ayuda, STOP para salir.'
     : 'Automated message, do not reply. HELP for help, STOP to opt out.';
@@ -183,8 +197,11 @@ export function buildAppointmentReminderSms(args: {
   return [
     es ? `Precision Medical: ${deQuien} el ${cuando}, ${lugar}.`
        : `Precision Medical: ${deQuien} ${cuando}, ${lugar}.`,
-    es ? `Llegue ${horaLlegada} para el registro; 15+ min tarde puede reprogramarse.`
-       : `Arrive at ${horaLlegada} for check-in; 15+ min late may be rescheduled.`,
+    soloLaboratorio
+      ? (es ? `Esta visita es SOLO para sacarle sangre. Venga a las ${horaLlegada} en punto; no hace falta llegar antes.`
+            : `This visit is ONLY for a blood draw. Come at ${horaLlegada} sharp; no need to arrive early.`)
+      : (es ? `Llegue ${horaLlegada} para el registro; 15+ min tarde puede reprogramarse.`
+            : `Arrive at ${horaLlegada} for check-in; 15+ min late may be rescheduled.`),
     consultas,
     cierre,
   ].filter(Boolean).join(' ');
@@ -230,6 +247,8 @@ export function buildAppointmentRescheduleSms(args: {
   /** La que tenia. `null` cuando el horario no se toco y cambio la sede. */
   cuandoAntes: string | null;
   horaLlegada: string;
+  /** Solo extraccion de laboratorio: cambia la instruccion de llegada. */
+  soloLaboratorio?: boolean;
   clinica: string;
   direccion?: string | null;
   telefono?: string | null;
@@ -237,15 +256,20 @@ export function buildAppointmentRescheduleSms(args: {
   enLinea?: boolean;
   enlace?: string | null;
 }): string {
-  const { lang, cuando, cuandoAntes, horaLlegada, clinica, direccion, telefono,
+  const { lang, cuando, cuandoAntes, horaLlegada, clinica, direccion, telefono, soloLaboratorio,
           nombrePaciente, enLinea, enlace } = args;
 
   const es = lang === 'es';
   const esHorario = cuandoAntes !== null;
 
-  const deQuien = nombrePaciente
-    ? (es ? `La cita de ${nombrePaciente}` : `The appointment for ${nombrePaciente}`)
-    : (es ? 'Su cita' : 'Your appointment');
+  /* Mismo criterio que en el alta: la extraccion se nombra distinto. */
+  const deQuien = soloLaboratorio
+    ? (nombrePaciente
+        ? (es ? `El analisis de ${nombrePaciente}` : `The lab visit for ${nombrePaciente}`)
+        : (es ? 'Su analisis' : 'Your lab visit'))
+    : (nombrePaciente
+        ? (es ? `La cita de ${nombrePaciente}` : `The appointment for ${nombrePaciente}`)
+        : (es ? 'Su cita' : 'Your appointment'));
 
   const titular = esHorario
     ? (es ? `${deQuien} CAMBIO de fecha.` : `${deQuien} CHANGED.`)
@@ -281,8 +305,11 @@ export function buildAppointmentRescheduleSms(args: {
   return [
     es ? `Precision Medical: ${titular} Ahora es el ${cuando}, ${lugar}.`
        : `Precision Medical: ${titular} It is now ${cuando}, ${lugar}.`,
-    es ? `Llegue ${horaLlegada} para el registro.`
-       : `Arrive at ${horaLlegada} for check-in.`,
+    soloLaboratorio
+      ? (es ? `Es SOLO para sacarle sangre. Venga a las ${horaLlegada} en punto; no hace falta llegar antes.`
+            : `It is ONLY for a blood draw. Come at ${horaLlegada} sharp; no need to arrive early.`)
+      : (es ? `Llegue ${horaLlegada} para el registro.`
+            : `Arrive at ${horaLlegada} for check-in.`),
     antes,
     consultas,
     cierre,
@@ -317,6 +344,8 @@ export interface DatosDeCita {
   horaCita?: string;
   /** Hora a la que tiene que llegar, 15 min antes: "3:45 PM". */
   horaLlegada: string;
+  /** Solo extraccion de laboratorio: cambia la instruccion de llegada. */
+  soloLaboratorio?: boolean;
   clinica: string;
   direccion?: string | null;
   telefono?: string | null;
@@ -383,7 +412,8 @@ function saludoPara(lang: PortalMessageLang, nombre?: string | null): string {
 
 /** Los campos comunes: cuándo, a qué hora, llegada y dónde. */
 function detallesDeLaCita(args: DatosDeCita, etiquetaFecha: string): DetalleCita[] {
-  const { lang, fechaSola, cuando, horaCita, horaLlegada, clinica, direccion, enLinea, enlace } = args;
+  const { lang, fechaSola, cuando, horaCita, horaLlegada, clinica, direccion, enLinea, enlace,
+          soloLaboratorio } = args;
   const es = lang === 'es';
 
   // `fechaSola`/`horaCita` son opcionales en el tipo porque el SMS no los usa.
@@ -416,7 +446,15 @@ function detallesDeLaCita(args: DatosDeCita, etiquetaFecha: string): DetalleCita
   }
 
   if (horaLlegada) {
-    d.push({ etiqueta: es ? 'Registro (llegada)' : 'Check-in (arrival)', valor: horaLlegada });
+    /**
+     * En una extraccion `horaLlegada` ES la hora de la cita, asi que el renglon
+     * no puede seguir diciendo "registro": el paciente no se registra, viene a
+     * la hora exacta. Si dijera lo de siempre, el correo contradiria al SMS, que
+     * es justo lo que este archivo existe para evitar.
+     */
+    d.push(soloLaboratorio
+      ? { etiqueta: es ? 'Presentarse a las' : 'Come at', valor: horaLlegada }
+      : { etiqueta: es ? 'Registro (llegada)' : 'Check-in (arrival)', valor: horaLlegada });
   }
   d.push({
     etiqueta: es ? 'Ubicación' : 'Location',

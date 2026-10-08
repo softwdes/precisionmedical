@@ -1235,6 +1235,20 @@ model Appointment {
   isOnline   Boolean @default(false)
   meetingUrl String? // optional video link (Zoom, Teams, etc.)
 
+  /// Visita de SOLO EXTRACCION de laboratorio.
+  ///
+  /// El paciente viene unicamente a que le saquen la muestra: no hay consulta y
+  /// no hay registro que hacer, asi que NO se le pide llegar 15 minutos antes.
+  /// Cambia la plantilla del aviso (`cita_alta_labs` / `cita_cambio_labs`) y la
+  /// hora que ese aviso le pide. Erick, 2026-10-08: el mensaje salia igual que
+  /// el de una consulta y el paciente no sabia a que venia.
+  ///
+  /// Campo propio y NO un valor de `AppointmentType`: ese enum decide el PRECIO
+  /// (99214 = $300 accidente / $166 general) y esto es que se hace hoy, no de
+  /// que caso es. Ademas se combina: una extraccion puede ser de un paciente de
+  /// accidente.
+  soloLaboratorio Boolean @default(false)
+
   // B.15 Admisión — servicios planificados seleccionados por recepción antes de pasar al doctor
   // JSON snapshot: [{code, description, fee}]
   plannedServiceCodes Json @default("[]")

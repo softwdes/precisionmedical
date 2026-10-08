@@ -310,6 +310,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       /** 'DRAFT' | 'SIGNED' | null (esa visita no dejo nota). */
       noteStatus:      appt.visitNote?.status ?? null,
       isOnline:        appt.isOnline,
+      soloLaboratorio: appt.soloLaboratorio,
       meetingUrl:      appt.meetingUrl,
       /*
        * 0 = nunca vino antes, y de ahi salen el 🆕, el resplandor de la tarjeta
@@ -418,6 +419,11 @@ const CreateSchema = z.object({
   type:            z.enum(['AUTO_ACCIDENT', 'FAMILY_PRACTICE', 'URGENT_CARE', 'FOLLOW_UP']).default('AUTO_ACCIDENT'),
   notes:           z.string().max(2000).optional(),
   isOnline:        z.boolean().default(false),
+  /**
+   * Solo extraccion de laboratorio. No es un `type`: ese decide el precio.
+   * Ver el comentario del campo en el schema.
+   */
+  soloLaboratorio: z.boolean().default(false),
   meetingUrl:      z.string().url().nullable().optional(),
   /** Ver PatchSchema en [id]/route.ts: el cruce avisa y deja decidir. */
   allowOverlap:    z.boolean().optional(),
@@ -699,6 +705,7 @@ async function crearCita(req: NextRequest): Promise<NextResponse> {
     type:            parsed.type,
     notes:           parsed.notes ?? null,
     isOnline:        parsed.isOnline,
+    soloLaboratorio: parsed.soloLaboratorio,
     meetingUrl:      parsed.meetingUrl ?? null,
     /**
      * Una visita que ya ocurrió nace ATENDIDA.

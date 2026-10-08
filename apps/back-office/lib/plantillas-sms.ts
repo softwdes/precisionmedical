@@ -47,6 +47,11 @@ export const CLAVES_PLANTILLA = [
   'cita_alta_online',
   'cita_cambio',
   'cita_cambio_online',
+  // Solo extraccion de laboratorio. Mismo evento, otro texto — igual que la
+  // variante `_online`. El paciente NO viene a consulta y NO tiene que llegar
+  // 15 minutos antes: viene a la hora exacta a que le saquen la muestra.
+  'cita_alta_labs',
+  'cita_cambio_labs',
 ] as const;
 
 /**
@@ -71,6 +76,14 @@ export const VARIABLES: Record<ClavePlantilla, readonly string[]> = {
   cita_alta_online:   ['paciente', 'fecha', 'enlace', 'telefono'],
   cita_cambio:        ['paciente', 'fecha', 'fechaAnterior', 'sede', 'direccion', 'horaLlegada', 'telefono'],
   cita_cambio_online: ['paciente', 'fecha', 'fechaAnterior', 'enlace', 'telefono'],
+  /**
+   * ⚠️ En las de laboratorio `horaLlegada` es la hora DE LA CITA, no la de la
+   * cita menos 15 minutos. El nombre se mantiene para no duplicar variables en
+   * el editor; quien arma el mensaje es el que decide el valor
+   * (`lib/recordatorio-cita.ts`).
+   */
+  cita_alta_labs:     ['paciente', 'fecha', 'sede', 'direccion', 'horaLlegada', 'telefono'],
+  cita_cambio_labs:   ['paciente', 'fecha', 'fechaAnterior', 'sede', 'direccion', 'horaLlegada', 'telefono'],
 };
 
 /**
@@ -83,6 +96,8 @@ export const OBLIGATORIAS: Record<ClavePlantilla, readonly string[]> = {
   cita_alta_online:   ['fecha'],
   cita_cambio:        ['fecha'],
   cita_cambio_online: ['fecha'],
+  cita_alta_labs:     ['fecha'],
+  cita_cambio_labs:   ['fecha'],
 };
 
 /**
@@ -121,6 +136,14 @@ export const DEFAULTS: Record<ClavePlantilla, Record<LangPlantilla, string>> = {
   cita_cambio_online: {
     en: 'Precision Medical: {?paciente}The appointment for {paciente}{/paciente}{?!paciente}Your appointment{/!paciente} CHANGED. It is now a video visit on {fecha}.{?fechaAnterior} This replaces the one on {fechaAnterior}.{/fechaAnterior} {?enlace}Join from: {enlace}{/enlace}{?!enlace}The clinic will contact you at that time.{/!enlace}{?telefono} Questions: {telefono}.{/telefono}',
     es: 'Precision Medical: {?paciente}La cita de {paciente}{/paciente}{?!paciente}Su cita{/!paciente} CAMBIO de fecha. Ahora es por videollamada el {fecha}.{?fechaAnterior} Reemplaza la del {fechaAnterior}.{/fechaAnterior} {?enlace}Conectese desde: {enlace}{/enlace}{?!enlace}La clinica lo contactara a esa hora.{/!enlace}{?telefono} Consultas: {telefono}.{/telefono}',
+  },
+  cita_alta_labs: {
+    en: 'Precision Medical: {?paciente}Lab visit for {paciente}{/paciente}{?!paciente}Your lab visit is{/!paciente} {fecha}, {sede}{?direccion}, {direccion}{/direccion}. This visit is ONLY for a blood draw. Come at {horaLlegada} sharp; no need to arrive early.{?telefono} Questions: {telefono}.{/telefono}',
+    es: 'Precision Medical: {?paciente}Analisis de {paciente}{/paciente}{?!paciente}Su analisis es{/!paciente} el {fecha}, {sede}{?direccion}, {direccion}{/direccion}. Esta visita es SOLO para sacarle sangre. Venga a las {horaLlegada} en punto; no hace falta llegar antes.{?telefono} Consultas: {telefono}.{/telefono}',
+  },
+  cita_cambio_labs: {
+    en: 'Precision Medical: {?paciente}The lab visit for {paciente}{/paciente}{?!paciente}Your lab visit{/!paciente} CHANGED. It is now {fecha}, {sede}{?direccion}, {direccion}{/direccion}. It is ONLY for a blood draw. Come at {horaLlegada} sharp; no need to arrive early.{?fechaAnterior} This replaces the one on {fechaAnterior}.{/fechaAnterior}{?telefono} Questions: {telefono}.{/telefono}',
+    es: 'Precision Medical: {?paciente}El analisis de {paciente}{/paciente}{?!paciente}Su analisis{/!paciente} CAMBIO de fecha. Ahora es el {fecha}, {sede}{?direccion}, {direccion}{/direccion}. Es SOLO para sacarle sangre. Venga a las {horaLlegada} en punto; no hace falta llegar antes.{?fechaAnterior} Reemplaza la del {fechaAnterior}.{/fechaAnterior}{?telefono} Consultas: {telefono}.{/telefono}',
   },
 };
 

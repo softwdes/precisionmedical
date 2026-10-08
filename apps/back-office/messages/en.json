@@ -4484,7 +4484,9 @@
       "patientSameDayBody": "They already have an appointment that day at {hora} with {provider}. Do you want to book another one anyway?",
       "patientSameDayConfirm": "Book anyway",
       "patientSameDayCancel": "Check the schedule",
-      "patientSameTimeBody": "They already have an appointment at that same time ({hora}) with {provider}. It is almost certainly the same visit: do you want to book another one anyway?"
+      "patientSameTimeBody": "They already have an appointment at that same time ({hora}) with {provider}. It is almost certainly the same visit: do you want to book another one anyway?",
+      "fieldLabsOnly": "Lab draw only",
+      "fieldLabsOnlyHint": "The patient comes only for the draw. The reminder tells them to arrive at the exact time, not 15 minutes early."
     },
     "caseDetail": {
       "statusNewReferral": "New Referral",

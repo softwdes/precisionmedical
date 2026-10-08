@@ -129,6 +129,7 @@ export async function cargarCitaParaAvisar(appointmentId: string): Promise<CitaP
       // Telemedicina cambia el mensaje entero, no una palabra: sin dirección
       // y sin hora de llegada. Ver `buildAppointmentReminderSms`.
       isOnline: true, meetingUrl: true,
+      soloLaboratorio: true,
       clinic:  { select: { name: true, address: true, phone: true } },
       patient: {
         select: {
@@ -168,7 +169,20 @@ export async function cargarCitaParaAvisar(appointmentId: string): Promise<CitaP
   const nombrarSi = (canalCompartido: boolean) =>
     (apoderado || canalCompartido) ? nombreDelPaciente : null;
 
-  const llegada = new Date(cita.scheduledFor.getTime() - MINUTOS_ANTES_DE_LLEGAR * 60_000);
+  /**
+   * La visita de SOLO EXTRACCION no se adelanta.
+   *
+   * Los 15 minutos existen para el registro de una consulta. En una extraccion
+   * no hay registro que hacer: el paciente viene, le sacan la muestra y se va.
+   * Pedirle que llegue antes lo hace esperar de gratis, y encima el mensaje no
+   * le decia a que venia (Erick, 2026-10-08).
+   *
+   * `horaLlegada` se sigue llamando igual a proposito: es la hora que el
+   * mensaje le pide al paciente. Lo que cambia es cual es.
+   */
+  const llegada = cita.soloLaboratorio
+    ? cita.scheduledFor
+    : new Date(cita.scheduledFor.getTime() - MINUTOS_ANTES_DE_LLEGAR * 60_000);
 
   return {
     appointmentId: cita.id,
@@ -206,6 +220,8 @@ export async function cargarCitaParaAvisar(appointmentId: string): Promise<CitaP
       // El default es el del SMS; el carril de correo lo pisa con `sharesEmail`.
       nombrePaciente: nombrarSi(cita.patient.sharesPhone),
       enLinea: cita.isOnline,
+      /** Solo extraccion: cambia la plantilla Y la hora que se le pide. */
+      soloLaboratorio: cita.soloLaboratorio,
       // Medido 2026-09-14: 28 de las 29 citas online NO tienen enlace cargado.
       enlace:  cita.meetingUrl,
     },
@@ -249,7 +265,14 @@ export async function enviarRecordatorioDeCita(args: {
      */
     const d = cita.datos;
     const body = await armarSmsDeLaBase({
-      clave: d.enLinea ? 'cita_alta_online' : 'cita_alta',
+      /**
+       * El laboratorio gana sobre `enLinea`: una extraccion no puede ser por
+       * videollamada, asi que si alguien marca las dos, la presencial es la que
+       * dice la verdad.
+       */
+      clave: d.soloLaboratorio ? 'cita_alta_labs'
+           : d.enLinea         ? 'cita_alta_online'
+           : 'cita_alta',
       lang:  d.lang,
       valores: {
         paciente:    d.nombrePaciente,
@@ -438,7 +461,10 @@ export async function avisarReprogramacion(args: {
       // El canal es el TELÉFONO: se nombra al paciente según `sharesPhone`,
       // que es lo que `cita.datos.nombrePaciente` ya trae resuelto.
       const body = await armarSmsDeLaBase({
-        clave: d.enLinea ? 'cita_cambio_online' : 'cita_cambio',
+        /* Mismo criterio que en el alta: el laboratorio gana. */
+        clave: d.soloLaboratorio ? 'cita_cambio_labs'
+             : d.enLinea         ? 'cita_cambio_online'
+             : 'cita_cambio',
         lang:  d.lang,
         valores: {
           paciente:      d.nombrePaciente,

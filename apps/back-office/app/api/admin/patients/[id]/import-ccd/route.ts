@@ -1,7 +1,7 @@
 /**
  * Importar los LABORATORIOS de un CCD a la ficha del paciente.
  *
- * POST /api/admin/patients/[patientId]/import-ccd
+ * POST /api/admin/patients/[id]/import-ccd
  *   multipart/form-data con el archivo en `file`, y `aplicar=true` para escribir.
  *   Sin `aplicar` devuelve el resumen y NO toca nada — ver abajo.
  *
@@ -38,7 +38,7 @@ import { resolveActor } from '@/lib/actor';
 import { checkPatientAccess, auditarFichaAjenaDesdeLaPagina } from '@/lib/patient-access';
 import { leerLabsDelCcd, claveDeResultado, type CcdLabResult } from '@/lib/ccd-labs';
 
-type Ctx = { params: Promise<{ patientId: string }> };
+type Ctx = { params: Promise<{ id: string }> };
 
 /**
  * 20 MB. El archivo medido pesa 603 KB con diez años de historia; veinte deja
@@ -58,7 +58,9 @@ function porPanel(results: CcdLabResult[]): Array<{ panel: string; n: number }> 
 }
 
 export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
-  const { patientId } = await ctx.params;
+  // La carpeta es [id] como las otras catorce rutas de paciente; adentro
+  // se sigue llamando patientId, que es el nombre del campo en la base.
+  const { id: patientId } = await ctx.params;
 
   const { deny } = await checkPatientAccess(patientId);
   if (deny) return deny;

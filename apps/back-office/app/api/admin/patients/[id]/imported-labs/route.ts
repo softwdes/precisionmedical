@@ -1,7 +1,7 @@
 /**
  * Los laboratorios que se importaron de otro sistema, para la ficha.
  *
- * GET /api/admin/patients/[patientId]/imported-labs
+ * GET /api/admin/patients/[id]/imported-labs
  *   Devuelve los resultados agrupados por FECHA y panel, que es como se lee una
  *   tanda de laboratorios: "el hemograma del 5 de octubre", no 63 renglones
  *   sueltos.
@@ -15,7 +15,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
 import { checkPatientAccess, auditarFichaAjenaDesdeLaPagina } from '@/lib/patient-access';
 
-type Ctx = { params: Promise<{ patientId: string }> };
+type Ctx = { params: Promise<{ id: string }> };
 
 export interface ImportedLabRow {
   id: string;
@@ -37,7 +37,9 @@ export interface ImportedLabGroup {
 }
 
 export async function GET(_req: NextRequest, ctx: Ctx): Promise<NextResponse> {
-  const { patientId } = await ctx.params;
+  // La carpeta es [id] como las otras catorce rutas de paciente; adentro
+  // se sigue llamando patientId, que es el nombre del campo en la base.
+  const { id: patientId } = await ctx.params;
 
   const { deny } = await checkPatientAccess(patientId);
   if (deny) return deny;

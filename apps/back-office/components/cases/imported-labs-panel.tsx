@@ -33,7 +33,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@precision/ui';
 import { FlaskConical, Upload, Loader2, AlertTriangle, ChevronDown, FileUp, Check } from 'lucide-react';
 import { EmptyState, TagPill } from '@/components/ui-phoenix';
-import type { ImportedLabGroup } from '@/app/api/admin/patients/[patientId]/imported-labs/route';
+import type { ImportedLabGroup } from '@/app/api/admin/patients/[id]/imported-labs/route';
 
 /** Lo que devuelve la ruta cuando solo analiza. */
 interface Resumen {

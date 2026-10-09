@@ -1,51 +1,39 @@
 'use client';
 
 /**
- * "Mis pendientes de corrección" — lo que la persona creó y hoy conviene arreglar.
+ * "Mis pendientes de corrección" — lo que la persona creó y hoy conviene arreglar,
+ * y lo que ya corrigió.
  *
  * Todo sale de `/api/pendientes/mios`, que devuelve SOLO lo de quien pregunta.
  * Acá no se calcula nada: se muestra, con el porqué y un botón que lleva al
- * sitio donde se corrige. El tono importa: son "pendientes", no "errores".
+ * sitio donde se corrige. El tono importa: son "pendientes", no "errores", y la
+ * pestaña "Corregidos" existe para que se vea el avance y no solo lo que falta.
  *
- * Plan: docs/plan-mis-pendientes.html (Fase 1).
+ * Plan: docs/plan-mis-pendientes.html.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useLocale, useTranslations } from 'next-intl';
-import { CalendarClock, CheckCircle2, CopyX, MailWarning, MessageSquareWarning, RefreshCw, UserX } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { CalendarClock, CheckCircle2, CopyX, MessageSquareWarning, RefreshCw } from 'lucide-react';
 import { cn } from '@precision/ui';
-import { EmptyState, FilterPill, KpiCard, PageHeader, Skeleton, TagPill } from '@/components/ui-phoenix';
-import { fechaCorta, hora } from '@/lib/fechas';
-import type { Pendiente, PendienteTipo, ResultadoPendientes } from '@/lib/pendientes';
+import { EmptyState, FilterPill, KpiCard, PageHeader, Skeleton } from '@/components/ui-phoenix';
+import type { PendienteTipo, ResultadoPendientes } from '@/lib/pendientes';
+import type { Corregido } from '@/lib/pendientes/corregidos';
+import { ListaCorregidos, ListaPendientes } from './lista';
+
+type Datos = ResultadoPendientes & { corregidos: Corregido[] };
 
 type Estado =
   | { tipo: 'cargando' }
   | { tipo: 'error' }
-  | { tipo: 'listo'; data: ResultadoPendientes };
+  | { tipo: 'listo'; data: Datos };
 
+type Pestana = 'abiertos' | 'corregidos';
 type Filtro = 'todos' | 'citas' | 'mensajes' | 'cierre';
 
 const REFRESCO_MS = 90_000;
-
-const COLOR_TIPO: Record<PendienteTipo, string> = {
-  CITA_DUPLICADA: 'bg-amber/15 text-amber border-amber/30',
-  SMS_FALLIDO: 'bg-rose/15 text-rose border-rose/30',
-  CORREO_FALLIDO: 'bg-rose/15 text-rose border-rose/30',
-  CITA_SIN_CERRAR: 'bg-cyan/15 text-cyan border-cyan/30',
-  CITA_SIN_PROVIDER: 'bg-cyan/15 text-cyan border-cyan/30',
-  MENSAJE_DUPLICADO: 'bg-amber/15 text-amber border-amber/30',
-};
-
-const ICONO_TIPO: Record<PendienteTipo, React.ElementType> = {
-  CITA_DUPLICADA: CopyX,
-  SMS_FALLIDO: MessageSquareWarning,
-  CORREO_FALLIDO: MailWarning,
-  CITA_SIN_CERRAR: CalendarClock,
-  CITA_SIN_PROVIDER: UserX,
-  MENSAJE_DUPLICADO: CopyX,
-};
+const DIAS_HISTORIAL = 90;
 
 const FILTRO_DE: Record<Filtro, (t: PendienteTipo) => boolean> = {
   todos: () => true,
@@ -56,12 +44,12 @@ const FILTRO_DE: Record<Filtro, (t: PendienteTipo) => boolean> = {
 
 export function MisPendientesClient(): React.ReactElement {
   const t = useTranslations('phoenix.pendientes');
-  const locale = useLocale();
   const pathname = usePathname();
   // El portal médico tiene sus propias pantallas bajo /doctor.
   const base = pathname.startsWith('/doctor') ? '/doctor' : '';
 
   const [estado, setEstado] = useState<Estado>({ tipo: 'cargando' });
+  const [pestana, setPestana] = useState<Pestana>('abiertos');
   const [filtro, setFiltro] = useState<Filtro>('todos');
   const [refrescando, setRefrescando] = useState(false);
   const enCurso = useRef(false);
@@ -73,7 +61,8 @@ export function MisPendientesClient(): React.ReactElement {
     try {
       const res = await fetch('/api/pendientes/mios', { cache: 'no-store' });
       if (!res.ok) { if (!enVivo) setEstado({ tipo: 'error' }); return; }
-      setEstado({ tipo: 'listo', data: (await res.json()) as ResultadoPendientes });
+      const body = (await res.json()) as Datos;
+      setEstado({ tipo: 'listo', data: { ...body, corregidos: body.corregidos ?? [] } });
     } catch {
       // La recarga de fondo no borra lo que ya se ve: un corte de red no es un error de pantalla.
       if (!enVivo) setEstado({ tipo: 'error' });
@@ -88,32 +77,6 @@ export function MisPendientesClient(): React.ReactElement {
     const id = setInterval(() => { if (document.visibilityState === 'visible') void cargar(true); }, REFRESCO_MS);
     return () => clearInterval(id);
   }, [cargar]);
-
-  /** A dónde lleva "corregir". El calendario abre el caso con la cita filtrada. */
-  const destino = (p: Pendiente): string => {
-    if (p.tipo === 'CITA_DUPLICADA' || p.tipo === 'CITA_SIN_CERRAR' || p.tipo === 'CITA_SIN_PROVIDER') {
-      if (base === '' && p.caseId) {
-        const q = new URLSearchParams({ case: p.caseId });
-        if (p.appointmentId) q.set('visit', p.appointmentId);
-        return `/calendar?${q.toString()}`;
-      }
-    }
-    return p.patientId ? `${base}/patients/${p.patientId}` : `${base || ''}/`;
-  };
-
-  const esCita = (tipo: PendienteTipo) => tipo === 'CITA_DUPLICADA' || tipo === 'CITA_SIN_CERRAR' || tipo === 'CITA_SIN_PROVIDER';
-
-  const textoMotivo = (p: Pendiente): string => {
-    if (p.motivo === 'MISMA_HORA') {
-      return p.otraCreadaPor
-        ? t('motivo.MISMA_HORA_POR', { otra: p.otraCreadaPor })
-        : t('motivo.MISMA_HORA');
-    }
-    if (p.motivo === 'PASADA_SIN_ESTADO') {
-      return t('motivo.PASADA_SIN_ESTADO', { estado: p.estado ? t(`estadoCita.${p.estado}`) : '—' });
-    }
-    return t(`motivo.${p.motivo}`);
-  };
 
   if (estado.tipo === 'cargando') {
     return (
@@ -182,54 +145,46 @@ export function MisPendientesClient(): React.ReactElement {
         <KpiCard label={t('kpiCierre')} value={nCierre} icon={CalendarClock} iconBg="bg-cyan/10" iconColor="text-cyan" />
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <FilterPill active={filtro === 'todos'} onClick={() => setFiltro('todos')} label={t('filterAll')} count={d.counts.total} />
-        <FilterPill active={filtro === 'citas'} onClick={() => setFiltro('citas')} label={t('filterDup')} count={d.counts.CITA_DUPLICADA} />
-        <FilterPill active={filtro === 'mensajes'} onClick={() => setFiltro('mensajes')} label={t('filterMsg')} count={nMensajes} />
-        <FilterPill active={filtro === 'cierre'} onClick={() => setFiltro('cierre')} label={t('filterCierre')} count={nCierre} />
+      {/* Las dos pestañas: lo que falta y lo que ya se arregló. */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-border pb-2" role="tablist">
+        <FilterPill active={pestana === 'abiertos'} onClick={() => setPestana('abiertos')} label={t('tabOpen')} count={d.counts.total} />
+        <FilterPill active={pestana === 'corregidos'} onClick={() => setPestana('corregidos')} label={t('tabDone')} count={d.corregidos.length} />
       </div>
 
-      {visibles.length === 0 ? (
-        <EmptyState.Rich
-          icon={CheckCircle2}
-          title={d.counts.total === 0 ? t('emptyTitle') : t('emptyFilterTitle')}
-          subtitle={d.counts.total === 0 ? t('emptySub') : undefined}
-        />
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {visibles.map((p) => {
-            const Icono = ICONO_TIPO[p.tipo];
-            return (
-              <li key={p.id} className="rounded-lg bg-bg-1 p-4 flex flex-wrap items-start justify-between gap-3">
-                <div className="flex items-start gap-3 min-w-0 flex-1 basis-72">
-                  <Icono className="w-4 h-4 mt-0.5 shrink-0 text-text-muted" aria-hidden />
-                  <div className="min-w-0 flex flex-col gap-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <TagPill compact label={t(`tipo.${p.tipo}`)} colorClass={COLOR_TIPO[p.tipo]} />
-                      <span className="text-sm font-semibold text-text-1">{p.paciente}</span>
-                      <span className="text-[11px] text-text-muted tabular-nums">
-                        {fechaCorta(p.cuando, locale as 'es' | 'en')} · {hora(p.cuando, locale as 'es' | 'en')}
-                      </span>
-                    </div>
-                    <p className="text-[12.5px] text-text-2">{textoMotivo(p)}</p>
-                  </div>
-                </div>
-                <Link
-                  href={destino(p)}
-                  className="shrink-0 rounded-md bg-gradient-brand px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
-                >
-                  {esCita(p.tipo) ? t('openAppt') : t('openPatient')}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      {pestana === 'abiertos' ? (
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <FilterPill active={filtro === 'todos'} onClick={() => setFiltro('todos')} label={t('filterAll')} count={d.counts.total} />
+            <FilterPill active={filtro === 'citas'} onClick={() => setFiltro('citas')} label={t('filterDup')} count={d.counts.CITA_DUPLICADA} />
+            <FilterPill active={filtro === 'mensajes'} onClick={() => setFiltro('mensajes')} label={t('filterMsg')} count={nMensajes} />
+            <FilterPill active={filtro === 'cierre'} onClick={() => setFiltro('cierre')} label={t('filterCierre')} count={nCierre} />
+          </div>
 
-      <p className="text-[11px] text-text-muted">
-        {t('footer')}
-        {d.ocultas > 0 && ` ${t('hiddenTests', { n: d.ocultas })}`}
-      </p>
+          {visibles.length === 0 ? (
+            <EmptyState.Rich
+              icon={CheckCircle2}
+              title={d.counts.total === 0 ? t('emptyTitle') : t('emptyFilterTitle')}
+              subtitle={d.counts.total === 0 ? t('emptySub') : undefined}
+            />
+          ) : (
+            <ListaPendientes items={visibles} base={base} />
+          )}
+
+          <p className="text-[11px] text-text-muted">
+            {t('footer')}
+            {d.ocultas > 0 && ` ${t('hiddenTests', { n: d.ocultas })}`}
+          </p>
+        </>
+      ) : (
+        <>
+          {d.corregidos.length === 0 ? (
+            <EmptyState.Rich icon={CheckCircle2} title={t('doneEmptyTitle')} subtitle={t('doneEmptySub')} />
+          ) : (
+            <ListaCorregidos items={d.corregidos} base={base} vista="propia" />
+          )}
+          <p className="text-[11px] text-text-muted">{t('doneNote', { dias: DIAS_HISTORIAL })}</p>
+        </>
+      )}
     </div>
   );
 }

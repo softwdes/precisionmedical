@@ -718,7 +718,8 @@
       "firmRequests": "Firm requests",
       "rewards": "My rewards",
       "smsHistory": "SMS",
-      "pendientes": "My items to fix"
+      "pendientes": "My items to fix",
+      "incidencias": "Team incidents"
     },
     "pageTitles": {
       "collections": "Finances",
@@ -744,7 +745,8 @@
       "settlementReceipt": "Settlement",
       "rewards": "My rewards",
       "pendientes": "My items to fix",
-      "medicationList": "Medication list"
+      "medicationList": "Medication list",
+      "incidencias": "Team incidents"
     },
     "notFound": {
       "title": "We couldn't find this page",
@@ -7718,7 +7720,77 @@
       "errorSub": "Try again in a moment.",
       "retry": "Retry",
       "footer": "They resolve by themselves once the problem is fixed. It looks at recent days: appointments of 14 days, messages of 30 and unclosed appointments of 60.",
+      "tabOpen": "To fix",
+      "tabDone": "Fixed",
+      "doneEmptyTitle": "No fixes yet",
+      "doneEmptySub": "When something that showed up here gets fixed, it is kept in this tab.",
+      "doneNote": "Shows the recorded fixes of the last {dias} days: appointments deleted because of a mistake and check-ins that were undone.",
+      "corregidoTipo": {
+        "CITA_DUPLICADA_ELIMINADA": "Repeated appointment deleted",
+        "PACIENTE_EQUIVOCADO": "Wrong patient fixed",
+        "CITA_ERRONEA": "Mistaken appointment deleted",
+        "CHECK_IN_REVERTIDO": "Check-in undone"
+      },
+      "corregidoDesc": {
+        "CITA_DUPLICADA_ELIMINADA": "The appointment was repeated and the copy was deleted.",
+        "PACIENTE_EQUIVOCADO": "The appointment was under another patient and was deleted.",
+        "CITA_ERRONEA": "The appointment was created by mistake and was deleted.",
+        "CHECK_IN_REVERTIDO": "The check-in was marked by mistake and was undone."
+      },
+      "corregidoMotivo": "Reason written: “{motivo}”",
+      "corregidoLinea": "Fixed on {fecha} by {quien} · took {tiempo}",
+      "quien": {
+        "vos": "you",
+        "lamisma": "the same person",
+        "admin": "administration",
+        "nose": "someone on the team"
+      },
+      "duracion": {
+        "menosHora": "less than an hour",
+        "horas": "{n, plural, one {# hour} other {# hours}}",
+        "dias": "{n, plural, one {# day} other {# days}}"
+      },
       "hiddenTests": "{n, plural, one {# test case was hidden.} other {# test cases were hidden.}}"
+    },
+    "incidencias": {
+      "title": "Team incidents",
+      "subtitle": "What each person has to fix and what they already fixed. For administrators only.",
+      "namesOn": "With names",
+      "namesOff": "Anonymous",
+      "persona": "Person {n}",
+      "search": "Search person",
+      "kpiActivos": "To fix",
+      "kpiResueltos": "Fixed ({dias} days)",
+      "kpiConPendientes": "People with items",
+      "kpiTipico": "Typical time to fix",
+      "colPersona": "Person",
+      "colActivos": "To fix",
+      "colResueltos": "Fixed ({dias} d)",
+      "colAvance": "Progress",
+      "colTiempo": "Typical time",
+      "colFrecuente": "Most frequent",
+      "menosHora": "under 1 h",
+      "horas": "{n} h",
+      "dias": "{n, plural, one {# day} other {# days}}",
+      "back": "Back to the team",
+      "detailSubtitle": "{rol} · The same thing this person sees in “My items to fix”",
+      "readOnly": "Administrator view, read-only. The person fixes things from their own screen.",
+      "noOpen": "Nothing to fix",
+      "empty": "No people to show",
+      "errorTitle": "The team view could not be loaded",
+      "errorSub": "Try again in a moment.",
+      "footer": "No ranking: the numbers depend on how much work each person has. They show where to train and which rules are missing. The “Fixed” history includes appointments deleted because of a mistake and check-ins undone in the last 90 days.",
+      "rol": {
+        "SUPER_ADMIN": "Super admin",
+        "ADMIN": "Administration",
+        "CONTADOR": "Accounting",
+        "EMPLOYEE": "Employee",
+        "FRONT_DESK": "Front desk",
+        "DOCTOR": "Doctor",
+        "LAWYER": "Attorney",
+        "PROVIDER": "Provider",
+        "AUDITOR_AI": "AI auditor"
+      }
     }
   },
   "caseWizard": {

@@ -718,7 +718,8 @@
       "firmRequests": "Pedidos de bufetes",
       "rewards": "Mis premios",
       "smsHistory": "SMS",
-      "pendientes": "Mis pendientes"
+      "pendientes": "Mis pendientes",
+      "incidencias": "Incidencias del equipo"
     },
     "pageTitles": {
       "collections": "Finanzas",
@@ -744,7 +745,8 @@
       "settlementReceipt": "Settlement",
       "rewards": "Mis premios",
       "pendientes": "Mis pendientes",
-      "medicationList": "Lista de medicación"
+      "medicationList": "Lista de medicación",
+      "incidencias": "Incidencias del equipo"
     },
     "notFound": {
       "title": "No encontramos esta página",
@@ -7718,7 +7720,77 @@
       "errorSub": "Probá de nuevo en un momento.",
       "retry": "Reintentar",
       "footer": "Se resuelven solos cuando se corrige el problema. Se revisan los últimos días: citas de 14 días, mensajes de 30 y citas sin cerrar de 60.",
+      "tabOpen": "Por corregir",
+      "tabDone": "Corregidos",
+      "doneEmptyTitle": "Todavía no hay correcciones",
+      "doneEmptySub": "Cuando se corrija algo de lo que apareció acá, queda guardado en esta pestaña.",
+      "doneNote": "Se muestran las correcciones de los últimos {dias} días que quedaron registradas: citas eliminadas por un error y check-ins deshechos.",
+      "corregidoTipo": {
+        "CITA_DUPLICADA_ELIMINADA": "Cita repetida eliminada",
+        "PACIENTE_EQUIVOCADO": "Paciente equivocado corregido",
+        "CITA_ERRONEA": "Cita errónea eliminada",
+        "CHECK_IN_REVERTIDO": "Check-in deshecho"
+      },
+      "corregidoDesc": {
+        "CITA_DUPLICADA_ELIMINADA": "La cita estaba repetida y se eliminó la copia.",
+        "PACIENTE_EQUIVOCADO": "La cita estaba a nombre de otro paciente y se eliminó.",
+        "CITA_ERRONEA": "La cita se creó con un error y se eliminó.",
+        "CHECK_IN_REVERTIDO": "El check-in se marcó por error y se deshizo."
+      },
+      "corregidoMotivo": "Motivo escrito: «{motivo}»",
+      "corregidoLinea": "Corregido el {fecha} por {quien} · tardó {tiempo}",
+      "quien": {
+        "vos": "vos",
+        "lamisma": "la misma persona",
+        "admin": "administración",
+        "nose": "alguien del equipo"
+      },
+      "duracion": {
+        "menosHora": "menos de una hora",
+        "horas": "{n, plural, one {# hora} other {# horas}}",
+        "dias": "{n, plural, one {# día} other {# días}}"
+      },
       "hiddenTests": "{n, plural, one {Se ocultó # caso de prueba.} other {Se ocultaron # casos de prueba.}}"
+    },
+    "incidencias": {
+      "title": "Incidencias del equipo",
+      "subtitle": "Lo que cada persona tiene por corregir y lo que ya corrigió. Solo para quien administra.",
+      "namesOn": "Con nombres",
+      "namesOff": "Anónima",
+      "persona": "Persona {n}",
+      "search": "Buscar persona",
+      "kpiActivos": "Por corregir",
+      "kpiResueltos": "Corregidos ({dias} días)",
+      "kpiConPendientes": "Personas con pendientes",
+      "kpiTipico": "Tiempo típico en corregir",
+      "colPersona": "Persona",
+      "colActivos": "Por corregir",
+      "colResueltos": "Corregidos ({dias} d)",
+      "colAvance": "Avance",
+      "colTiempo": "Tiempo típico",
+      "colFrecuente": "Lo más frecuente",
+      "menosHora": "menos de 1 h",
+      "horas": "{n} h",
+      "dias": "{n, plural, one {# día} other {# días}}",
+      "back": "Volver al equipo",
+      "detailSubtitle": "{rol} · Lo mismo que ve esta persona en «Mis pendientes»",
+      "readOnly": "Vista de administrador, solo lectura. La persona corrige desde su propia pantalla.",
+      "noOpen": "No tiene nada por corregir",
+      "empty": "No hay personas para mostrar",
+      "errorTitle": "No se pudo cargar la vista del equipo",
+      "errorSub": "Probá de nuevo en un momento.",
+      "footer": "Sin ranking: los números dependen de cuánto trabajo tiene cada persona. Sirven para ver dónde capacitar y qué reglas faltan. El historial «Corregidos» incluye las citas eliminadas por un error y los check-ins deshechos de los últimos 90 días.",
+      "rol": {
+        "SUPER_ADMIN": "Super admin",
+        "ADMIN": "Administración",
+        "CONTADOR": "Contabilidad",
+        "EMPLOYEE": "Empleado",
+        "FRONT_DESK": "Recepción",
+        "DOCTOR": "Doctor",
+        "LAWYER": "Abogado",
+        "PROVIDER": "Provider",
+        "AUDITOR_AI": "Auditor IA"
+      }
     }
   },
   "caseWizard": {

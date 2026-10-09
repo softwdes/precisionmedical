@@ -127,6 +127,8 @@ const MODULE_API_ROUTES: ApiGuard[] = [
   ['dashboard', /^\/api\/cifo(\/|$)/,             'all'],
   ['billing',   /^\/api\/admin\/billing(\/|$)/,    'all'],
   ['settings',  /^\/api\/admin\/audit-logs(\/|$)/, 'all'],
+  // Incidencias de todo el equipo: lo que cada persona hizo mal, solo para quien administra.
+  ['settings',  /^\/api\/admin\/pendientes-equipo(\/|$)/, 'all'],
   ['settings',  /^\/api\/admin\/(specialties|services|service-codes|insurances(?!\/quick-create$)|clinics|employees)(\/|$)/, 'write'],
 
   /**

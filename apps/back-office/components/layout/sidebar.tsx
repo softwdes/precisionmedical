@@ -101,6 +101,10 @@ const SECTIONS: NavSection[] = [
       // cierre con lo que se toca una vez, y deja el último lugar a Pedidos de
       // bufetes, que es opt-in.
       { href: '/messages',   icon: Mail,           labelKey: 'messages', moduleKey: 'messages'  },
+      // Incidencias del equipo: lo que cada persona tiene por corregir y lo que ya
+      // corrigió. Es del administrador, así que cuelga del módulo `settings` y vive
+      // junto al visor de auditoría — bajo `/settings` resaltaría los dos ítems a la vez.
+      { href: '/audit-logs/incidencias', icon: ClipboardList, labelKey: 'incidencias', moduleKey: 'settings' },
       { href: '/settings',   icon: Settings,       labelKey: 'settings',      moduleKey: 'settings'  },
     ],
   },

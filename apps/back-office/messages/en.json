@@ -3833,7 +3833,10 @@
       "docDrugHistory": "Pharmacy history",
       "docDrugHistoryOk": "Patient authorized querying the pharmacy network",
       "docDrugHistoryPending": "Not asked yet. With their consent, the provider sees what they take from other providers",
-      "docDrugHistoryAsk": "Record the consent"
+      "docDrugHistoryAsk": "Record the consent",
+      "checkInConfirmTitle": "Check this patient in?",
+      "checkInConfirmBody": "{name} will be marked as arrived at the clinic ({cuando}).",
+      "checkInConfirmOtherDay": "This appointment is NOT today: {cuando}. {name} will be marked as arrived at the clinic now. Check in anyway?"
     },
     "dashboard": {
       "novedadEtiqueta": "New version",
@@ -4542,7 +4545,10 @@
       "qrSendErr_DIO_DE_BAJA": "This patient replied STOP and does not receive texts.",
       "qrSendErr_ALREADY_SIGNED": "This appointment is already signed.",
       "qrSendErr_APPOINTMENT_NOT_SIGNABLE": "This appointment cannot be confirmed.",
-      "qrSendErr_ERROR": "It could not be sent."
+      "qrSendErr_ERROR": "It could not be sent.",
+      "checkInConfirmTitle": "Check this patient in?",
+      "checkInConfirmBody": "{name} will be marked as arrived at the clinic ({cuando}).",
+      "checkInConfirmOtherDay": "This appointment is NOT today: {cuando}. {name} will be marked as arrived at the clinic now. Check in anyway?"
     },
     "caseDetail": {
       "statusNewReferral": "New Referral",

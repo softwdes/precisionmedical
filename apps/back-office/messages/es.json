@@ -3833,7 +3833,10 @@
       "docDrugHistory": "Historial de farmacia",
       "docDrugHistoryOk": "El paciente autorizó consultar la red de farmacias",
       "docDrugHistoryPending": "Sin preguntar. Con su permiso, el provider ve lo que toma recetado por otros médicos",
-      "docDrugHistoryAsk": "Registrar el permiso"
+      "docDrugHistoryAsk": "Registrar el permiso",
+      "checkInConfirmTitle": "¿Registrar la llegada del paciente?",
+      "checkInConfirmBody": "{name} quedará como llegado a la clínica ({cuando}).",
+      "checkInConfirmOtherDay": "Esta cita NO es de hoy: {cuando}. {name} quedará como llegado a la clínica ahora mismo. ¿Registrar la llegada de todos modos?"
     },
     "dashboard": {
       "novedadEtiqueta": "Nueva versión",
@@ -4542,7 +4545,10 @@
       "qrSendErr_DIO_DE_BAJA": "Este paciente respondió STOP y no recibe SMS.",
       "qrSendErr_ALREADY_SIGNED": "Esta cita ya está firmada.",
       "qrSendErr_APPOINTMENT_NOT_SIGNABLE": "Esta cita no se puede confirmar.",
-      "qrSendErr_ERROR": "No se pudo enviar."
+      "qrSendErr_ERROR": "No se pudo enviar.",
+      "checkInConfirmTitle": "¿Registrar la llegada del paciente?",
+      "checkInConfirmBody": "{name} quedará como llegado a la clínica ({cuando}).",
+      "checkInConfirmOtherDay": "Esta cita NO es de hoy: {cuando}. {name} quedará como llegado a la clínica ahora mismo. ¿Registrar la llegada de todos modos?"
     },
     "caseDetail": {
       "statusNewReferral": "Nuevo paciente",

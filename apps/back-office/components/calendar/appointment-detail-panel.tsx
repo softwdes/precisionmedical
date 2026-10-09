@@ -296,6 +296,8 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
     caso: { createdAt: string; por: { nombre: string; rol: string | null } | null } | null;
   } | null>(null);
   const [noShowOpen,    setNoShowOpen]    = useState(false);
+  /** Check-in pide confirmación: un clic de más lo dejaba marcado por error y no había cómo deshacerlo desde la pantalla. */
+  const [checkInOpen,   setCheckInOpen]   = useState(false);
   const [noShowing,     setNoShowing]     = useState(false);
   const [reabriendo,    setReabriendo]    = useState(false);
   const [qrOpen,        setQrOpen]        = useState(false);
@@ -378,6 +380,8 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
 
   const isFirst   = appt.visitNumber === 0;
   const dt        = formatDateTime(appt.scheduledFor, locale);
+  /** ¿La cita es de HOY en hora de la clínica? `dateInput` ya es el día de la cita en Denver. */
+  const citaEsHoy = dt.dateInput === new Date().toLocaleDateString('en-CA', { timeZone: 'America/Denver' });
   const statusCfgRaw = STATUS_CONFIG[appt.status];
   const statusCfg = { label: statusCfgRaw ? t(statusCfgRaw.tKey as Parameters<typeof t>[0]) : appt.status, state: (statusCfgRaw?.state ?? 'info') as StatusState };
   /**
@@ -1644,7 +1648,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                     </button>
                   )}
                   {noLlegoAun && (
-                    <button type="button" onClick={handleCheckIn} disabled={checkingIn}
+                    <button type="button" onClick={() => setCheckInOpen(true)} disabled={checkingIn}
                       className="order-1 sm:order-none flex items-center justify-center gap-1.5 px-4 py-2 min-h-11 sm:min-h-0 rounded-md bg-cyan/15 border border-cyan/40 text-cyan hover:bg-cyan/20 text-xs font-semibold transition-colors disabled:opacity-50">
                       {checkingIn ? <Clock className="w-3.5 h-3.5 animate-spin" /> : <LogIn className="w-3.5 h-3.5" />}
                       {t('actionCheckIn')}
@@ -1712,6 +1716,24 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
         cancelLabel="Cancel"
         onConfirm={() => { if (confirmVoidCash) void voidCashCharge(confirmVoidCash); setConfirmVoidCash(null); }}
         onCancel={() => setConfirmVoidCash(null)}
+      />
+
+      {/* Check in — el paciente pasa a "en la clínica" y NO hay botón de deshacer en esta
+          pantalla: se confirma antes. Pasó el 2026-10-08 con una cita MVA de otra semana. */}
+      <ConfirmDialog
+        open={checkInOpen}
+        /* Más fuerte cuando la cita NO es de hoy: ese es el error real — marcar la
+           llegada de una cita de otra semana. */
+        variant={citaEsHoy ? 'info' : 'warning'}
+        title={t('checkInConfirmTitle')}
+        description={t(citaEsHoy ? 'checkInConfirmBody' : 'checkInConfirmOtherDay', {
+          name: `${appt.patient.firstName} ${appt.patient.lastName}`,
+          cuando: `${dt.dayName}, ${dt.date} · ${dt.time}`,
+        })}
+        confirmLabel={t('actionCheckIn')}
+        cancelLabel={t('actionCancel')}
+        onConfirm={() => { setCheckInOpen(false); void handleCheckIn(); }}
+        onCancel={() => setCheckInOpen(false)}
       />
 
       {/* No show — pesa en las metricas del doctor, se confirma antes */}

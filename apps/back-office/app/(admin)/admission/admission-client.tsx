@@ -934,6 +934,20 @@ export function AdmissionClient() {
     return r.ok;
   }
 
+  /**
+   * El clic en "Check-in" PIDE confirmación; no lo hace.
+   *
+   * Un clic de más dejaba a una paciente marcada como llegada (el 2026-10-08, una
+   * cita MVA de OTRA semana) y no hay botón de deshacer en esta pantalla: había
+   * que corregirlo en la base. Si la cita no es de hoy el aviso lo dice, porque
+   * ese es el error real.
+   */
+  const [checkInTarget, setCheckInTarget] = useState<AdmissionAppt | null>(null);
+  const pedirCheckIn = (apptId: string): void => {
+    const a = [...pending, ...active, ...done].find((x) => x.id === apptId);
+    if (a) setCheckInTarget(a);
+  };
+
   async function handleCheckIn(apptId: string) {
     setCheckingIn(apptId);
     try {
@@ -1272,7 +1286,7 @@ export function AdmissionClient() {
                     <ApptCard
                       key={a.id}
                       appt={a}
-                      onCheckIn={handleCheckIn}
+                      onCheckIn={pedirCheckIn}
                       checkingIn={checkingIn === a.id}
                     onCobrar={cobrarDesenlace}
                       /* Llegó y todavía no pasó: es la ventana exacta de la firma. */
@@ -1298,7 +1312,7 @@ export function AdmissionClient() {
                       key={a.id}
                       appt={a}
                       onDesenlace={(a, tipo) => setDesenlaceTarget({ appt: a, tipo })}
-                      onCheckIn={handleCheckIn}
+                      onCheckIn={pedirCheckIn}
                       checkingIn={checkingIn === a.id}
                     onCobrar={cobrarDesenlace}
                       /* Todavía no llegó, pero recepción puede tener el QR listo
@@ -1324,7 +1338,7 @@ export function AdmissionClient() {
                     <ApptCard
                       key={a.id}
                       appt={a}
-                      onCheckIn={handleCheckIn}
+                      onCheckIn={pedirCheckIn}
                       checkingIn={checkingIn === a.id}
                     onCobrar={cobrarDesenlace}
                     />
@@ -1353,7 +1367,7 @@ export function AdmissionClient() {
                     <ApptCard
                       key={a.id}
                       appt={a}
-                      onCheckIn={handleCheckIn}
+                      onCheckIn={pedirCheckIn}
                       checkingIn={checkingIn === a.id}
                       onCobrar={cobrarDesenlace}
                       /* Solo acá: es la sección de los que DEBEN la penalidad. */
@@ -1543,7 +1557,7 @@ export function AdmissionClient() {
                     <ApptCard
                       key={a.id}
                       appt={a}
-                      onCheckIn={handleCheckIn}
+                      onCheckIn={pedirCheckIn}
                       checkingIn={checkingIn === a.id}
                     onCobrar={cobrarDesenlace}
                     />
@@ -1590,6 +1604,30 @@ export function AdmissionClient() {
           onConfirm={() => { void confirmDesenlace(); }}
           onCancel={() => setDesenlaceTarget(null)}
         />
+
+        {/* Check-in: se confirma antes. Más fuerte si la cita NO es de hoy. */}
+        {(() => {
+          const a = checkInTarget;
+          if (!a) return null;
+          const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Denver' });
+          const esHoy = new Date(a.scheduledFor).toLocaleDateString('en-CA', { timeZone: 'America/Denver' }) === hoy;
+          const cuando = new Date(a.scheduledFor).toLocaleString(localeApp(), {
+            weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
+          });
+          const name = `${a.patient.firstName} ${a.patient.lastName}`;
+          return (
+            <ConfirmDialog
+              open
+              variant={esHoy ? 'info' : 'warning'}
+              title={t('checkInConfirmTitle')}
+              description={t(esHoy ? 'checkInConfirmBody' : 'checkInConfirmOtherDay', { name, cuando })}
+              confirmLabel={t('checkIn')}
+              cancelLabel={t('desenlaceCancel')}
+              onConfirm={() => { const id = a.id; setCheckInTarget(null); void handleCheckIn(id); }}
+              onCancel={() => setCheckInTarget(null)}
+            />
+          );
+        })()}
 
         {/* QR de firma. Al cerrarlo se refresca la cola: si el paciente firmó
             mientras el modal estaba abierto, el chip de su fila tiene que

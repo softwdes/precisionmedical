@@ -175,6 +175,22 @@ export function PatientContextPanel({
   const editarFicha = editable
     ? { onEdit: () => void abrir(), editLabel: t('ctxEdit') }
     : {};
+
+  /**
+   * El lápiz de ALERGIAS abre el editor de alergias, no la ficha entera.
+   *
+   * Devin, 2026-10-08: *"when I click on the allergies spot on the left it just
+   * goes to the medical history section but nowhere there is the allergies
+   * section"*. La sección existe, pero en el diálogo es una fila CERRADA entre
+   * otras nueve de una columna lateral; para quien venía de señalar la alergia,
+   * eso es no estar.
+   *
+   * Las otras cinco secciones siguen abriendo la ficha completa: son las únicas
+   * que no tienen editor propio en esa columna. Cuando lo tengan, se suman acá.
+   */
+  const editarAlergias = editable
+    ? { onEdit: () => void abrir('allergies'), editLabel: t('ctxEdit') }
+    : {};
   const h = p.history;
   const activeMeds = h.medications.filter((m) => m.status === 'IN_USE');
   const social = h.socialHistory;
@@ -315,7 +331,7 @@ export function PatientContextPanel({
         No se fusionan: confirmar lo que dijo el paciente es un acto del staff,
         y presentarlo ya confirmado sería inventar esa revisión.
       */}
-      <Section title={t('ctxAllergies')} icon={Activity} {...editarFicha}>
+      <Section title={t('ctxAllergies')} icon={Activity} {...editarAlergias}>
         {!alergiasFicha && !alergiasDeclaradas ? (
           // Sin nada cargado: "no tiene" y "nadie preguntó" son cosas opuestas y
           // antes las dos decían "sin alergias conocidas". La casilla las separa.

@@ -92,6 +92,8 @@ interface Props {
   onClose: () => void;
   /** Ver `MedicalHistoryContentProps.onChanged`. */
   onChanged?: () => void;
+  /** Ver `MedicalHistoryContentProps.abrirSeccion`. */
+  abrirSeccion?: MedicalHistoryContentProps['abrirSeccion'];
 }
 
 /**
@@ -2852,9 +2854,18 @@ export interface MedicalHistoryContentProps {
    * enterarse para refrescar su propia pantalla.
    */
   onChanged?: () => void;
+  /**
+   * Abre ESE editor al montar, en vez de dejar la ficha entera colapsada.
+   *
+   * Quien llega apretando el lápiz DE ALERGIAS ya sabe qué quiere tocar; que le
+   * aparezca la ficha completa con las diez secciones cerradas es pedirle que
+   * busque de nuevo lo que acababa de señalar. Devin, 2026-10-08: *"nowhere
+   * there is the allergies section"* — estaba, cerrada, en la columna lateral.
+   */
+  abrirSeccion?: 'allergies';
 }
 
-export function MedicalHistoryContent({ patient, onChanged }: MedicalHistoryContentProps) {
+export function MedicalHistoryContent({ patient, onChanged, abrirSeccion }: MedicalHistoryContentProps) {
   const t = useTranslations('phoenix.patients');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [editVisitInfo,  setEditVisitInfo]  = useState(false);
@@ -2867,7 +2878,10 @@ export function MedicalHistoryContent({ patient, onChanged }: MedicalHistoryCont
   const [editSurgery,      setEditSurgery]      = useState<NonNullable<MedicalHistoryData['surgeries']>[number] | null>(null);
   const [addFamilyHistory, setAddFamilyHistory] = useState(false);
   const [addProvider,      setAddProvider]      = useState(false);
-  const [editAllergies,    setEditAllergies]    = useState(false);
+  // Arranca abierto si quien montó el diálogo pidió esa sección. Va en el valor
+  // inicial y no en un efecto: con un efecto, el editor aparece un cuadro
+  // después y se ve el parpadeo de la ficha entera antes de taparla.
+  const [editAllergies,    setEditAllergies]    = useState(abrirSeccion === 'allergies');
   const [editVaccines,     setEditVaccines]     = useState(false);
   const [editCognitive,    setEditCognitive]    = useState(false);
   const [editFunctional,   setEditFunctional]   = useState(false);
@@ -3038,8 +3052,12 @@ export function MedicalHistoryContent({ patient, onChanged }: MedicalHistoryCont
               )}
             </SideSection>
 
-            {/* Allergies */}
-            <SideSection icon={<AlertTriangle className="w-3.5 h-3.5" />} title={t('mh.allergies')} editBtn onEdit={() => setEditAllergies(true)} defaultOpen={false}>
+            {/* Allergies — la ÚNICA de esta columna que nace ABIERTA.
+                Es dato de seguridad: la diferencia entre "no tiene" y "nadie
+                miró" se decide acá, y una fila cerrada entre otras nueve
+                idénticas se lee como que la sección no existe. Es literalmente
+                lo que reportó Devin el 2026-10-08. */}
+            <SideSection icon={<AlertTriangle className="w-3.5 h-3.5" />} title={t('mh.allergies')} editBtn onEdit={() => setEditAllergies(true)}>
               {(mh.allergies ?? '').trim()
                 ? <EmptyState text={mh.allergies!} />
                 : <RevisionHistorial tipo="alergias" patientId={patient.id} estado={estadoAl} sello={mh.noKnownAllergies ?? null} onSaved={onRevision} />}
@@ -3590,7 +3608,7 @@ export function MedicalHistoryContent({ patient, onChanged }: MedicalHistoryCont
 
 // ── Main dialog (thin wrapper around MedicalHistoryContent) ─────────────────
 
-export function MedicalHistoryDialog({ patient, open, onClose, onChanged }: Props) {
+export function MedicalHistoryDialog({ patient, open, onClose, onChanged, abrirSeccion }: Props) {
   const t = useTranslations('phoenix.patients');
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
@@ -3607,7 +3625,7 @@ export function MedicalHistoryDialog({ patient, open, onClose, onChanged }: Prop
             </div>
           </div>
         </DialogHeader>
-        <MedicalHistoryContent patient={patient} onChanged={onChanged} />
+        <MedicalHistoryContent patient={patient} onChanged={onChanged} abrirSeccion={abrirSeccion} />
       </DialogContent>
     </Dialog>
   );

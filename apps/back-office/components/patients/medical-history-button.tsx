@@ -50,8 +50,31 @@ const MedicalHistoryDialog = dynamic(
  * dos tienen que abrir exactamente el mismo diálogo y refrescar igual al cerrar;
  * duplicar esa lógica es cómo se desincronizan.
  */
+/**
+ * A qué sección apunta el lápiz.
+ *
+ * Hoy solo `allergies`, porque es la única del panel lateral del diálogo que
+ * tiene editor propio. El tipo existe igual para que sumar la siguiente sea
+ * agregar un caso y no rehacer la cadena.
+ */
+export type SeccionHistorial = 'allergies';
+
 export function useMedicalHistoryDialog(patientId: string): {
-  abrir: () => Promise<void>;
+  /**
+   * `seccion` abre ESE editor de una vez, en vez de dejar el diálogo entero con
+   * todo colapsado.
+   *
+   * Devin, 2026-10-08: *"when I click on the allergies spot on the left it just
+   * goes to the medical history section but nowhere there is the allergies
+   * section"*. Y tenía razón a medias: la sección SÍ está, pero es una fila
+   * cerrada entre otras nueve en una columna lateral. Para quien venía de
+   * apretar el lápiz DE ALERGIAS, eso es no estar.
+   *
+   * El comentario que había en `patient-context-panel` decía que apuntar a la
+   * sección exacta obligaba a tocar un diálogo de 2.800 líneas. No hizo falta:
+   * el editor ya existía (`setEditAllergies`), solo faltaba poder pedirlo.
+   */
+  abrir: (seccion?: SeccionHistorial) => Promise<void>;
   cargando: boolean;
   dialogo: React.ReactNode;
 } {
@@ -61,6 +84,8 @@ export function useMedicalHistoryDialog(patientId: string): {
 
   const [patient, setPatient] = React.useState<PatientRow | null>(null);
   const [cargando, setCargando] = React.useState(false);
+  /** Sección que pidió quien abrió. Se limpia al cerrar, como el paciente. */
+  const [seccion, setSeccion] = React.useState<SeccionHistorial | undefined>(undefined);
   /** Si se guardó algo, al cerrar hay que refrescar lo que quedó atrás. */
   const changed = React.useRef(false);
 
@@ -72,8 +97,9 @@ export function useMedicalHistoryDialog(patientId: string): {
    * mostraría la ficha SIN la alergia que se acaba de agregar — y peor, guardar
    * otra sección desde esa vista escribiría el estado viejo.
    */
-  const abrir = async (): Promise<void> => {
+  const abrir = async (pedida?: SeccionHistorial): Promise<void> => {
     setCargando(true);
+    setSeccion(pedida);
     try {
       const res = await fetch(`/api/admin/patients/${patientId}/medical-history`, { cache: 'no-store' });
       if (!res.ok) throw new Error(String(res.status));
@@ -88,6 +114,7 @@ export function useMedicalHistoryDialog(patientId: string): {
 
   const cerrar = (): void => {
     setPatient(null);
+    setSeccion(undefined);
     if (!changed.current) return;
     changed.current = false;
     // El panel izquierdo de la consulta y el resto de la pantalla se renderizan
@@ -105,6 +132,7 @@ export function useMedicalHistoryDialog(patientId: string): {
         open
         onClose={cerrar}
         onChanged={() => { changed.current = true; }}
+        abrirSeccion={seccion}
       />
     ) : null,
   };

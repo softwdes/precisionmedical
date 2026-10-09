@@ -2372,7 +2372,13 @@
       "ccdErrNotCcd": "Ese archivo no es un CCD. Tiene que ser el .xml que sale de «Export CCD» en MEDUSA.",
       "ccdErrNoLabs": "Es un CCD válido, pero no trae laboratorios para este paciente.",
       "ccdErrTooLarge": "El archivo pasa de {mb} MB.",
-      "ccdErrGeneric": "No se pudo leer el archivo. Probá de nuevo."
+      "ccdErrGeneric": "No se pudo leer el archivo. Probá de nuevo.",
+      "ctxAllergiesChart": "Editar las alergias de la ficha",
+      "ctxAllergiesEdit": "Editar en ScriptSure",
+      "rxAllergiesHeaderPre": "Alergias vía",
+      "rxDrugHistoryHeaderPre": "Historial de recetas vía",
+      "rxMedDownloadHeaderPre": "Historial de farmacia vía",
+      "rxApproveQueueHeaderPre": "Cola de aprobación vía"
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",

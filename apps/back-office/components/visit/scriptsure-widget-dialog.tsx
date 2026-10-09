@@ -34,6 +34,24 @@ const WIDGET_TITLE: Record<WidgetKind, string> = {
   medicationdownload: 'ScriptSure Medication History Download',
   'approve-queue': 'ScriptSure Approval Queue',
 };
+/**
+ * Encabezado del modal, por widget.
+ *
+ * Antes era un ternario entre "Prescribiendo vía" y "Farmacias vía", así que
+ * CUATRO de los siete widgets se anunciaban como farmacias. Con el widget de
+ * alergias colgado del lápiz de la barra lateral (2026-10-09) eso dejó de ser un
+ * detalle: el médico aprieta Alergias y la ventana que se abre dice Farmacias.
+ */
+const HEADER_KEY: Record<WidgetKind, string> = {
+  'drug-list': 'rxWidgetHeaderPre',
+  medcart: 'rxWidgetHeaderPre',
+  pharmacy: 'rxPharmacyHeaderPre',
+  allergy: 'rxAllergiesHeaderPre',
+  'drug-history': 'rxDrugHistoryHeaderPre',
+  medicationdownload: 'rxMedDownloadHeaderPre',
+  'approve-queue': 'rxApproveQueueHeaderPre',
+};
+
 export type WidgetStatus =
   | 'loading' | 'ready' | 'not_onboarded' | 'missing_address' | 'missing_dob' | 'no_refill'
   /**
@@ -147,7 +165,7 @@ export function ScriptSureWidgetDialog({
           <DialogTitle className="text-[14px] flex items-center gap-2 flex-wrap">
             <ExternalLink className="w-4 h-4 text-violet-text shrink-0" />
             <span>
-              {kind === 'drug-list' ? t('rxWidgetHeaderPre') : t('rxPharmacyHeaderPre')}{' '}
+              {t(HEADER_KEY[kind])}{' '}
               <b className="text-text-1">ScriptSure</b>
             </span>
             {status === 'ready' && (

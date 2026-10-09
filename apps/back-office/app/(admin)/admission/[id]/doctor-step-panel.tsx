@@ -299,7 +299,7 @@ export function DoctorStepPanel({
                 Es coherente con que vea lo mismo que el doctor (2026-08-13) — y
                 es quien más veces tiene el dato correcto delante, porque acaba
                 de hablar con el paciente en el mostrador. */}
-            <PatientContextPanel patient={patientContext} editable />
+            <PatientContextPanel patient={patientContext} editable appointmentId={appointmentId} />
             {/* Los mensajes del caso van DEBAJO del contexto y como hermano, no
                 adentro: en mobile ese panel se pliega entero y un aviso
                 escondido detrás de un tap no es un aviso. */}

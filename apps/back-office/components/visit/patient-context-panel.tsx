@@ -41,6 +41,9 @@ import { useMedicalHistoryDialog } from '@/components/patients/medical-history-b
 import type { PatientContext } from '@/lib/patient-context';
 import { estadoAlergias, estadoMedicinas } from '@/lib/revision-historial';
 import { RevisionHistorial, type RevisionGuardada } from './revision-historial';
+import { useWidgetDeAlergias } from './use-widget-de-alergias';
+import { ScriptSureWidgetDialog } from './scriptsure-widget-dialog';
+import { PatientDemographicsDialog } from './patient-demographics-dialog';
 
 export type { PatientContext };
 
@@ -138,7 +141,7 @@ function fmtDate(iso: string | null | undefined): string | null {
 // ─── Panel ───────────────────────────────────────────────────────────────────
 
 export function PatientContextPanel({
-  patient: p, editable = false, onVerSeguro,
+  patient: p, editable = false, onVerSeguro, appointmentId,
 }: {
   patient: PatientContext;
   /** Dibuja el lápiz de "editar" en las secciones del historial. */
@@ -148,10 +151,38 @@ export function PatientContextPanel({
    * Sin esto, "Datos del seguro" no lleva lápiz: el panel no navega solo.
    */
   onVerSeguro?: () => void;
+  /**
+   * Habilita el lápiz de alergias contra ScriptSure.
+   *
+   * Devin, 2026-10-09: *"When I click the pencil on allergies it does not open
+   * the surescripts allergy window. Just opens the free text window to type in
+   * allergies but not the surecripts window that will do the cross check when
+   * prescribing"*.
+   *
+   * La distinción es la que importa: el recuadro rojo de esta sección es el
+   * campo de TEXTO LIBRE de la ficha, que no cruza con nada; el control de
+   * interacciones corre del lado de ScriptSure sobre SU lista. Un lápiz que
+   * lleva al primero cuando el médico espera el segundo no es una molestia de
+   * navegación — hace creer que la alergia quedó protegiendo al paciente.
+   *
+   * Opcional porque la ventana de ScriptSure se abre POR CITA: sin cita no hay
+   * sesión que abrir, y ahí el lápiz cae al editor de la ficha, que es lo mejor
+   * disponible.
+   */
+  appointmentId?: string;
 }): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   const age = edad(p.dateOfBirth);
   const { abrir, dialogo } = useMedicalHistoryDialog(p.id);
+  /**
+   * La ventana de alergias de ScriptSure. Vive ACÁ y no en el módulo de recetas
+   * porque ese se monta solo cuando la pestaña activa es Recetas, y el lápiz se
+   * aprieta desde la pestaña de la nota. Ver `use-widget-de-alergias`.
+   *
+   * Con `appointmentId` vacío el hook nunca se usa; igual se llama siempre,
+   * porque un hook no puede ir dentro de un `if`.
+   */
+  const alergiasSS = useWidgetDeAlergias(appointmentId ?? '');
   /**
    * Las casillas "no tiene" (lib/revision-historial). El estado viene calculado
    * en `history.revision`; tras confirmar una acá se pisa con lo que devolvió el
@@ -177,19 +208,30 @@ export function PatientContextPanel({
     : {};
 
   /**
-   * El lápiz de ALERGIAS abre el editor de alergias, no la ficha entera.
+   * El lápiz de ALERGIAS va a ScriptSure cuando se puede.
    *
-   * Devin, 2026-10-08: *"when I click on the allergies spot on the left it just
-   * goes to the medical history section but nowhere there is the allergies
-   * section"*. La sección existe, pero en el diálogo es una fila CERRADA entre
-   * otras nueve de una columna lateral; para quien venía de señalar la alergia,
-   * eso es no estar.
+   * Dos pedidos seguidos de Devin, y el segundo corrigió al primero:
    *
-   * Las otras cinco secciones siguen abriendo la ficha completa: son las únicas
-   * que no tienen editor propio en esa columna. Cuando lo tengan, se suman acá.
+   *  · 08-oct — *"nowhere there is the allergies section"*. Se arregló
+   *    apuntando el lápiz al editor de alergias de la ficha, que estaba ahí
+   *    pero colapsado entre otras nueve filas.
+   *  · 09-oct — *"it does not open the surescripts allergy window. Just opens
+   *    the free text window"*. O sea: el destino seguía siendo el equivocado.
+   *
+   * Lo que quiere es la lista de ScriptSure, que es la que se cruza al recetar.
+   * El texto libre de la ficha no lo revisa nadie.
+   *
+   * Si el padre no provee el abridor —una pantalla que muestre este panel sin
+   * el módulo de recetas— el lápiz cae al editor de la ficha, que es lo mejor
+   * disponible ahí, en vez de no hacer nada.
    */
   const editarAlergias = editable
-    ? { onEdit: () => void abrir('allergies'), editLabel: t('ctxEdit') }
+    ? {
+        onEdit: appointmentId ? alergiasSS.abrir : () => void abrir('allergies'),
+        // La etiqueta sigue al destino. `ctxEdit` dice "Editar en el historial",
+        // y con el lápiz apuntando a ScriptSure eso sería falso.
+        editLabel: appointmentId ? t('ctxAllergiesEdit') : t('ctxEdit'),
+      }
     : {};
   const h = p.history;
   const activeMeds = h.medications.filter((m) => m.status === 'IN_USE');
@@ -366,6 +408,26 @@ export function PatientContextPanel({
             )}
           </div>
         )}
+
+        {/* Desde que el lápiz lleva a ScriptSure, éste es el único camino que
+            queda al campo de TEXTO LIBRE de la ficha desde acá.
+
+            Va FUERA del condicional de arriba a propósito: adentro solo
+            aparecía cuando el paciente YA tenía alergias cargadas, y el caso que
+            más lo necesita es el contrario —no hay ninguna y alguien quiere
+            escribir la primera—.
+
+            Enlace chico y no un segundo lápiz: son dos destinos distintos, y dos
+            iconos iguales no dirían cuál es cuál. */}
+        {editable && appointmentId && (
+          <button
+            type="button"
+            onClick={() => void abrir('allergies')}
+            className="mt-2 text-[10.5px] text-text-muted hover:text-text-2 underline underline-offset-2 transition-colors"
+          >
+            {t('ctxAllergiesChart')}
+          </button>
+        )}
       </Section>
 
       {/* Lista de problemas */}
@@ -488,6 +550,29 @@ export function PatientContextPanel({
       </Section>
       </div>
       {dialogo}
+
+      {/* La ventana de alergias de ScriptSure, con su salida: si al paciente le
+          falta la dirección o el teléfono, se completan acá mismo y la ventana
+          se reintenta sola. Un cartel sin formulario fue el mismo callejón que
+          este código ya tuvo que destapar en tres botones distintos. */}
+      <ScriptSureWidgetDialog
+        open={alergiasSS.abierto}
+        kind="allergy"
+        status={alergiasSS.status}
+        url={alergiasSS.url}
+        errorDetail={alergiasSS.errorDetail}
+        onClose={alergiasSS.cerrar}
+      />
+      {appointmentId && (
+        <PatientDemographicsDialog
+          open={!!alergiasSS.demografia}
+          appointmentId={appointmentId}
+          faltantes={alergiasSS.demografia?.faltantes ?? []}
+          motivo={alergiasSS.demografia?.motivo ?? 'faltan'}
+          onCancel={alergiasSS.cancelarDemografia}
+          onSaved={alergiasSS.reintentar}
+        />
+      )}
     </div>
   );
 }

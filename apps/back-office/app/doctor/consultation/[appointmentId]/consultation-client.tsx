@@ -722,6 +722,9 @@ export function ConsultationClient({
               <PatientContextPanel
                 patient={patientContext}
                 editable
+                /* Habilita el lápiz de alergias contra ScriptSure — la lista que
+                   se cruza al recetar, no el texto libre de la ficha. */
+                appointmentId={a.id}
                 /* El seguro NO es historial médico: vive en el caso. Se abre el
                    mismo modal de expediente que ya usa "Ver caso", en su tab. */
                 onVerSeguro={a.caseId

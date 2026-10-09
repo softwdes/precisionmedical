@@ -2372,7 +2372,13 @@
       "ccdErrNotCcd": "That file is not a CCD. It needs to be the .xml that \"Export CCD\" produces in MEDUSA.",
       "ccdErrNoLabs": "Valid CCD, but it carries no labs for this patient.",
       "ccdErrTooLarge": "The file is over {mb} MB.",
-      "ccdErrGeneric": "The file could not be read. Try again."
+      "ccdErrGeneric": "The file could not be read. Try again.",
+      "ctxAllergiesChart": "Edit the chart allergy field",
+      "ctxAllergiesEdit": "Edit in ScriptSure",
+      "rxAllergiesHeaderPre": "Allergies via",
+      "rxDrugHistoryHeaderPre": "Prescription history via",
+      "rxMedDownloadHeaderPre": "Pharmacy history via",
+      "rxApproveQueueHeaderPre": "Approval queue via"
     },
     "topbar": {
       "search": "Search firms, services, diagnoses...",

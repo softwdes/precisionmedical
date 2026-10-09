@@ -642,9 +642,26 @@ function BlockCard({ block, onClick, compact, providerLabel, continua }: {
       type="button"
       onClick={(e) => { e.stopPropagation(); onClick(); }}
       title={block.label}
-      className={`w-full min-w-0 text-left transition-all hover:brightness-125 ${
+      /**
+       * La continuación va como FONDO de la celda (`absolute inset-0`), no como
+       * un hermano más del flex.
+       *
+       * Tenía `minHeight: 100%` y eso se comía el alto entero: la cita que caía
+       * en esa misma celda se iba al renglón siguiente y terminaba DIBUJADA
+       * ENCIMA de la fila de abajo. Erick lo vio el 2026-10-08 en una captura
+       * mía —"Ethan MICKINLEY" de las 13:30 encimado con "Raul Fragoso Marquez"
+       * de las 14:00— y lo detecté yo nunca, porque estaba mirando la franja.
+       *
+       * Medido ese día: **2 citas** futuras caen dentro de un aviso, las dos a
+       * las 13:30, dentro del almuerzo de 13:00. Las dos quedaban invisibles.
+       *
+       * Como fondo, la franja llena la celda igual y las tarjetas se dibujan
+       * encima. La primera celda del aviso NO cambia: ahí el texto tiene que
+       * ocupar su lugar en el flujo.
+       */
+      className={`min-w-0 text-left transition-all hover:brightness-125 ${
         compact ? 'px-1.5 py-[2px]' : 'px-2 py-1'
-      } ${continua ? 'rounded-b' : 'rounded'}`}
+      } ${continua && compact ? 'absolute inset-0 rounded-b' : 'w-full'} ${continua ? 'rounded-b' : 'rounded'}`}
       style={{
         background: 'repeating-linear-gradient(135deg, var(--bg-3) 0 6px, transparent 6px 12px)',
         border: '1px dashed var(--border-strong)',
@@ -652,7 +669,11 @@ function BlockCard({ block, onClick, compact, providerLabel, continua }: {
         // franja y no como una pila de recuadros.
         borderTop: continua ? 'none' : undefined,
         color: 'var(--text-2)',
-        minHeight: continua ? '100%' : undefined,
+        // Solo la vista DIA: ahi la franja sigue siendo un hijo normal y el
+        // 100% es lo que la hace llegar abajo. En SEMANA es absoluta y el
+        // `inset-0` ya se encarga — con el minHeight puesto se comia el alto de
+        // la celda y empujaba la cita fuera (ver el className).
+        minHeight: continua && !compact ? '100%' : undefined,
       }}>
       {!continua && (
       <span className={`font-medium truncate block ${compact ? 'text-[10px]' : 'text-[11px]'}`}>
@@ -2124,7 +2145,9 @@ export function CalendarClient({ clinics, providers, lockedProviderId, initialPr
                           onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDropTarget(`${dayKey}|${slot}`); }}
                           onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropTarget(null); }}
                           onDrop={(e) => { e.preventDefault(); void handleDrop(dayKey, slot); }}
-                          className={`border-r border-white/[0.04] last:border-r-0 p-0.5 flex flex-wrap content-start gap-0.5 cursor-pointer group transition-colors min-w-0 ${
+                          // `relative`: la franja de continuación de un aviso se
+                          // dibuja como fondo absoluto de ESTA celda.
+                          className={`relative border-r border-white/[0.04] last:border-r-0 p-0.5 flex flex-wrap content-start gap-0.5 cursor-pointer group transition-colors min-w-0 ${
                             dropTarget === `${dayKey}|${slot}` ? 'bg-cyan/[0.12] ring-1 ring-inset ring-cyan/50' :
                             isToday ? 'bg-cyan/[0.025]' : 'hover:bg-white/[0.015]'
                           }`}>

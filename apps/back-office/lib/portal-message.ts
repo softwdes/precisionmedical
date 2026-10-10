@@ -59,11 +59,10 @@ export function normalizarIdioma(preferido: string | null | undefined): PortalMe
  * El paciente que SÍ tiene `es` cargado sigue recibiendo español. Esto sólo
  * decide qué pasa cuando no hay dato, que es el 40% de las veces.
  *
- * Vive acá, con `buildPortalSms` y `buildAppointmentReminderSms`, porque la
- * regla estaba copiada en tres archivos: el link del portal, el alta rápida y
- * el recordatorio. Tres copias de una decisión es una decisión que se va a
- * desincronizar — ya pasó con el texto del SMS, que es por lo que este archivo
- * existe.
+ * Vive acá, al lado de `buildPortalSms`, porque la regla estaba copiada en
+ * tres archivos: el link del portal, el alta rápida y el recordatorio. Tres
+ * copias de una decisión es una decisión que se va a desincronizar — ya pasó
+ * con el texto del SMS, que es por lo que este archivo existe.
  */
 export function idiomaDelPaciente(preferido: string | null | undefined): PortalMessageLang {
   return normalizarIdioma(preferido) ?? 'en';
@@ -94,236 +93,25 @@ export function buildPortalSms(args: {
 }
 
 /**
- * El SMS de recordatorio de la cita.
+ * Aca vivian `buildAppointmentReminderSms` y `buildAppointmentRescheduleSms`.
+ * Se borraron el 2026-10-09 por pedido de Erick, y conviene saber por que para
+ * no volver a escribirlas.
  *
- * Se manda AL AGENDAR, no el día antes (decisión de Erick 2026-09-14). El
- * pedido vino de una prueba real: se creó un paciente y su cita, llegó el SMS
- * del formulario y ningún aviso de la cita — "I got the text to fill out the
- * paperwork but no reminder of the appointment I created".
+ * El SMS de cita ya NO sale de aca: sale de `lib/plantillas-sms.ts`, que es lo
+ * que la clinica puede editar en pantalla (`armarSmsDeLaBase`). Estas dos
+ * funciones se quedaron sin un solo llamador —solo aparecian nombradas dentro
+ * de comentarios— y con la redaccion vieja.
  *
- * ── Por qué NO pide confirmar ───────────────────────────────────────────────
- * El mensaje que la clínica usaba de modelo terminaba con "To confirm your
- * appointment please reply YES". Se sacó a propósito: **nadie lee los SMS
- * entrantes**. `/api/twilio/incoming` ni siquiera mira el cuerpo del mensaje,
- * así que el paciente que contestara YES le estaría hablando a un buzón que no
- * existe. Pedir una acción que no se procesa es peor que no pedirla.
+ * Peor que inutiles: la cabecera de `plantillas-sms.ts` afirmaba que una prueba
+ * verificaba que las dos copias rindieran lo mismo. Esa prueba nunca existio, y
+ * entonces la copia muerta se leia como la fuente de verdad. El proximo arreglo
+ * de redaccion iba a caer aca y dejar intacto el texto que le llega al paciente.
  *
- * Por eso dice que es automático y que no se responda. El HELP/STOP se queda
- * igual — ése no es opcional, lo exige el operador (ver la cabecera del
- * archivo): sin él filtran el primer mensaje a un número y no llega nada.
- *
- * ── Todo es opcional menos la fecha ─────────────────────────────────────────
- * `direccion` y `telefono` pueden faltar y la frase se omite entera en vez de
- * quedar colgada. No es defensivo por gusto: hoy mismo `Murray - Surgery` no
- * tiene dirección cargada, y sin esto el paciente recibiría "oficina Murray -
- * Surgery, ." con el hueco a la vista.
- *
- * Los textos ya vienen formateados y SIN ACENTOS. Este archivo no sabe de
- * zonas horarias a propósito —es un armador de strings— y el acento importa:
- * uno solo pasa el SMS a UCS-2 y el segmento cae de 153 a 67 caracteres.
+ * Las gemelas de CORREO (`buildAppointmentReminderEmail` y
+ * `buildAppointmentRescheduleEmail`) SI se usan y siguen mas abajo: el correo
+ * todavia no tiene plantilla editable.
  */
-export function buildAppointmentReminderSms(args: {
-  lang: PortalMessageLang;
-  /** Ya formateado en la zona de la clínica y sin acentos: "mar 15 de sep de 2026 a las 4:00 PM". */
-  cuando: string;
-  /** Hora a la que tiene que llegar, 15 min antes: "3:45 PM". */
-  horaLlegada: string;
-  /** Solo extraccion de laboratorio: cambia la instruccion de llegada. */
-  soloLaboratorio?: boolean;
-  clinica: string;
-  /** Sin cargar en algunas sedes: si falta, no se nombra. */
-  direccion?: string | null;
-  /** Teléfono de la sede. Si falta, se omite la invitación a llamar. */
-  telefono?: string | null;
-  /** Nombre del menor cuando el destinatario es el apoderado o el canal es compartido. */
-  nombrePaciente?: string | null;
-  /**
-   * Telemedicina. Cambia el mensaje ENTERO, no una palabra.
-   *
-   * Una cita en línea igual tiene sede guardada —define de qué clínica se cuenta
-   * y quién atiende— pero al paciente no le sirve de nada: no va a ninguna parte.
-   * Nombrársela, y encima pedirle que llegue 15 minutos antes, es hacerlo
-   * manejar hasta una oficina para una videollamada.
-   */
-  enLinea?: boolean;
-  /** El link de la videollamada. Suele faltar: ver el comentario de abajo. */
-  enlace?: string | null;
-}): string {
-  const { lang, cuando, horaLlegada, clinica, direccion, telefono, nombrePaciente, enLinea, enlace,
-          soloLaboratorio } = args;
 
-  const es = lang === 'es';
-  /**
-   * La extraccion se nombra distinto desde la PRIMERA palabra.
-   *
-   * "Cita de Scott" y "Analisis de Scott" son dos mensajes distintos para el
-   * paciente, y el pedido era justamente ese: que sepa a que viene antes de
-   * leer el resto (Erick, 2026-10-08).
-   */
-  const deQuien = soloLaboratorio
-    ? (nombrePaciente
-        ? (es ? `Analisis de ${nombrePaciente}` : `Lab visit for ${nombrePaciente}`)
-        : (es ? 'Su analisis es' : 'Your lab visit is'))
-    : (nombrePaciente
-        ? (es ? `Cita de ${nombrePaciente}` : `Appointment for ${nombrePaciente}`)
-        : (es ? 'Su cita es' : 'Your appointment is'));
-  const cierre = es
-    ? 'Mensaje automatico, no responda. HELP ayuda, STOP para salir.'
-    : 'Automated message, do not reply. HELP for help, STOP to opt out.';
-  const consultas = telefono
-    ? (es ? `Consultas: ${telefono}.` : `Questions: ${telefono}.`)
-    : null;
-
-  // ── En línea ──────────────────────────────────────────────────────────────
-  // Ni dirección ni hora de llegada. Y el enlace NO se da por hecho: medido el
-  // 2026-09-14, 28 de las 29 citas de telemedicina no lo tienen cargado. Sin
-  // enlace, el mensaje dice que la clínica llama — prometer un link que no
-  // existe deja al paciente esperando frente a una pantalla en blanco.
-  if (enLinea) {
-    const conector = es ? 'por videollamada el' : 'is a video visit on';
-    return [
-      es ? `Precision Medical: ${deQuien} ${conector} ${cuando}.`
-         : `Precision Medical: ${deQuien.replace(' is', '')} ${conector} ${cuando}.`,
-      enlace
-        ? (es ? `Conectese desde: ${enlace}` : `Join from: ${enlace}`)
-        : (es ? 'La clinica lo contactara a esta hora.' : 'The clinic will contact you at that time.'),
-      consultas,
-      cierre,
-    ].filter(Boolean).join(' ');
-  }
-
-  // ── Presencial ────────────────────────────────────────────────────────────
-  const lugar = direccion ? `${clinica}, ${direccion}` : clinica;
-  return [
-    es ? `Precision Medical: ${deQuien} el ${cuando}, ${lugar}.`
-       : `Precision Medical: ${deQuien} ${cuando}, ${lugar}.`,
-    soloLaboratorio
-      ? (es ? `Esta visita es SOLO para sacarle sangre. Venga a las ${horaLlegada} en punto; no hace falta llegar antes.`
-            : `This visit is ONLY for a blood draw. Come at ${horaLlegada} sharp; no need to arrive early.`)
-      : (es ? `Llegue ${horaLlegada} para el registro; 15+ min tarde puede reprogramarse.`
-            : `Arrive at ${horaLlegada} for check-in; 15+ min late may be rescheduled.`),
-    consultas,
-    cierre,
-  ].filter(Boolean).join(' ');
-}
-
-/**
- * El SMS de que la cita SE MOVIO.
- *
- * ── Por que existe, si la reprogramacion ya avisaba por correo ──────────────
- *
- * Porque el mensaje que hay que corregir vive en el SMS. El alta manda un SMS
- * con la fecha; si despues la cita se mueve y la correccion sale SOLO por
- * correo, el telefono del paciente se queda con la fecha vieja **para
- * siempre**, y encima sin nada al lado que la contradiga.
- *
- * Eso fue exactamente lo que paso el 2026-09-28: Michael Case recibio el SMS a
- * las 4:53 PM diciendo "lun 28" —correcto en ese momento— y la cita se movio al
- * martes 29 ocho minutos despues. El SMS era verdad cuando salio y se volvio
- * mentira sin que nadie lo tocara. Medidos ese dia: 23 movimientos de fecha
- * posteriores a un SMS entregado, 11 pacientes con la fecha vieja encima y 5 de
- * ellos sin correo, o sea sin haber recibido NADA.
- *
- * El correo se queda igual: dice mas y se lee mejor. Este no lo reemplaza, lo
- * acompaña — la correccion tiene que volver por el canal donde quedo el error.
- *
- * ── Nombra la fecha ANTERIOR ────────────────────────────────────────────────
- *
- * Cuesta unos 40 caracteres y los vale: el paciente tiene dos mensajes nuestros
- * con dos fechas distintas y sin esa linea no sabe cual gana. Con ella, el
- * mensaje nuevo se explica solo.
- *
- * Cuando `cuandoAntes` es null lo que cambio fue la SEDE y no el horario, y el
- * texto lo dice asi: prometer "se reprogramo" a quien conserva su hora lo manda
- * a revisar una agenda que no cambio.
- *
- * Sin acentos, igual que el resto de los SMS: uno solo pasa el mensaje a UCS-2
- * y el segmento cae de 153 a 67 caracteres (ver `DIAS_SMS` en `lib/fechas`).
- */
-export function buildAppointmentRescheduleSms(args: {
-  lang: PortalMessageLang;
-  /** La fecha NUEVA, ya formateada en la zona de la clinica. */
-  cuando: string;
-  /** La que tenia. `null` cuando el horario no se toco y cambio la sede. */
-  cuandoAntes: string | null;
-  horaLlegada: string;
-  /** Solo extraccion de laboratorio: cambia la instruccion de llegada. */
-  soloLaboratorio?: boolean;
-  clinica: string;
-  direccion?: string | null;
-  telefono?: string | null;
-  nombrePaciente?: string | null;
-  enLinea?: boolean;
-  enlace?: string | null;
-}): string {
-  const { lang, cuando, cuandoAntes, horaLlegada, clinica, direccion, telefono, soloLaboratorio,
-          nombrePaciente, enLinea, enlace } = args;
-
-  const es = lang === 'es';
-  const esHorario = cuandoAntes !== null;
-
-  /* Mismo criterio que en el alta: la extraccion se nombra distinto. */
-  const deQuien = soloLaboratorio
-    ? (nombrePaciente
-        ? (es ? `El analisis de ${nombrePaciente}` : `The lab visit for ${nombrePaciente}`)
-        : (es ? 'Su analisis' : 'Your lab visit'))
-    : (nombrePaciente
-        ? (es ? `La cita de ${nombrePaciente}` : `The appointment for ${nombrePaciente}`)
-        : (es ? 'Su cita' : 'Your appointment'));
-
-  const titular = esHorario
-    ? (es ? `${deQuien} CAMBIO de fecha.` : `${deQuien} CHANGED.`)
-    : (es ? `${deQuien} cambio de lugar, a la misma hora.`
-          : `${deQuien} moved to a new location, same time.`);
-
-  const antes = cuandoAntes
-    ? (es ? `Reemplaza la del ${cuandoAntes}.` : `This replaces the one on ${cuandoAntes}.`)
-    : null;
-
-  const cierre = es
-    ? 'Mensaje automatico, no responda. HELP ayuda, STOP para salir.'
-    : 'Automated message, do not reply. HELP for help, STOP to opt out.';
-  const consultas = telefono
-    ? (es ? `Consultas: ${telefono}.` : `Questions: ${telefono}.`)
-    : null;
-
-  // En linea: ni direccion ni hora de llegada, igual que el SMS de alta.
-  if (enLinea) {
-    return [
-      es ? `Precision Medical: ${titular} Ahora es por videollamada el ${cuando}.`
-         : `Precision Medical: ${titular} It is now a video visit on ${cuando}.`,
-      antes,
-      enlace
-        ? (es ? `Conectese desde: ${enlace}` : `Join from: ${enlace}`)
-        : (es ? 'La clinica lo contactara a esa hora.' : 'The clinic will contact you at that time.'),
-      consultas,
-      cierre,
-    ].filter(Boolean).join(' ');
-  }
-
-  const lugar = direccion ? `${clinica}, ${direccion}` : clinica;
-  return [
-    es ? `Precision Medical: ${titular} Ahora es el ${cuando}, ${lugar}.`
-       : `Precision Medical: ${titular} It is now ${cuando}, ${lugar}.`,
-    soloLaboratorio
-      ? (es ? `Es SOLO para sacarle sangre. Venga a las ${horaLlegada} en punto; no hace falta llegar antes.`
-            : `It is ONLY for a blood draw. Come at ${horaLlegada} sharp; no need to arrive early.`)
-      : (es ? `Llegue ${horaLlegada} para el registro.`
-            : `Arrive at ${horaLlegada} for check-in.`),
-    antes,
-    consultas,
-    cierre,
-  ].filter(Boolean).join(' ');
-}
-
-
-/**
- * Cuántos segmentos SMS ocupa un texto — cada uno se factura aparte.
- *
- * Con alfabeto GSM entran 160 en un segmento y 153 por segmento si son varios;
- * con UCS-2 (cualquier acento o emoji) baja a 70 y 67. La vista previa lo
- * muestra para que nadie descubra el costo real recién en la factura.
- */
 /**
  * Los datos de la cita que necesita cualquier aviso sobre ella.
  *
@@ -649,6 +437,13 @@ export function correoDeCitaHtml(c: CorreoDeCita, lang: PortalMessageLang): stri
   ].join('');
 }
 
+/**
+ * Cuántos segmentos SMS ocupa un texto — cada uno se factura aparte.
+ *
+ * Con alfabeto GSM entran 160 en un segmento y 153 por segmento si son varios;
+ * con UCS-2 (cualquier acento o emoji) baja a 70 y 67. La vista previa lo
+ * muestra para que nadie descubra el costo real recién en la factura.
+ */
 export function smsSegments(text: string): { chars: number; segments: number; gsm: boolean } {
   const gsm = !/[^\x00-\x7F]/.test(text);
   const single = gsm ? 160 : 70;

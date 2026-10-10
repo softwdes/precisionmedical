@@ -127,7 +127,7 @@ export async function cargarCitaParaAvisar(appointmentId: string): Promise<CitaP
     select: {
       id: true, scheduledFor: true, caseId: true,
       // Telemedicina cambia el mensaje entero, no una palabra: sin dirección
-      // y sin hora de llegada. Ver `buildAppointmentReminderSms`.
+      // y sin hora de llegada. Ver las plantillas `_online` en `lib/plantillas-sms.ts`.
       isOnline: true, meetingUrl: true,
       soloLaboratorio: true,
       clinic:  { select: { name: true, address: true, phone: true } },
@@ -408,7 +408,7 @@ export async function enviarRecordatorio24h(cita: CitaParaAvisar): Promise<Resul
  * con la fecha; si la corrección sale solo por correo, el teléfono se queda con
  * la fecha vieja para siempre. El 2026-09-28 eso dejó a 11 pacientes con una
  * cita mal anotada y a 5 de ellos sin enterarse de nada, porque no tenían
- * correo (ver `buildAppointmentRescheduleSms`).
+ * correo (ver la plantilla `cita_cambio` en `lib/plantillas-sms.ts`).
  *
  * Esto INVIERTE en parte la decisión del 18-sep de mandar la reprogramación
  * solo por correo. Lo que la motivaba —no duplicar el SMS del alta— sigue

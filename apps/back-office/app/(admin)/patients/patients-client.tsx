@@ -9,7 +9,7 @@ import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { CASE_PARAM, conCasoAbierto } from '@/lib/case-modal-url';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Eye, Pencil, Trash2, Users, AlertTriangle, Phone, PhoneCall, PhoneOutgoing, Mail, MessageSquare, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, UserPlus, Briefcase, QrCode, CalendarDays, Download, Printer, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Tag, Trophy, BadgeCheck, Camera, Upload, ImageOff, RefreshCw, Search, ArrowUp, ArrowDown, ArrowUpDown, X as XIcon } from 'lucide-react';
+import { Eye, Pencil, Trash2, Users, AlertTriangle, Phone, PhoneCall, PhoneOutgoing, Mail, MessageSquare, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, UserPlus, Briefcase, QrCode, CalendarDays, Download, Printer, Copy, Check, Stethoscope, ShieldCheck, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Tag, Trophy, BadgeCheck, Camera, Upload, ImageOff, RefreshCw, Search, ArrowUp, ArrowDown, ArrowUpDown, X as XIcon } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
 import { PersonAvatar, TagPill, CaseStageProgress, FloatingPanel, FotoGrandeDialog, type FotoGrande } from '@/components/ui-phoenix';
 import { ArchivosDialog, fotosDelCaso, fotosEliminadasDelCaso } from '@/components/patients/archivos-dialog';
@@ -23,6 +23,7 @@ import type { CoverageDTO } from '@/lib/coverage';
 import { PatientEditDialog, type EditablePatient } from './patient-edit-dialog';
 import { MedicalHistoryDialog } from './medical-history-dialog';
 import { HealthHistoryDialog } from './health-history-dialog';
+import { ConsentsDialog } from './consents-dialog';
 import { CaseWizardDialog } from '@/components/cases/case-wizard-dialog';
 import { NewCaseDialog, type NewCaseInitialState } from '@/components/cases/new-case-dialog';
 import { lugarDelAccidente, notasDelReferido, type ReferidoParaWizard } from '@/lib/referidos/referido';
@@ -1358,6 +1359,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
   const [archivosTarget,     setArchivosTarget]     = useState<PatientRow | null>(null);
   const [medHistoryTarget,   setMedHistoryTarget]   = useState<PatientRow | null>(null);
   const [healthHistoryTarget, setHealthHistoryTarget] = useState<PatientRow | null>(null);
+  const [consentsTarget, setConsentsTarget] = useState<PatientRow | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   /** El botón de la fila abierta. Se asigna al abrir: hay uno por fila. */
   const menuAnchor = useRef<HTMLElement | null>(null);
@@ -3032,6 +3034,10 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
         />
       )}
 
+      {consentsTarget && (
+        <ConsentsDialog patient={consentsTarget} onClose={() => setConsentsTarget(null)} />
+      )}
+
       {/* ─── Health History (cuestionario imprimible, guarda en el Historial Médico) ── */}
       {healthHistoryTarget && (
         <HealthHistoryDialog
@@ -3086,6 +3092,10 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
             <button onClick={() => { setHealthHistoryTarget(p); setOpenMenuId(null); }}
               className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left">
               <Stethoscope className="w-3.5 h-3.5 text-text-muted shrink-0" /> {t('menuHealthHistory')}
+            </button>
+            <button onClick={() => { setConsentsTarget(p); setOpenMenuId(null); }}
+              className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left">
+              <ShieldCheck className="w-3.5 h-3.5 text-text-muted shrink-0" /> {t('menuConsents')}
             </button>
             {/* Deshabilitado pero explicado: estaba en gris, sin cartel, y la
                 única lectura posible era "algo se rompió". Ver

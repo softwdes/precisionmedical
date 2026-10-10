@@ -11,6 +11,7 @@ import { getTranslations } from 'next-intl/server';
 import { db, VIGENTES } from '@precision-medical/database';
 import { decryptFieldOrOriginal } from '@/lib/decrypt';
 import { getSessionProvider } from '@/lib/get-session-provider';
+import { consentimientosFaltantes } from '@/lib/estado-consentimientos';
 import { COVERAGE_LIST_SELECT, resolveCoverage, serializeCoverage } from '@/lib/coverage';
 import { claveDia, rangoDelDia, DIA_MS } from '@/lib/fechas';
 import { selfiesDePacientes } from '@/lib/fotos-identidad';
@@ -89,10 +90,10 @@ export default async function DoctorMyDayPage({
            son de adulto y en un menor no aplican. */
         patient: { select: { id: true, firstName: true, lastName: true, dateOfBirth: true } },
         // `caseType` alimenta la sugerencia de cobertura (un MVA sugiere lien).
-        // `consentsData` NO se trae acá: es el JSON de todos los consentimientos
-        // y por 20 filas es payload que la lista no usa — la sugerencia derivada
-        // del intake solo hace falta en el diálogo, que trae un caso solo.
-        case: { select: { id: true, caseCode: true, ...COVERAGE_LIST_SELECT } },
+        // `consentsData` se lee SOLO para contar qué consentimientos faltan
+        // (`consentimientosFaltantes`): al cliente viaja la lista de llaves, no el
+        // JSON. La sugerencia derivada del intake sí se queda para el diálogo.
+        case: { select: { id: true, caseCode: true, consentsData: true, ...COVERAGE_LIST_SELECT } },
         // Para deducir en qué sede está hoy y qué citas sin dueño mostrarle.
         clinicId: true,
         clinic: { select: { name: true } },
@@ -290,6 +291,7 @@ export default async function DoctorMyDayPage({
     patientLastName: decryptFieldOrOriginal(a.patient.lastName) ?? '',
     caseId: a.case?.id ?? null,
     caseCode: a.case?.caseCode ?? null,
+    consentsMissing: a.case ? consentimientosFaltantes(a.case.consentsData) : [],
     coverage: serializeCoverage(resolveCoverage(a.case ?? {})),
     clinicName: a.clinic.name,
   }));

@@ -4556,7 +4556,16 @@
       "qrSendErr_ERROR": "It could not be sent.",
       "checkInConfirmTitle": "Check this patient in?",
       "checkInConfirmBody": "{name} will be marked as arrived at the clinic ({cuando}).",
-      "checkInConfirmOtherDay": "This appointment is NOT today: {cuando}. {name} will be marked as arrived at the clinic now. Check in anyway?"
+      "checkInConfirmOtherDay": "This appointment is NOT today: {cuando}. {name} will be marked as arrived at the clinic now. Check in anyway?",
+      "consentsMissingBadge": "Consents {n}/{total} missing",
+      "consentsMissingTitle": "Consents not signed yet: {lista}",
+      "consentName_hipaa": "Medical information release",
+      "consentName_assignedParties": "Release to assigned parties",
+      "consentName_treatment": "Consent for treatment",
+      "consentName_financial": "Credit and finance charge policy",
+      "consentName_medicalHistory": "Medical history authority",
+      "qrConsentsTitle": "Consents not signed yet",
+      "qrConsentsBody": "The patient will be asked for these before signing. You can fix them first from the case, or hand over the QR anyway."
     },
     "caseDetail": {
       "statusNewReferral": "New Referral",
@@ -5781,7 +5790,14 @@
         "pattern": "Pattern",
         "womenHidden": "The women's health section is shown for female patients. The printed form always includes it."
       },
-      "menuHealthHistory": "Health History"
+      "menuHealthHistory": "Health History",
+      "menuConsents": "Consents",
+      "consentsTitle": "Consents by case",
+      "consentsSubtitle": "Which consents the patient has signed in each case. Follow-up visits reuse the ones already signed.",
+      "consentsLoading": "Loading…",
+      "consentsError": "Could not load the consents.",
+      "consentsNoCases": "This patient has no cases.",
+      "consentsComplete": "All signed"
     },
     "messaging": {
       "tooltipPatientMessages": "Patient messages",

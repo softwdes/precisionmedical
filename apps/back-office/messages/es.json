@@ -4556,7 +4556,16 @@
       "qrSendErr_ERROR": "No se pudo enviar.",
       "checkInConfirmTitle": "¿Registrar la llegada del paciente?",
       "checkInConfirmBody": "{name} quedará como llegado a la clínica ({cuando}).",
-      "checkInConfirmOtherDay": "Esta cita NO es de hoy: {cuando}. {name} quedará como llegado a la clínica ahora mismo. ¿Registrar la llegada de todos modos?"
+      "checkInConfirmOtherDay": "Esta cita NO es de hoy: {cuando}. {name} quedará como llegado a la clínica ahora mismo. ¿Registrar la llegada de todos modos?",
+      "consentsMissingBadge": "Faltan consentimientos {n}/{total}",
+      "consentsMissingTitle": "Consentimientos sin firmar: {lista}",
+      "consentName_hipaa": "Divulgación de información médica",
+      "consentName_assignedParties": "Divulgación a terceros autorizados",
+      "consentName_treatment": "Consentimiento de tratamiento",
+      "consentName_financial": "Política de crédito y cargos financieros",
+      "consentName_medicalHistory": "Autorización de historial médico",
+      "qrConsentsTitle": "Consentimientos sin firmar",
+      "qrConsentsBody": "Al paciente se los pedirán antes de firmar. Puedes resolverlos primero desde el caso, o entregarle el QR igual."
     },
     "caseDetail": {
       "statusNewReferral": "Nuevo paciente",
@@ -5781,7 +5790,14 @@
         "pattern": "Patrón",
         "womenHidden": "La sección de salud de la mujer se muestra en pacientes de sexo femenino. El formulario impreso siempre la incluye."
       },
-      "menuHealthHistory": "Health History"
+      "menuHealthHistory": "Health History",
+      "menuConsents": "Consentimientos",
+      "consentsTitle": "Consentimientos por caso",
+      "consentsSubtitle": "Qué consentimientos firmó el paciente en cada caso. Las citas de seguimiento usan los ya firmados.",
+      "consentsLoading": "Cargando…",
+      "consentsError": "No se pudieron cargar los consentimientos.",
+      "consentsNoCases": "Este paciente no tiene casos.",
+      "consentsComplete": "Todos firmados"
     },
     "messaging": {
       "tooltipPatientMessages": "Mensajes del paciente",

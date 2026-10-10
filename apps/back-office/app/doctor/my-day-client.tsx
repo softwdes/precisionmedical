@@ -23,6 +23,7 @@ import { AppointmentSignQrDialog } from '@/components/calendar/appointment-sign-
 import { CoverageChip } from '@/components/coverage/coverage-chip';
 import { OnlineBadge, OnlineMeetingBox } from '@/components/visit/online-visit';
 import { PendingNotes } from '@/components/visit/pending-notes';
+import { ConsentsChip } from '@/components/visit/consents-chip';
 import { ReporteLabsDialog } from '@/components/visit/reporte-labs-dialog';
 import { ChargePickerDialog, type BillableItem } from '@/components/visit/charge-picker-dialog';
 import { busquedaDePenalidad } from '@/lib/penalidad';
@@ -123,6 +124,8 @@ export interface MyDayAppointment {
   meetingUrl: string | null;
   checkedInAt: string | null;
   attendanceSignedAt: string | null;
+  /** Llaves de los consentimientos del caso que faltan por firmar. */
+  consentsMissing: string[];
   hasTriage: boolean;
   /** Mini-resumen de vitales del triaje (null si no hay registro) */
   triage: {
@@ -668,7 +671,8 @@ export function MyDayClient({
                   {hero.hasTriage ? t('triageDone') : hero.isOnline ? t('triageOnlineNA') : t('triagePendingShort')}
                 </span>
                 <span>·</span>
-                <span>{hero.attendanceSignedAt ? t('attendanceSigned') : t('attendancePending')}</span>
+                {!hero.doctorDoneAt && <ConsentsChip faltan={hero.consentsMissing} />}
+                <span className={hero.attendanceSignedAt ? undefined : 'text-amber font-semibold animate-pulse motion-reduce:animate-none'}>{hero.attendanceSignedAt ? t('attendanceSigned') : t('attendancePending')}</span>
                 <span>·</span>
                 <span>{hero.clinicName}</span>
               </div>
@@ -925,8 +929,9 @@ export function MyDayClient({
                       cada fila duplicaría las pastillas sin agregar una decisión.
                       El hero, arriba, sí dice las dos cosas. */}
                   {!a.doctorDoneAt && !a.attendanceSignedAt && (
-                    <TagPill label={tc('unsignedBadge')} colorClass="bg-amber/15 text-amber border-amber/30" />
+                    <TagPill label={tc('unsignedBadge')} colorClass="bg-amber/15 text-amber border-amber/30 animate-pulse motion-reduce:animate-none" />
                   )}
+                  {!a.doctorDoneAt && <ConsentsChip faltan={a.consentsMissing} />}
                 </Link>
                 {/* Mismo juego que la fila del mostrador, y por el mismo motivo:
                     si no hay asistente, el provider tiene que poder resolver la
@@ -1078,6 +1083,7 @@ export function MyDayClient({
           appointmentId={qrTarget.id}
           patientName={`${qrTarget.patientFirstName} ${qrTarget.patientLastName}`}
           apptLabel={timeLabel(qrTarget.scheduledFor)}
+          consentsFaltan={qrTarget.consentsMissing}
         />
       )}
 

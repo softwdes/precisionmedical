@@ -15,6 +15,7 @@ import { db, VIGENTES } from '@precision-medical/database';
 import { esDesenlaceCobrable } from '@/lib/appointment-outcome';
 import { selfiesDePacientes } from '@/lib/fotos-identidad';
 import { claveDia } from '@/lib/fechas';
+import { consentimientosFaltantes } from '@/lib/estado-consentimientos';
 
 // Include para cada appointment de la cola
 const APPT_INCLUDE = {
@@ -37,6 +38,8 @@ const APPT_INCLUDE = {
       intakeFormCompletedAt: true,
       lawFirmId:             true,
       attorneyId:            true,
+      // Solo para saber qué consentimientos faltan; al cliente va la lista de llaves.
+      consentsData:          true,
       primaryInsurance: {
         select: { id: true, name: true, shortCode: true, color: true },
       },
@@ -147,6 +150,7 @@ function mapAppt(
       intakeFormCompletedAt: a.case.intakeFormCompletedAt?.toISOString() ?? null,
       isReady,
       hasPending,
+      consentsMissing:       consentimientosFaltantes(a.case.consentsData),
       primaryInsurance: a.case.primaryInsurance ?? null,
     } : null,
   };

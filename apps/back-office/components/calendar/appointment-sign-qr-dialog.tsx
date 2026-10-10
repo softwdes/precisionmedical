@@ -20,7 +20,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import QRCode from 'qrcode';
-import { Check, Copy, Download, QrCode, RefreshCw, AlertCircle, Send } from 'lucide-react';
+import { Check, Copy, Download, QrCode, RefreshCw, AlertCircle, Send, ShieldAlert } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '@precision/ui';
 
 interface Props {
@@ -37,10 +37,12 @@ interface Props {
    */
   patientPhone?: string | null;
   patientEmail?: string | null;
+  /** Consentimientos del caso aún sin firmar. Solo se avisan; no bloquean el QR. */
+  consentsFaltan?: string[];
 }
 
 export function AppointmentSignQrDialog({
-  open, onOpenChange, appointmentId, patientName, apptLabel, patientPhone, patientEmail,
+  open, onOpenChange, appointmentId, patientName, apptLabel, patientPhone, patientEmail, consentsFaltan = [],
 }: Props) {
   const t = useTranslations('phoenix.calendar');
   const locale = useLocale();
@@ -225,6 +227,20 @@ export function AppointmentSignQrDialog({
             <div className="text-text-1 text-sm font-semibold">{patientName}</div>
             <div className="text-text-muted text-xs mt-0.5">{apptLabel}</div>
           </div>
+
+          {consentsFaltan.length > 0 && (
+            <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2.5">
+              <div className="flex items-center gap-1.5 text-rose text-xs font-semibold">
+                <ShieldAlert className="w-3.5 h-3.5 shrink-0" /> {t('qrConsentsTitle')}
+              </div>
+              <ul className="mt-1.5 space-y-0.5 text-[11.5px] text-text-1 list-disc pl-5">
+                {consentsFaltan.map((k) => (
+                  <li key={k}>{t(`consentName_${k}` as 'consentName_hipaa')}</li>
+                ))}
+              </ul>
+              <p className="mt-1.5 text-[11px] text-text-muted leading-relaxed">{t('qrConsentsBody')}</p>
+            </div>
+          )}
 
           {error && (
             <div className="rounded-lg border border-rose/30 bg-rose/10 px-3 py-2.5 flex items-start gap-2">

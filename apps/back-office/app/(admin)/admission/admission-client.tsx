@@ -35,6 +35,7 @@ import { AppointmentSignQrDialog } from '@/components/calendar/appointment-sign-
 import { ChargePickerDialog, type BillableItem } from '@/components/visit/charge-picker-dialog';
 import { busquedaDePenalidad, itemDePenalidad } from '@/lib/penalidad';
 import { PenaltyDialog } from '@/components/visit/penalty-dialog';
+import { ConsentsChip } from '@/components/visit/consents-chip';
 import { conCasoAbierto } from '@/lib/case-modal-url';
 import { agregarCargo, leerCargos, mapaDeCargos, type PlannedService, type CargoEfectivo } from '@/lib/charges';
 import type { CoverageDTO } from '@/lib/coverage';
@@ -86,6 +87,8 @@ interface AdmissionAppt {
     accidentType: string | null;
     pipVerifiedAt: string | null; intakeFormCompletedAt: string | null;
     isReady: boolean; hasPending: boolean;
+    /** Llaves de los consentimientos del caso que aún no están aceptados. */
+    consentsMissing: string[];
     primaryInsurance: { id: string; name: string; shortCode: string; color: string } | null;
   } | null;
 }
@@ -453,6 +456,9 @@ function ApptCard({
                 Solo mientras la visita está en pie: sobre una cancelada o un
                 no-show, "Sin firmar" es ruido sobre algo que nunca se iba a firmar. */}
             {!noOcurrio && appt.status !== 'COMPLETED' && (
+              <ConsentsChip faltan={appt.case?.consentsMissing ?? []} />
+            )}
+            {!noOcurrio && appt.status !== 'COMPLETED' && (
               appt.attendanceSignedAt ? (
                 <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold border border-cyan/30 bg-cyan/10 text-cyan">
                   <Check className="w-2.5 h-2.5" />
@@ -460,7 +466,7 @@ function ApptCard({
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1">
-                  <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold border border-amber/30 bg-amber/10 text-amber">
+                  <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold border border-amber/30 bg-amber/10 text-amber animate-pulse motion-reduce:animate-none">
                     <AlertTriangle className="w-2.5 h-2.5" />
                     {tc('unsignedBadge')}
                   </span>
@@ -1639,6 +1645,7 @@ export function AdmissionClient() {
             appointmentId={qrTarget.id}
             patientName={`${qrTarget.patient.firstName} ${qrTarget.patient.lastName}`}
             apptLabel={fmtTime(qrTarget.scheduledFor)}
+            consentsFaltan={qrTarget.case?.consentsMissing}
           />
         )}
 

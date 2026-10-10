@@ -13,6 +13,7 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Check, ShieldAlert, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@precision/ui';
+import { CaseWizardDialog } from '@/components/cases/case-wizard-dialog';
 import { CONSENTIMIENTOS, consentimientosFaltantes } from '@/lib/estado-consentimientos';
 import type { PatientRow } from './patients-client';
 
@@ -28,6 +29,10 @@ export function ConsentsDialog({ patient, onClose }: { patient: PatientRow; onCl
   const tc = useTranslations('phoenix.calendar');
   const [casos, setCasos] = useState<CasoConsent[] | null>(null);
   const [error, setError] = useState(false);
+  /** Caso que se está firmando (abre el formulario del caso en el paso 2). */
+  const [firmando, setFirmando] = useState<string | null>(null);
+  /** Sube al guardar, para volver a leer los casos. */
+  const [recarga, setRecarga] = useState(0);
 
   useEffect(() => {
     let vivo = true;
@@ -36,7 +41,7 @@ export function ConsentsDialog({ patient, onClose }: { patient: PatientRow; onCl
       .then((d: { cases: CasoConsent[] }) => { if (vivo) setCasos(d.cases); })
       .catch(() => { if (vivo) setError(true); });
     return () => { vivo = false; };
-  }, [patient.id]);
+  }, [patient.id, recarga]);
 
   return (
     <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -61,7 +66,7 @@ export function ConsentsDialog({ patient, onClose }: { patient: PatientRow; onCl
               <div key={c.id} className="rounded-md bg-bg-2/40 p-3">
                 <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
                   <span className="text-[13px] font-semibold text-text-1">{c.caseCode ?? '—'}</span>
-                  <span className={`text-[10px] font-semibold ${faltan.length ? 'text-rose' : 'text-emerald'}`}>
+                  <span className={`ml-auto text-[10px] font-semibold ${faltan.length ? 'text-rose' : 'text-emerald'}`}>
                     {faltan.length
                       ? tc('consentsMissingBadge', { n: faltan.length, total: CONSENTIMIENTOS.length })
                       : t('consentsComplete')}
@@ -82,11 +87,30 @@ export function ConsentsDialog({ patient, onClose }: { patient: PatientRow; onCl
                     );
                   })}
                 </ul>
+                {faltan.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setFirmando(c.id)}
+                    className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-brand text-white text-xs font-semibold hover:bg-brand/90 transition-colors"
+                  >
+                    {t('consentsSignBtn')}
+                  </button>
+                )}
               </div>
             );
           })}
         </div>
       </DialogContent>
+      {firmando && (
+        <CaseWizardDialog
+          open
+          onOpenChange={(v) => { if (!v) setFirmando(null); }}
+          patient={{ id: patient.id, firstName: patient.firstName, lastName: patient.lastName }}
+          editCaseId={firmando}
+          startStep={2}
+          onSaved={() => { setFirmando(null); setRecarga((n) => n + 1); }}
+        />
+      )}
     </Dialog>
   );
 }

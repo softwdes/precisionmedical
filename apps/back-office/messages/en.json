@@ -4565,7 +4565,8 @@
       "consentName_financial": "Credit and finance charge policy",
       "consentName_medicalHistory": "Medical history authority",
       "qrConsentsTitle": "Consents not signed yet",
-      "qrConsentsBody": "The patient will be asked for these before signing. You can fix them first from the case, or hand over the QR anyway."
+      "qrConsentsBody": "The patient will be asked for these before signing. You can fix them first from the case, or hand over the QR anyway.",
+      "consentsSignNow": "Sign now"
     },
     "caseDetail": {
       "statusNewReferral": "New Referral",
@@ -5797,7 +5798,8 @@
       "consentsLoading": "Loading…",
       "consentsError": "Could not load the consents.",
       "consentsNoCases": "This patient has no cases.",
-      "consentsComplete": "All signed"
+      "consentsComplete": "All signed",
+      "consentsSignBtn": "Sign consents"
     },
     "messaging": {
       "tooltipPatientMessages": "Patient messages",

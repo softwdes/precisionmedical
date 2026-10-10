@@ -287,6 +287,7 @@ export default async function DoctorMyDayPage({
     cancelledSameDay: a.cancelledSameDay,
     hasCharge: conCargo.has(a.id),
     patientPhotoUrl: fotos.get(a.patient.id) ?? null,
+    patientId: a.patient.id,
     patientFirstName: decryptFieldOrOriginal(a.patient.firstName) ?? '',
     patientLastName: decryptFieldOrOriginal(a.patient.lastName) ?? '',
     caseId: a.case?.id ?? null,

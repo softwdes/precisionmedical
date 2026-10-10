@@ -4565,7 +4565,8 @@
       "consentName_financial": "Política de crédito y cargos financieros",
       "consentName_medicalHistory": "Autorización de historial médico",
       "qrConsentsTitle": "Consentimientos sin firmar",
-      "qrConsentsBody": "Al paciente se los pedirán antes de firmar. Puedes resolverlos primero desde el caso, o entregarle el QR igual."
+      "qrConsentsBody": "Al paciente se los pedirán antes de firmar. Puedes resolverlos primero desde el caso, o entregarle el QR igual.",
+      "consentsSignNow": "Firmar"
     },
     "caseDetail": {
       "statusNewReferral": "Nuevo paciente",
@@ -5797,7 +5798,8 @@
       "consentsLoading": "Cargando…",
       "consentsError": "No se pudieron cargar los consentimientos.",
       "consentsNoCases": "Este paciente no tiene casos.",
-      "consentsComplete": "Todos firmados"
+      "consentsComplete": "Todos firmados",
+      "consentsSignBtn": "Firmar consentimientos"
     },
     "messaging": {
       "tooltipPatientMessages": "Mensajes del paciente",

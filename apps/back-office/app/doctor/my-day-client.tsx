@@ -24,6 +24,7 @@ import { CoverageChip } from '@/components/coverage/coverage-chip';
 import { OnlineBadge, OnlineMeetingBox } from '@/components/visit/online-visit';
 import { PendingNotes } from '@/components/visit/pending-notes';
 import { ConsentsChip } from '@/components/visit/consents-chip';
+import { CaseWizardDialog } from '@/components/cases/case-wizard-dialog';
 import { ReporteLabsDialog } from '@/components/visit/reporte-labs-dialog';
 import { ChargePickerDialog, type BillableItem } from '@/components/visit/charge-picker-dialog';
 import { busquedaDePenalidad } from '@/lib/penalidad';
@@ -136,6 +137,7 @@ export interface MyDayAppointment {
   patientDob: string | null;
   /** Foto de perfil del paciente, ya firmada. null = se dibujan las iniciales. */
   patientPhotoUrl?: string | null;
+  patientId: string;
   /** Cancelación del MISMO día: consumió el horario y corresponde penalidad. */
   cancelledSameDay?: boolean;
   /** Ya tiene algo facturado — lo usa el filtro "sin penalidad". */
@@ -227,6 +229,7 @@ export function MyDayClient({
    * pantalla ya ofrece los desenlaces que normalmente hace recepción.
    */
   const [qrTarget, setQrTarget] = React.useState<MyDayAppointment | null>(null);
+  const [consentTarget, setConsentTarget] = React.useState<MyDayAppointment | null>(null);
   /**
    * El reporte de laboratorios — alcance `mine`.
    *
@@ -671,7 +674,7 @@ export function MyDayClient({
                   {hero.hasTriage ? t('triageDone') : hero.isOnline ? t('triageOnlineNA') : t('triagePendingShort')}
                 </span>
                 <span>·</span>
-                {!hero.doctorDoneAt && <ConsentsChip faltan={hero.consentsMissing} />}
+                {!hero.doctorDoneAt && <ConsentsChip faltan={hero.consentsMissing} onClick={hero.caseId ? () => setConsentTarget(hero) : undefined} />}
                 <span className={hero.attendanceSignedAt ? undefined : 'text-amber font-semibold animate-pulse motion-reduce:animate-none'}>{hero.attendanceSignedAt ? t('attendanceSigned') : t('attendancePending')}</span>
                 <span>·</span>
                 <span>{hero.clinicName}</span>
@@ -931,8 +934,12 @@ export function MyDayClient({
                   {!a.doctorDoneAt && !a.attendanceSignedAt && (
                     <TagPill label={tc('unsignedBadge')} colorClass="bg-amber/15 text-amber border-amber/30 animate-pulse motion-reduce:animate-none" />
                   )}
-                  {!a.doctorDoneAt && <ConsentsChip faltan={a.consentsMissing} />}
                 </Link>
+                {/* FUERA del <Link>: con `onClick` el chip es un <button>, y un
+                    boton dentro de un <a> es HTML invalido — la misma razon por
+                    la que arriba no hay boton de copiar. Va en la caja de la
+                    fila, junto a los demas botones. */}
+                {!a.doctorDoneAt && <ConsentsChip faltan={a.consentsMissing} onClick={a.caseId ? () => setConsentTarget(a) : undefined} />}
                 {/* Mismo juego que la fila del mostrador, y por el mismo motivo:
                     si no hay asistente, el provider tiene que poder resolver la
                     cita igual.
@@ -1076,6 +1083,16 @@ export function MyDayClient({
 
       {/* QR de firma. Al cerrar se refresca: si el paciente firmó con el modal
           abierto, el chip de su fila tiene que irse sin recargar la pantalla. */}
+      {consentTarget?.caseId && (
+        <CaseWizardDialog
+          open
+          onOpenChange={(v) => { if (!v) setConsentTarget(null); }}
+          patient={{ id: consentTarget.patientId, firstName: consentTarget.patientFirstName, lastName: consentTarget.patientLastName }}
+          editCaseId={consentTarget.caseId}
+          startStep={2}
+          onSaved={() => { setConsentTarget(null); router.refresh(); }}
+        />
+      )}
       {qrTarget && (
         <AppointmentSignQrDialog
           open

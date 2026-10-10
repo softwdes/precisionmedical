@@ -39,6 +39,8 @@ interface Props {
   // Edit mode — pass caseId to edit instead of create
   editCaseId?:  string;
   onSaved?:     () => void;
+  /** Al editar, en qué paso abre (2 = consentimientos). Por defecto el 1. */
+  startStep?:   1 | 2 | 3;
 }
 
 interface ResponsiblePerson {
@@ -160,7 +162,7 @@ function ConsentBlock({
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editCaseId, onSaved }: Props) {
+export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editCaseId, onSaved, startStep }: Props) {
   const serverError = useServerError();
   const t      = useTranslations('caseWizard');
   const router = useRouter();
@@ -225,6 +227,7 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
     }
     // In edit mode, fetch existing data to pre-populate
     if (isEdit && editCaseId) {
+      if (startStep) setStep(startStep);
       fetch(`/api/admin/cases/${editCaseId}`)
         .then(r => r.json())
         .then(j => {

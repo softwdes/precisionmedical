@@ -36,6 +36,7 @@ import { ChargePickerDialog, type BillableItem } from '@/components/visit/charge
 import { busquedaDePenalidad, itemDePenalidad } from '@/lib/penalidad';
 import { PenaltyDialog } from '@/components/visit/penalty-dialog';
 import { ConsentsChip } from '@/components/visit/consents-chip';
+import { CaseWizardDialog } from '@/components/cases/case-wizard-dialog';
 import { conCasoAbierto } from '@/lib/case-modal-url';
 import { agregarCargo, leerCargos, mapaDeCargos, type PlannedService, type CargoEfectivo } from '@/lib/charges';
 import type { CoverageDTO } from '@/lib/coverage';
@@ -248,7 +249,7 @@ function SelectorDeProvider({ appointmentId }: { appointmentId: string }): React
 }
 
 function ApptCard({
-  appt, onCheckIn, checkingIn, onDesenlace, onCobrar, onPenalidad, onSignQr,
+  appt, onCheckIn, checkingIn, onDesenlace, onCobrar, onPenalidad, onSignQr, onConsents,
 }: {
   appt: AdmissionAppt;
   onCheckIn: (id: string) => void;
@@ -292,6 +293,8 @@ function ApptCard({
    * ya tiene cuatro botones que en 375px envuelven.
    */
   onSignQr?: (appt: AdmissionAppt) => void;
+  /** Abre el formulario del caso en el paso de consentimientos. */
+  onConsents?: (appt: AdmissionAppt) => void;
 }) {
   const router = useRouter();
   const t  = useTranslations('phoenix.admission');
@@ -456,7 +459,7 @@ function ApptCard({
                 Solo mientras la visita está en pie: sobre una cancelada o un
                 no-show, "Sin firmar" es ruido sobre algo que nunca se iba a firmar. */}
             {!noOcurrio && appt.status !== 'COMPLETED' && (
-              <ConsentsChip faltan={appt.case?.consentsMissing ?? []} />
+              <ConsentsChip faltan={appt.case?.consentsMissing ?? []} onClick={onConsents ? () => onConsents(appt) : undefined} />
             )}
             {!noOcurrio && appt.status !== 'COMPLETED' && (
               appt.attendanceSignedAt ? (
@@ -678,6 +681,7 @@ export function AdmissionClient() {
   const [desenlaceTarget, setDesenlaceTarget] = useState<{ appt: AdmissionAppt; tipo: Desenlace } | null>(null);
   /** Cita cuyo QR de firma está abierto. Uno solo a la vez, como el confirm. */
   const [qrTarget, setQrTarget] = useState<AdmissionAppt | null>(null);
+  const [consentTarget, setConsentTarget] = useState<AdmissionAppt | null>(null);
   const [sellando, setSellando] = useState(false);
   /**
    * Cita a la que hay que ponerle la penalidad. Se abre APENAS se sella el
@@ -1297,6 +1301,7 @@ export function AdmissionClient() {
                     onCobrar={cobrarDesenlace}
                       /* Llegó y todavía no pasó: es la ventana exacta de la firma. */
                       onSignQr={setQrTarget}
+                      onConsents={setConsentTarget}
                     />
                   ))}
                 </div>
@@ -1324,6 +1329,7 @@ export function AdmissionClient() {
                       /* Todavía no llegó, pero recepción puede tener el QR listo
                          —o mandárselo— antes de que entre por la puerta. */
                       onSignQr={setQrTarget}
+                      onConsents={setConsentTarget}
                     />
                   ))}
                 </div>
@@ -1638,6 +1644,16 @@ export function AdmissionClient() {
         {/* QR de firma. Al cerrarlo se refresca la cola: si el paciente firmó
             mientras el modal estaba abierto, el chip de su fila tiene que
             cambiar sin que nadie recargue la pantalla. */}
+        {consentTarget?.case && (
+          <CaseWizardDialog
+            open
+            onOpenChange={(v) => { if (!v) setConsentTarget(null); }}
+            patient={consentTarget.patient}
+            editCaseId={consentTarget.case.id}
+            startStep={2}
+            onSaved={() => { setConsentTarget(null); void load(); }}
+          />
+        )}
         {qrTarget && (
           <AppointmentSignQrDialog
             open

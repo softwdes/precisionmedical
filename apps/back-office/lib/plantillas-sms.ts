@@ -6,15 +6,25 @@
  *
  * ── Cómo convive con el código que ya manda ─────────────────────────────────
  *
- * El texto por defecto SIGUE viviendo en `portal-message.ts`, en las funciones
- * que ya estaban. Acá abajo hay una copia de ese texto en forma de plantilla, y
- * una prueba verifica que las dos rindan **exactamente lo mismo** — si alguien
- * cambia una y no la otra, esa prueba se pone roja.
+ * ⚠️ Este comentario decía que el texto "sigue viviendo en `portal-message.ts`"
+ * y que **una prueba verifica que las dos versiones rindan lo mismo**. Las dos
+ * cosas eran falsas el 2026-10-09, y lo medí antes de tocar nada:
  *
- * Esa duplicación es deliberada y es lo que hace el cambio seguro: mientras
- * nadie edite nada, el SMS que sale es el que salía, por el mismo camino de
- * siempre. La plantilla solo entra en juego cuando existe una fila editada, y
- * "restaurar el original" es **borrar la fila**, no copiar un texto de vuelta.
+ *   · esa prueba NO existe — `renderPlantilla` solo se usa acá y en el editor;
+ *   · `buildAppointmentReminderSms` y `buildAppointmentRescheduleSms`, las dos
+ *     funciones de `portal-message.ts` que supuestamente mandan, **ya no las
+ *     llama nadie**: solo aparecen nombradas dentro de comentarios.
+ *
+ * Quien manda el SMS es `recordatorio-cita.ts` → `armarSmsDeLaBase` → esto.
+ * O sea que **el texto de acá abajo ES el que le llega al paciente**, y la
+ * copia de `portal-message.ts` quedó muerta con la redacción vieja.
+ *
+ * Lo dejo escrito porque el comentario viejo invitaba a cambiar una de las dos
+ * y confiar en que una prueba avisaría. No hay tal prueba.
+ *
+ * Lo que sí sigue siendo cierto: la fila editada solo entra en juego cuando
+ * existe, y "restaurar el original" es **borrar la fila**, no copiar un texto
+ * de vuelta.
  *
  * ── La sintaxis, y por qué tiene condicionales ──────────────────────────────
  *
@@ -122,8 +132,8 @@ export const CIERRE: Record<LangPlantilla, string> = {
  */
 export const DEFAULTS: Record<ClavePlantilla, Record<LangPlantilla, string>> = {
   cita_alta: {
-    en: 'Precision Medical: {?paciente}Appointment for {paciente}{/paciente}{?!paciente}Your appointment is{/!paciente} {fecha}, {sede}{?direccion}, {direccion}{/direccion}. Arrive at {horaLlegada} for check-in; 15+ min late may be rescheduled.{?telefono} Questions: {telefono}.{/telefono}',
-    es: 'Precision Medical: {?paciente}Cita de {paciente}{/paciente}{?!paciente}Su cita es{/!paciente} el {fecha}, {sede}{?direccion}, {direccion}{/direccion}. Llegue {horaLlegada} para el registro; 15+ min tarde puede reprogramarse.{?telefono} Consultas: {telefono}.{/telefono}',
+    en: 'Precision Medical: {?paciente}Appointment for {paciente} is on{/paciente}{?!paciente}Your appointment is on{/!paciente} {fecha}, {sede}{?direccion}, {direccion}{/direccion}. Arrive at {horaLlegada} for check-in; 15+ min late may be rescheduled.{?telefono} Questions: {telefono}.{/telefono}',
+    es: 'Precision Medical: {?paciente}Cita de {paciente}{/paciente}{?!paciente}Su cita es{/!paciente} el {fecha}, {sede}{?direccion}, {direccion}{/direccion}. Llegue a las {horaLlegada} para el registro; 15+ min tarde puede reprogramarse.{?telefono} Consultas: {telefono}.{/telefono}',
   },
   cita_alta_online: {
     en: 'Precision Medical: {?paciente}Appointment for {paciente}{/paciente}{?!paciente}Your appointment{/!paciente} is a video visit on {fecha}. {?enlace}Join from: {enlace}{/enlace}{?!enlace}The clinic will contact you at that time.{/!enlace}{?telefono} Questions: {telefono}.{/telefono}',
@@ -131,14 +141,14 @@ export const DEFAULTS: Record<ClavePlantilla, Record<LangPlantilla, string>> = {
   },
   cita_cambio: {
     en: 'Precision Medical: {?paciente}The appointment for {paciente}{/paciente}{?!paciente}Your appointment{/!paciente} CHANGED. It is now {fecha}, {sede}{?direccion}, {direccion}{/direccion}. Arrive at {horaLlegada} for check-in.{?fechaAnterior} This replaces the one on {fechaAnterior}.{/fechaAnterior}{?telefono} Questions: {telefono}.{/telefono}',
-    es: 'Precision Medical: {?paciente}La cita de {paciente}{/paciente}{?!paciente}Su cita{/!paciente} CAMBIO de fecha. Ahora es el {fecha}, {sede}{?direccion}, {direccion}{/direccion}. Llegue {horaLlegada} para el registro.{?fechaAnterior} Reemplaza la del {fechaAnterior}.{/fechaAnterior}{?telefono} Consultas: {telefono}.{/telefono}',
+    es: 'Precision Medical: {?paciente}La cita de {paciente}{/paciente}{?!paciente}Su cita{/!paciente} CAMBIO de fecha. Ahora es el {fecha}, {sede}{?direccion}, {direccion}{/direccion}. Llegue a las {horaLlegada} para el registro.{?fechaAnterior} Reemplaza la del {fechaAnterior}.{/fechaAnterior}{?telefono} Consultas: {telefono}.{/telefono}',
   },
   cita_cambio_online: {
     en: 'Precision Medical: {?paciente}The appointment for {paciente}{/paciente}{?!paciente}Your appointment{/!paciente} CHANGED. It is now a video visit on {fecha}.{?fechaAnterior} This replaces the one on {fechaAnterior}.{/fechaAnterior} {?enlace}Join from: {enlace}{/enlace}{?!enlace}The clinic will contact you at that time.{/!enlace}{?telefono} Questions: {telefono}.{/telefono}',
     es: 'Precision Medical: {?paciente}La cita de {paciente}{/paciente}{?!paciente}Su cita{/!paciente} CAMBIO de fecha. Ahora es por videollamada el {fecha}.{?fechaAnterior} Reemplaza la del {fechaAnterior}.{/fechaAnterior} {?enlace}Conectese desde: {enlace}{/enlace}{?!enlace}La clinica lo contactara a esa hora.{/!enlace}{?telefono} Consultas: {telefono}.{/telefono}',
   },
   cita_alta_labs: {
-    en: 'Precision Medical: {?paciente}Lab visit for {paciente}{/paciente}{?!paciente}Your lab visit is{/!paciente} {fecha}, {sede}{?direccion}, {direccion}{/direccion}. This visit is ONLY for a blood draw. Come at {horaLlegada} sharp; no need to arrive early.{?telefono} Questions: {telefono}.{/telefono}',
+    en: 'Precision Medical: {?paciente}Lab visit for {paciente} is on{/paciente}{?!paciente}Your lab visit is on{/!paciente} {fecha}, {sede}{?direccion}, {direccion}{/direccion}. This visit is ONLY for a blood draw. Come at {horaLlegada} sharp; no need to arrive early.{?telefono} Questions: {telefono}.{/telefono}',
     es: 'Precision Medical: {?paciente}Analisis de {paciente}{/paciente}{?!paciente}Su analisis es{/!paciente} el {fecha}, {sede}{?direccion}, {direccion}{/direccion}. Esta visita es SOLO para sacarle sangre. Venga a las {horaLlegada} en punto; no hace falta llegar antes.{?telefono} Consultas: {telefono}.{/telefono}',
   },
   cita_cambio_labs: {

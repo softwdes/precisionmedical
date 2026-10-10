@@ -69,6 +69,16 @@ export interface FilaCobranza {
   /** Cuántos casos suyos tienen saldo — decide si el cobro tiene que elegir. */
   casosConDeuda: number;
   /**
+   * Tiene crédito retenido en CBO: **no se le cobra el copago**.
+   *
+   * Viaja en la fila y no a pedido porque Cobranzas es una LISTA: la marca
+   * sirve si se lee de un vistazo, sin abrir nada. Y acá hay que escribirla a
+   * mano — esta consulta es SQL crudo, así que una columna nueva del paciente
+   * NO llega sola como sí llega a la ficha, que va por `include` de Prisma.
+   */
+  creditOnFile: boolean;
+  creditOnFileNote: string | null;
+  /**
    * El caso a cobrar cuando hay UNO SOLO con saldo — el 95% de los que deben
    * (2.193 de 2.300, medido). Evita un viaje al servidor para abrir el modal.
    *
@@ -169,6 +179,7 @@ export async function paginaDeCobranzas({
       SELECT
         pa.id, pa."patientCode", pa."firstName", pa."lastName",
         pa.email, pa.phone, pa.phone2,
+        pa."creditOnFile", pa."creditOnFileNote",
         COALESCE(pl.total, 0)::float8        AS total,
         COALESCE(pl.pagado, 0)::float8       AS pagado,
         (COALESCE(pl.total, 0) - COALESCE(pl.pagado, 0) - COALESCE(pl.deuda, 0))::float8 AS descontado,
@@ -202,6 +213,8 @@ export async function paginaDeCobranzas({
       descontado:    Number(f.descontado ?? 0),
       deuda:         Number(f.deuda ?? 0),
       casosConDeuda: Number(f.casos_con_deuda ?? 0),
+      creditOnFile:     Boolean(f.creditOnFile),
+      creditOnFileNote: (f.creditOnFileNote as string | null) ?? null,
       unicoCaseId:   (f.unico_case_id as string | null) ?? null,
       bufetes:       (f.bufetes as string | null) ?? null,
       seguros:       (f.seguros as string | null) ?? null,

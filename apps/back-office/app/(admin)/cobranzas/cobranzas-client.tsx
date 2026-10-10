@@ -32,8 +32,9 @@ import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Search, Loader2, ChevronRight, ChevronDown, DollarSign,
-  Wallet, HandCoins, Scale, ChevronLeft, RefreshCw, AlertTriangle,
+  Wallet, HandCoins, Scale, ChevronLeft, RefreshCw, AlertTriangle, PiggyBank,
 } from 'lucide-react';
+import { MarcaCredito } from '@/components/patients/marca-credito';
 import { Button } from '@precision/ui';
 import {
   PageHeader, KpiCard, DataTable, TableFooter, EmptyState, PersonAvatar, Skeleton,
@@ -68,6 +69,11 @@ interface Fila {
   seguros: string | null;
   /** Selfie del paciente, firmada. Solo el 17,3% tiene; el resto son iniciales. */
   photoUrl: string | null;
+  /** Tiene crédito retenido en CBO: **no se le cobra el copago**. Se lee en la
+   *  fila, sin desplegar — en una cola de cientos, una marca que obliga a abrir
+   *  cada paciente no se mira. Ver `MarcaCredito`. */
+  creditOnFile: boolean;
+  creditOnFileNote: string | null;
 }
 
 interface Resumen {
@@ -446,6 +452,10 @@ export function CobranzasClient() {
                       onCobrarVisita={(caseId, appointmentId) =>
                         setCobrando({ caseId, patientId: f.patientId, appointmentId })}
                       onRevertir={setRevirtiendo}
+                      onCreditoCambio={({ marcado, nota }) => setFilas(prev => prev.map(x =>
+                        x.patientId === f.patientId
+                          ? { ...x, creditOnFile: marcado, creditOnFileNote: nota }
+                          : x))}
                       onCargosCaso={(caseId, caseCode) => setCargosDe({
                         caseId, caseCode,
                         paciente: `${f.firstName} ${f.lastName}`.trim(),
@@ -571,7 +581,7 @@ type Traducir = ReturnType<typeof useTranslations>;
 
 function FilaPaciente({
   f, abierta, detalle, cargandoDetalle, onAlternar, onFoto, onCobrar, onCobrarCaso, onCobrarVisita, onCargosCaso,
-  onRevertir, t, tc,
+  onRevertir, onCreditoCambio, t, tc,
 }: {
   f: Fila;
   abierta: boolean;
@@ -586,6 +596,15 @@ function FilaPaciente({
   onCobrarVisita: (caseId: string, appointmentId: string | null) => void;
   /** Deshacer un cobro desde el desplegable, sin entrar al caso. */
   onRevertir: (pago: PagoARevertir) => void;
+  /**
+   * La marca de crédito cambió — hay que repintar la fila.
+   *
+   * `MarcaCredito` llama a `router.refresh()`, y acá eso NO alcanza: esta lista
+   * no viene de props del servidor sino de un `fetch`, así que el refresh del
+   * router no la toca y la pastilla quedaría como estaba hasta recargar a mano.
+   * Es la misma trampa que ya se pisó en la ficha, por la otra puerta.
+   */
+  onCreditoCambio: (estado: { marcado: boolean; nota: string | null }) => void;
   t: Traducir;
   tc: Traducir;
 }) {
@@ -637,6 +656,27 @@ function FilaPaciente({
               <span className="block text-text-1 truncate">{nombre || '—'}</span>
               {f.patientCode && (
                 <span className="block text-[10px] font-mono text-text-muted">{f.patientCode}</span>
+              )}
+              {/*
+                La marca de crédito, en la FILA y no solo adentro del desplegado.
+
+                Cobranzas es una cola de miles: una marca que obliga a abrir
+                paciente por paciente para verla, no se mira. Acá se lee de un
+                vistazo mientras se recorre la lista, que es cuando sirve —
+                justo antes de decidir si se le pide el copago.
+
+                El `title` lleva la nota entera: la pastilla es corta por el
+                ancho de la columna, y el texto que escribió cobranza es lo que
+                de verdad explica de qué crédito se trata.
+              */}
+              {f.creditOnFile && (
+                <span
+                  title={f.creditOnFileNote ?? t('creditPillHint')}
+                  className="inline-flex items-center gap-1 mt-0.5 rounded px-1.5 py-0.5 bg-amber/15 text-amber text-[10px] font-semibold uppercase tracking-wider"
+                >
+                  <PiggyBank className="w-2.5 h-2.5" />
+                  {t('creditPill')}
+                </span>
               )}
             </button>
           </div>
@@ -707,6 +747,26 @@ function FilaPaciente({
               <p className="text-text-muted text-xs py-2">{t('detailError')}</p>
             ) : (
               <div className="space-y-4">
+                {/*
+                  La marca de crédito, para PONERLA y sacarla.
+
+                  Va primera y arriba de los casos a propósito: contesta la
+                  pregunta que viene antes que cualquier monto —¿a esta persona
+                  le pido el copago o no?—, y si estuviera abajo de la lista de
+                  casos habría que bajar para encontrar la respuesta.
+
+                  Es el MISMO componente que la ficha del paciente, no una copia:
+                  pega contra la misma ruta y escribe el mismo audit log. Dos
+                  pantallas con dos implementaciones de esto serían dos lugares
+                  donde acordarse de cambiarla.
+                */}
+                <MarcaCredito
+                  patientId={f.patientId}
+                  activo={f.creditOnFile}
+                  nota={f.creditOnFileNote}
+                  onCambio={onCreditoCambio}
+                />
+
                 {/* Los casos. Con más de uno con saldo, el cobro se elige acá:
                     un pago no puede repartirse entre dos casos. */}
                 {detalle.casos.length > 0 && (

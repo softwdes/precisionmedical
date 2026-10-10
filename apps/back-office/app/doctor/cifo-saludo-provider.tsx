@@ -62,6 +62,9 @@ export interface DatosSaludoProvider {
     monto: number;
     marcado: boolean;
     nota: string | null;
+    /** El signo contrario: tiene crédito en CBO, NO se le pide el copago. */
+    credito: boolean;
+    notaCredito: string | null;
   }>;
 }
 
@@ -102,6 +105,28 @@ export function CifoSaludoProvider({ datos }: { datos: DatosSaludoProvider }): R
    * para ser una tabla, y hay una pantalla para eso.
    */
   for (const c of datos.cobrar.slice(0, 2)) {
+    /**
+     * El que tiene crédito en CBO NO es un aviso de cobro, y acá importa más
+     * que en recepción: al provider esta lista le llega para que sepa a quién
+     * mandar por caja antes de atenderlo. Mandar al que tiene crédito es
+     * mandarlo a que le pidan una plata que no hay que pedirle.
+     *
+     * Se le dice igual, sin rojo y sin monto: es contexto del paciente que
+     * tiene enfrente, no una tarea suya.
+     */
+    if (c.credito) {
+      lineas.push({
+        texto: c.notaCredito
+          ? t('saludoProvCreditoNota', { paciente: c.nombre, nota: c.notaCredito })
+          : t('saludoProvCredito', { paciente: c.nombre }),
+        boton: {
+          etiqueta: t('saludoProvVerFicha'),
+          ir: () => router.push(`/doctor/patients/${c.patientId}`),
+        },
+      });
+      continue;
+    }
+
     lineas.push({
       texto: c.nota
         // La nota que escribió una persona gana sobre cualquier número: dice

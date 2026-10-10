@@ -539,7 +539,9 @@
       "vColPending": "Pendiente",
       "vCharges": "{count, plural, one {# cargo} other {# cargos}}",
       "vSeePayments": "Ver los pagos de esta visita",
-      "vPaymentsOfVisit": "Pagos de esta visita"
+      "vPaymentsOfVisit": "Pagos de esta visita",
+      "creditPill": "Crédito CBO",
+      "creditPillHint": "Tiene crédito a favor en cobranza — no cobrarle el copago."
     },
     "notesAudit": {
       "subtitleProviders": "Cuánto escribió cada provider, y qué dejó abierto.",
@@ -4028,7 +4030,11 @@
       "cifoSinSaldo": "La cuenta del proveedor se quedó sin saldo. Reintentar no va a servir: hay que recargarla.",
       "cifoSinClave": "El proveedor rechazó la clave. Avisale a sistemas.",
       "novedadTitular": "Ciberseguridad está aquí",
-      "novedadSubtitulo": "Ya podés activar el doble factor desde tu cuenta."
+      "novedadSubtitulo": "Ya podés activar el doble factor desde tu cuenta.",
+      "saludoCredito": "{paciente} viene hoy — no le cobres el copago, tiene crédito en cobranza",
+      "saludoCreditoNota": "{paciente} viene hoy — no le cobres el copago. {nota}",
+      "saludoProvCredito": "{paciente} tiene crédito en cobranza — no se le cobra el copago",
+      "saludoProvCreditoNota": "{paciente} tiene crédito en cobranza — no se le cobra el copago. {nota}"
     },
     "calendar": {
       "weekdays": {
@@ -7513,7 +7519,19 @@
       "marcaPlaceholder": "Qué hay que saber al recibirlo. Ej: no atender sin un pago a cuenta del saldo.",
       "marcaAyuda": "Esto es lo que va a leer quien lo reciba, en el saludo de CIFO.",
       "marcaSinPermiso": "No tenés permiso para cambiar esto. Lo hace recepción.",
-      "marcaError": "No se pudo guardar. Probá de nuevo."
+      "marcaError": "No se pudo guardar. Probá de nuevo.",
+      "creditoTitulo": "Crédito a favor en cobranza",
+      "creditoInstruccion": "No cobrarle el copago.",
+      "creditoQuitar": "Crédito aplicado",
+      "creditoQuitando": "Sacando…",
+      "creditoSoloRecepcion": "La pone cobranza.",
+      "creditoGuardar": "Marcar",
+      "creditoGuardando": "Guardando…",
+      "creditoCancelar": "Cancelar",
+      "creditoPlaceholder": "De qué crédito se trata. Ej: crédito en CBO desde la visita del 7/7 — copago y deducible.",
+      "creditoAyuda": "Esto es lo que va a leer quien lo reciba, en el saludo de CIFO.",
+      "creditoSinPermiso": "No tenés permiso para cambiar esto. Lo hace cobranza.",
+      "creditoError": "No se pudo guardar. Probá de nuevo."
     },
     "rewards": {
       "title": "Mis premios",

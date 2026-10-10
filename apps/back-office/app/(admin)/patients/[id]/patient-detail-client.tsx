@@ -48,6 +48,7 @@ import {
   AvisoDeSaldo, AvisoProximaCita, type CitaDeAviso,
 } from '@/components/patients/avisos-del-paciente';
 import { MarcaCobro } from '@/components/patients/marca-cobro';
+import { MarcaCredito } from '@/components/patients/marca-credito';
 
 // ─── Tipos derivados del include de Prisma ────────────────────────────────────
 
@@ -98,6 +99,12 @@ interface PatientData {
    *  (de $1.377.546 de deuda, $164,81 son del mostrador). Ver `MarcaCobro`. */
   collectBeforeVisit: boolean;
   collectBeforeVisitNote: string | null;
+  /** El espejo de la de arriba: tiene crédito retenido en CBO, así que al
+   *  mostrador NO se le pide el copago. No cambia el saldo —la plata no la
+   *  tiene la clínica hasta que CBO la aplique—, solo dice por qué está
+   *  esperando. Ver `MarcaCredito`. */
+  creditOnFile: boolean;
+  creditOnFileNote: string | null;
   preferredLanguage: string | null;
   emergencyContactName: string | null;
   emergencyContactPhone: string | null;
@@ -333,6 +340,21 @@ export function PatientDetailClient({
               nota={patient.collectBeforeVisitNote}
               soloLectura={doctorMode}
               onCambio={({ marcado }) => setHayMarca(marcado)}
+            />
+            {/* El espejo: "tiene crédito en CBO, no le cobres el copago".
+                Va pegada a la de arriba porque son la misma decisión mirada
+                desde los dos lados —cobrarle o no cobrarle— y quien está en el
+                mostrador tiene que verlas juntas o no verlas sirve de poco.
+
+                No alimenta el botón "Cobrar" de la cabecera a propósito: el
+                saldo sigue existiendo y puede haber OTRA cosa que cobrar
+                (un brace, un lab, una penalidad). Esta marca habla del copago,
+                no de toda la cuenta. */}
+            <MarcaCredito
+              patientId={patient.id}
+              activo={patient.creditOnFile}
+              nota={patient.creditOnFileNote}
+              soloLectura={doctorMode}
             />
             {/**
               * Cobrar sin salir de la ficha.

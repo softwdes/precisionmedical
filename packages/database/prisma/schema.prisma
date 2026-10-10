@@ -865,6 +865,38 @@ model Patient {
   collectBeforeVisitBy   String?
   collectBeforeVisitAt   DateTime?
 
+  // ─── Crédito a favor en la compañía de cobranza ──────────────────────────
+  //
+  // El ESPEJO de la marca de arriba, con el signo invertido: aquélla dice
+  // *cobrale antes*, ésta dice **no le cobres el copago**.
+  //
+  // Viene de Darrell (cobranza), 2026-10-09, describiendo lo que ya hace en
+  // Medusa: *"We note in the patient's alert that the patient has a credit
+  // balance not to collect copays."* La plata no la tiene la clínica — está
+  // retenida a nombre del paciente en PHI, el software de CBO, y se aplica
+  // entre dos semanas y dos meses después.
+  //
+  // ⚠️ **Va en el PACIENTE y no en el cargo**, y esa es la decisión que importa.
+  // El crédito es de la persona, no de la visita: con la marca por cargo, un
+  // paciente con veinte visitas son veinte casillas que alguien tiene que
+  // acordarse de tildar. Y sobre todo, acá llega A TIEMPO — sale en el saludo
+  // de CIFO cuando el paciente llega, ANTES de que el mostrador le pida una
+  // plata que no hay que pedirle. En el cargo llegaría después, cuando cobranza
+  // revisa, que es tarde.
+  //
+  // El copago sigue figurando como saldo: se debe de verdad hasta que CBO
+  // aplique el crédito. Esta marca NO toca ningún saldo — solo dice por qué ese
+  // saldo está esperando, que es lo que hoy no se puede distinguir de un cargo
+  // que nadie cobró. Los deducibles caen en el mismo crédito (Darrell, ídem).
+  //
+  // Dueño y fecha, por lo mismo que la marca de arriba: es una instrucción
+  // sobre el dinero de una persona. No se borra sola.
+  creditOnFile     Boolean   @default(false)
+  /// Lo que hay que saber al recibirlo. Sale tal cual en el saludo de CIFO.
+  creditOnFileNote String?
+  creditOnFileBy   String?
+  creditOnFileAt   DateTime?
+
   // ─── EMR / Historial médico (JSON blob, Phase 1A) ───────────────────────
   medicalHistory Json?
 

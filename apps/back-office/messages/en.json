@@ -539,7 +539,9 @@
       "vColPending": "Pending",
       "vCharges": "{count, plural, one {# charge} other {# charges}}",
       "vSeePayments": "See the payments for this visit",
-      "vPaymentsOfVisit": "Payments for this visit"
+      "vPaymentsOfVisit": "Payments for this visit",
+      "creditPill": "CBO credit",
+      "creditPillHint": "Has credit on file with billing — do not collect the copay."
     },
     "notesAudit": {
       "subtitleProviders": "How much each provider wrote, and what they left open.",
@@ -4028,7 +4030,11 @@
       "cifoSinSaldo": "The provider account is out of credit. Retrying will not help — it needs to be topped up.",
       "cifoSinClave": "The provider rejected the key. Let IT know.",
       "novedadTitular": "Cybersecurity is here",
-      "novedadSubtitulo": "You can now turn on two-factor from your account."
+      "novedadSubtitulo": "You can now turn on two-factor from your account.",
+      "saludoCredito": "{paciente} is coming in today — do not collect the copay, they have credit on file with billing",
+      "saludoCreditoNota": "{paciente} is coming in today — do not collect the copay. {nota}",
+      "saludoProvCredito": "{paciente} has credit on file with billing — no copay is collected",
+      "saludoProvCreditoNota": "{paciente} has credit on file with billing — no copay is collected. {nota}"
     },
     "calendar": {
       "weekdays": {
@@ -7513,7 +7519,19 @@
       "marcaPlaceholder": "What to know when they arrive. E.g. do not see them without a payment toward the balance.",
       "marcaAyuda": "This is what whoever receives them will read, in CIFO's greeting.",
       "marcaSinPermiso": "You do not have permission to change this. The front desk does it.",
-      "marcaError": "Could not save. Try again."
+      "marcaError": "Could not save. Try again.",
+      "creditoTitulo": "Credit on file with billing",
+      "creditoInstruccion": "Do not collect the copay.",
+      "creditoQuitar": "Credit applied",
+      "creditoQuitando": "Removing…",
+      "creditoSoloRecepcion": "Billing sets this.",
+      "creditoGuardar": "Mark",
+      "creditoGuardando": "Saving…",
+      "creditoCancelar": "Cancel",
+      "creditoPlaceholder": "Which credit this is. E.g.: credit at CBO since the 7/7 visit — copay and deductible.",
+      "creditoAyuda": "This is what the person checking them in will read, in the CIFO greeting.",
+      "creditoSinPermiso": "You do not have permission to change this. Billing does.",
+      "creditoError": "Could not save. Try again."
     },
     "rewards": {
       "title": "My rewards",

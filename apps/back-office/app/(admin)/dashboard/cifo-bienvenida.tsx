@@ -47,6 +47,9 @@ export interface DatosBienvenida {
     monto: number;
     marcado: boolean;
     nota: string | null;
+    /** El signo contrario: tiene crédito en CBO, NO se le pide el copago. */
+    credito: boolean;
+    notaCredito: string | null;
   }>;
 }
 
@@ -95,6 +98,32 @@ export function CifoBienvenida({ datos }: { datos: DatosBienvenida }): React.Rea
    * Hasta tres: es el aviso, no la lista. La cola de cobranzas es la pantalla.
    */
   for (const c of datos.cobrar.slice(0, 3)) {
+    /**
+     * El crédito manda sobre el monto, y gana la línea.
+     *
+     * Si el paciente tiene crédito retenido en CBO, lo que recepción necesita
+     * saber es que NO le pida el copago — decirle el saldo al lado invita a
+     * pedírselo igual, que es exactamente lo que esta marca existe para evitar.
+     * El saldo no desaparece: sigue en la ficha, a un clic del botón de abajo.
+     *
+     * Y NO va en rojo. El rojo de este saludo significa "frená a esta persona";
+     * acá no hay que frenar a nadie, hay que no cobrarle. Pintarlo igual que una
+     * deuda es pedirle al mostrador que lea el texto completo para distinguir
+     * dos instrucciones opuestas, con el paciente enfrente.
+     */
+    if (c.credito) {
+      lineas.push({
+        texto: c.notaCredito
+          ? t('saludoCreditoNota', { paciente: c.nombre, nota: c.notaCredito })
+          : t('saludoCredito', { paciente: c.nombre }),
+        boton: {
+          etiqueta: t('saludoVerFicha'),
+          ir: () => router.push(`/patients/${c.patientId}`),
+        },
+      });
+      continue;
+    }
+
     lineas.push({
       texto: c.nota
         // Si alguien se tomó el trabajo de escribir por qué, eso es lo que hay
